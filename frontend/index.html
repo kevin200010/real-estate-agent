@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Property Listing Chatbot</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: auto; }
+    #chatInput { width: 100%; height: 80px; }
+    #mic { margin-left: 8px; }
+    #response { margin-top: 1em; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Property Listing Chatbot</h1>
+  <textarea id="chatInput" placeholder="Ask about properties"></textarea>
+  <button id="send">Send</button>
+  <button id="mic">🎙️</button>
+  <div id="response"></div>
+  <audio id="audio" controls></audio>
+
+  <script src="app.js"></script>
+</body>
+</html>

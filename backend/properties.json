@@ -1,0 +1,23 @@
+[
+  {
+    "id": "P1",
+    "location": "Seattle, WA",
+    "price": 750000,
+    "bedrooms": 3,
+    "description": "Charming 3-bedroom house near downtown Seattle with modern kitchen and backyard."
+  },
+  {
+    "id": "P2",
+    "location": "Portland, OR",
+    "price": 650000,
+    "bedrooms": 4,
+    "description": "Spacious 4-bedroom home in Portland with open floor plan and garage."
+  },
+  {
+    "id": "P3",
+    "location": "San Francisco, CA",
+    "price": 1200000,
+    "bedrooms": 2,
+    "description": "Modern condo in San Francisco with bay views and rooftop access."
+  }
+]
