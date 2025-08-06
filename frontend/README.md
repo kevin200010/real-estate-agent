@@ -13,3 +13,8 @@ This directory contains a minimal browser client that interacts with the backend
 3. Open [http://localhost:8001](http://localhost:8001) in a browser. Enter a question or use the microphone button to speak.
 
 The page sends requests to the backend's `/chat` and `/voice` endpoints and plays any audio response returned.
+
+## Mobile-friendly UI
+
+The interface uses a translucent, Apple-inspired design and adapts to both phones and laptops. On small screens the chat
+container expands to fill the viewport, giving a native-app feel.
