@@ -41,14 +41,16 @@ body {
 
 .message.user {
   align-self: flex-end;
-  background: rgba(202, 255, 207, 0.8);
+  background: rgba(202, 255, 207, 0.9);
+  color: #1a1a1a;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
 
 .message.bot {
   align-self: flex-start;
-  background: rgba(238, 238, 238, 0.8);
+  background: rgba(238, 238, 238, 0.9);
+  color: #1a1a1a;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
