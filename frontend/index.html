@@ -1,37 +1,81 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Property Chatbot</title>
+    <title>Real Estate Chatbot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap"
-      rel="stylesheet"
-    />
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   </head>
-  <body>
-    <div class="hero">
-      <header class="app-header">
-        <h1>DreamHome Chat</h1>
-        <p class="tagline">Find your perfect place</p>
-      </header>
-      <div class="chat-container">
-        <div id="chatWindow" class="chat-window"></div>
-        <div class="input-area">
-          <input
-            type="text"
-            id="chatInput"
-            placeholder="Ask about properties..."
-          />
-          <button id="send">Send</button>
-          <button id="mic">🎙️</button>
+  <body class="font-['Poppins'] min-h-screen relative overflow-hidden">
+    <!-- Background image with animated gradient overlay -->
+    <div
+      class="absolute inset-0 -z-20 bg-[url('https://images.unsplash.com/photo-1523217582562-09d0def993a6?auto=format&fit=crop&w=1350&q=80')] bg-cover bg-center slow-zoom"></div>
+    <div class="absolute inset-0 -z-10 opacity-70 animate-gradient"></div>
+
+    <main class="p-6 text-center text-white relative z-10">
+      <h1 class="text-3xl font-semibold mb-4 drop-shadow-lg">DreamHome Listings</h1>
+      <p class="max-w-xl mx-auto drop-shadow">Browse properties or chat with our assistant for personalized help.</p>
+    </main>
+
+    <!-- Toggle button centered at bottom -->
+    <div id="chatbot-toggle" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-20">
+      <button
+        class="w-14 h-14 rounded-full bg-blue-600 shadow-lg flex items-center justify-center text-white focus:outline-none"
+        aria-label="Open chat"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H9l-4 3v-3H4a2 2 0 01-2-2V5z" clip-rule="evenodd" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Centered chat widget overlay -->
+    <div
+      id="chatbot"
+      class="fixed inset-0 flex items-center justify-center bg-black/50 opacity-0 pointer-events-none transition-opacity duration-300 z-30"
+    >
+      <div
+        id="chatbot-box"
+        class="w-full max-w-md bg-white rounded-lg shadow-lg flex flex-col overflow-hidden transform scale-90 transition-transform duration-300"
+      >
+        <!-- Header -->
+        <div class="flex items-center justify-between bg-blue-600 text-white px-4 py-3">
+          <div class="flex items-center space-x-2">
+            <img
+              src="https://dummyimage.com/32x32/ffffff/1e3a8a&text=D"
+              alt="Logo"
+              class="h-8 w-8 rounded"
+            />
+            <span class="font-semibold">Ask Listings Assistant</span>
+          </div>
+          <button id="chatbot-close" class="text-white text-xl leading-none" aria-label="Close chat">&times;</button>
         </div>
-        <audio id="audio" hidden></audio>
+
+        <!-- Messages -->
+        <div id="chatbot-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"></div>
+
+        <!-- Input area -->
+        <form id="chatbot-form" class="flex items-center border-t p-3 space-x-2">
+          <input
+            id="chatbot-input"
+            type="text"
+            placeholder="Ask about a property..."
+            class="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none"
+          />
+          <button type="submit" class="text-blue-600 p-2" aria-label="Send message">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14A1 1 0 003 18h14a1 1 0 00.894-1.447l-7-14z" />
+            </svg>
+          </button>
+        </form>
       </div>
     </div>
+
     <script src="app.js"></script>
   </body>
 </html>
