@@ -3,11 +3,13 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import os
 import uuid
 from pathlib import Path
 from typing import List, Dict, Optional
 
 import boto3
+import requests
 from botocore.exceptions import NoCredentialsError
 
 
@@ -26,6 +28,26 @@ class PropertyRetriever:
             if all(word in text for word in q_words):  # partial AND match
                 results.append(p)
         return results[:limit]
+
+
+class RAGRetriever:
+    """Retrieve property listings from an external RAG service."""
+
+    def __init__(self, endpoint: str):
+        self.endpoint = endpoint
+
+    def search(self, query: str, limit: int = 3) -> List[Dict[str, object]]:
+        payload = {"query": query, "k": limit}
+        try:
+            resp = requests.post(self.endpoint, json=payload, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            if isinstance(data, dict):
+                return data.get("results", [])
+            return data
+        except Exception as exc:  # broad catch to keep chat running
+            print("RAG retrieval failed:", exc)
+            return []
 
 
 class LLMClient:
@@ -181,15 +203,18 @@ if __name__ == "__main__":
     main()
 
 
-# Add this at the end of property_chatbot.py (outside the classes)
+# Global chatbot instance reused by the web API
+# Prefer an external RAG service if configured; otherwise fall back to local data
+_rag_url = os.getenv("RAG_SERVER_URL")
+if _rag_url:
+    _retriever = RAGRetriever(_rag_url)
+else:
+    _data_path = Path(__file__).with_name("properties.json")
+    _retriever = PropertyRetriever(_data_path)
 
-from pathlib import Path
-
-# Load everything once
-_data_path = Path(__file__).with_name("properties.json")
-_retriever = PropertyRetriever(_data_path)
 _llm = LLMClient()
 _bot = PropertyChatbot(_retriever, _llm)
+
 
 async def process_user_query(query: str):
     response = _bot.ask_text(query)
