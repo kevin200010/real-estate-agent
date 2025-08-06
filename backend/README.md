@@ -11,10 +11,15 @@ This directory hosts the FastAPI service and supporting modules for the property
    export AWS_SECRET_ACCESS_KEY=...
    export AWS_DEFAULT_REGION=us-east-1
    ```
-2. (Optional) Point the chatbot at an external retrieval-augmented generation service:
+2. (Optional) Start the demo RAG server populated with 100 commercial listings:
+   ```bash
+   uvicorn rag_server:app --reload --port 8001
+   ```
+   Then point the chatbot at it:
    ```bash
    export RAG_SERVER_URL=http://localhost:8001/query
    ```
+   The server indexes `rag_data.json`, which contains 100 richly described properties for demo queries.
 
 ## Command line
 

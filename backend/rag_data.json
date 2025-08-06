@@ -1,0 +1,902 @@
+[
+  {
+    "id": "C1",
+    "address": "1053 Main St, San Diego, CA",
+    "price": 404000,
+    "sqft": 36937,
+    "type": "Land",
+    "description": "36,937 sq ft land space located in the heart of San Diego. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Diego.",
+    "image": "https://placehold.co/400x300?text=Property+1"
+  },
+  {
+    "id": "C2",
+    "address": "1273 Market St, Los Angeles, CA",
+    "price": 560000,
+    "sqft": 43372,
+    "type": "Land",
+    "description": "43,372 sq ft land space located in the heart of Los Angeles. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Los Angeles.",
+    "image": "https://placehold.co/400x300?text=Property+2"
+  },
+  {
+    "id": "C3",
+    "address": "1661 Market St, San Jose, CA",
+    "price": 1277000,
+    "sqft": 11139,
+    "type": "Mixed-use",
+    "description": "11,139 sq ft mixed-use space located in the heart of San Jose. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Jose.",
+    "image": "https://placehold.co/400x300?text=Property+3"
+  },
+  {
+    "id": "C4",
+    "address": "8076 Broadway, Jacksonville, FL",
+    "price": 503000,
+    "sqft": 29421,
+    "type": "Land",
+    "description": "29,421 sq ft land space located in the heart of Jacksonville. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Jacksonville.",
+    "image": "https://placehold.co/400x300?text=Property+4"
+  },
+  {
+    "id": "C5",
+    "address": "961 Elm St, Los Angeles, CA",
+    "price": 1317000,
+    "sqft": 3333,
+    "type": "Office",
+    "description": "3,333 sq ft office space located in the heart of Los Angeles. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Los Angeles.",
+    "image": "https://placehold.co/400x300?text=Property+5"
+  },
+  {
+    "id": "C6",
+    "address": "5542 Cedar Rd, San Diego, CA",
+    "price": 543000,
+    "sqft": 1141,
+    "type": "Industrial",
+    "description": "1,141 sq ft industrial space located in the heart of San Diego. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Diego.",
+    "image": "https://placehold.co/400x300?text=Property+6"
+  },
+  {
+    "id": "C7",
+    "address": "4701 Elm St, Columbus, OH",
+    "price": 1629000,
+    "sqft": 37953,
+    "type": "Mixed-use",
+    "description": "37,953 sq ft mixed-use space located in the heart of Columbus. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Columbus.",
+    "image": "https://placehold.co/400x300?text=Property+7"
+  },
+  {
+    "id": "C8",
+    "address": "1636 Cedar Rd, Chicago, IL",
+    "price": 1591000,
+    "sqft": 14490,
+    "type": "Industrial",
+    "description": "14,490 sq ft industrial space located in the heart of Chicago. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Chicago.",
+    "image": "https://placehold.co/400x300?text=Property+8"
+  },
+  {
+    "id": "C9",
+    "address": "3867 Main St, Houston, TX",
+    "price": 1809000,
+    "sqft": 10703,
+    "type": "Industrial",
+    "description": "10,703 sq ft industrial space located in the heart of Houston. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Houston.",
+    "image": "https://placehold.co/400x300?text=Property+9"
+  },
+  {
+    "id": "C10",
+    "address": "752 Main St, San Diego, CA",
+    "price": 1728000,
+    "sqft": 13005,
+    "type": "Office",
+    "description": "13,005 sq ft office space located in the heart of San Diego. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Diego.",
+    "image": "https://placehold.co/400x300?text=Property+10"
+  },
+  {
+    "id": "C11",
+    "address": "1946 Elm St, San Jose, CA",
+    "price": 1288000,
+    "sqft": 20292,
+    "type": "Retail",
+    "description": "20,292 sq ft retail space located in the heart of San Jose. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Jose.",
+    "image": "https://placehold.co/400x300?text=Property+11"
+  },
+  {
+    "id": "C12",
+    "address": "9167 Cedar Rd, Indianapolis, IN",
+    "price": 356000,
+    "sqft": 16266,
+    "type": "Land",
+    "description": "16,266 sq ft land space located in the heart of Indianapolis. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Indianapolis.",
+    "image": "https://placehold.co/400x300?text=Property+12"
+  },
+  {
+    "id": "C13",
+    "address": "3880 Main St, San Diego, CA",
+    "price": 565000,
+    "sqft": 40991,
+    "type": "Retail",
+    "description": "40,991 sq ft retail space located in the heart of San Diego. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Diego.",
+    "image": "https://placehold.co/400x300?text=Property+13"
+  },
+  {
+    "id": "C14",
+    "address": "1469 Elm St, Indianapolis, IN",
+    "price": 1558000,
+    "sqft": 11348,
+    "type": "Land",
+    "description": "11,348 sq ft land space located in the heart of Indianapolis. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Indianapolis.",
+    "image": "https://placehold.co/400x300?text=Property+14"
+  },
+  {
+    "id": "C15",
+    "address": "5998 Cedar Rd, San Jose, CA",
+    "price": 611000,
+    "sqft": 46612,
+    "type": "Retail",
+    "description": "46,612 sq ft retail space located in the heart of San Jose. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Jose.",
+    "image": "https://placehold.co/400x300?text=Property+15"
+  },
+  {
+    "id": "C16",
+    "address": "6038 Maple Ave, Indianapolis, IN",
+    "price": 233000,
+    "sqft": 23563,
+    "type": "Office",
+    "description": "23,563 sq ft office space located in the heart of Indianapolis. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Indianapolis.",
+    "image": "https://placehold.co/400x300?text=Property+16"
+  },
+  {
+    "id": "C17",
+    "address": "7726 Elm St, San Francisco, CA",
+    "price": 640000,
+    "sqft": 16019,
+    "type": "Retail",
+    "description": "16,019 sq ft retail space located in the heart of San Francisco. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Francisco.",
+    "image": "https://placehold.co/400x300?text=Property+17"
+  },
+  {
+    "id": "C18",
+    "address": "3808 Main St, Seattle, WA",
+    "price": 592000,
+    "sqft": 4434,
+    "type": "Mixed-use",
+    "description": "4,434 sq ft mixed-use space located in the heart of Seattle. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Seattle.",
+    "image": "https://placehold.co/400x300?text=Property+18"
+  },
+  {
+    "id": "C19",
+    "address": "7046 Market St, Dallas, TX",
+    "price": 335000,
+    "sqft": 11485,
+    "type": "Office",
+    "description": "11,485 sq ft office space located in the heart of Dallas. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Dallas.",
+    "image": "https://placehold.co/400x300?text=Property+19"
+  },
+  {
+    "id": "C20",
+    "address": "5662 Cedar Rd, Washington, DC",
+    "price": 1490000,
+    "sqft": 44606,
+    "type": "Office",
+    "description": "44,606 sq ft office space located in the heart of Washington. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Washington.",
+    "image": "https://placehold.co/400x300?text=Property+20"
+  },
+  {
+    "id": "C21",
+    "address": "1751 Maple Ave, San Antonio, TX",
+    "price": 293000,
+    "sqft": 6717,
+    "type": "Office",
+    "description": "6,717 sq ft office space located in the heart of San Antonio. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Antonio.",
+    "image": "https://placehold.co/400x300?text=Property+21"
+  },
+  {
+    "id": "C22",
+    "address": "1399 Main St, Austin, TX",
+    "price": 1557000,
+    "sqft": 21727,
+    "type": "Industrial",
+    "description": "21,727 sq ft industrial space located in the heart of Austin. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Austin.",
+    "image": "https://placehold.co/400x300?text=Property+22"
+  },
+  {
+    "id": "C23",
+    "address": "9337 Elm St, New York, NY",
+    "price": 271000,
+    "sqft": 12747,
+    "type": "Office",
+    "description": "12,747 sq ft office space located in the heart of New York. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in New York.",
+    "image": "https://placehold.co/400x300?text=Property+23"
+  },
+  {
+    "id": "C24",
+    "address": "3768 Elm St, Seattle, WA",
+    "price": 1476000,
+    "sqft": 42668,
+    "type": "Land",
+    "description": "42,668 sq ft land space located in the heart of Seattle. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Seattle.",
+    "image": "https://placehold.co/400x300?text=Property+24"
+  },
+  {
+    "id": "C25",
+    "address": "6483 Elm St, Austin, TX",
+    "price": 1921000,
+    "sqft": 9264,
+    "type": "Retail",
+    "description": "9,264 sq ft retail space located in the heart of Austin. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Austin.",
+    "image": "https://placehold.co/400x300?text=Property+25"
+  },
+  {
+    "id": "C26",
+    "address": "9663 Broadway, Philadelphia, PA",
+    "price": 517000,
+    "sqft": 19508,
+    "type": "Industrial",
+    "description": "19,508 sq ft industrial space located in the heart of Philadelphia. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Philadelphia.",
+    "image": "https://placehold.co/400x300?text=Property+26"
+  },
+  {
+    "id": "C27",
+    "address": "3955 Main St, Dallas, TX",
+    "price": 1796000,
+    "sqft": 12733,
+    "type": "Office",
+    "description": "12,733 sq ft office space located in the heart of Dallas. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Dallas.",
+    "image": "https://placehold.co/400x300?text=Property+27"
+  },
+  {
+    "id": "C28",
+    "address": "3408 Elm St, Denver, CO",
+    "price": 1951000,
+    "sqft": 40595,
+    "type": "Industrial",
+    "description": "40,595 sq ft industrial space located in the heart of Denver. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Denver.",
+    "image": "https://placehold.co/400x300?text=Property+28"
+  },
+  {
+    "id": "C29",
+    "address": "4072 Maple Ave, Columbus, OH",
+    "price": 1738000,
+    "sqft": 24659,
+    "type": "Office",
+    "description": "24,659 sq ft office space located in the heart of Columbus. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Columbus.",
+    "image": "https://placehold.co/400x300?text=Property+29"
+  },
+  {
+    "id": "C30",
+    "address": "1314 Maple Ave, Washington, DC",
+    "price": 422000,
+    "sqft": 14792,
+    "type": "Mixed-use",
+    "description": "14,792 sq ft mixed-use space located in the heart of Washington. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Washington.",
+    "image": "https://placehold.co/400x300?text=Property+30"
+  },
+  {
+    "id": "C31",
+    "address": "6814 Elm St, Charlotte, NC",
+    "price": 1432000,
+    "sqft": 17587,
+    "type": "Land",
+    "description": "17,587 sq ft land space located in the heart of Charlotte. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Charlotte.",
+    "image": "https://placehold.co/400x300?text=Property+31"
+  },
+  {
+    "id": "C32",
+    "address": "9083 Elm St, Austin, TX",
+    "price": 1239000,
+    "sqft": 36583,
+    "type": "Office",
+    "description": "36,583 sq ft office space located in the heart of Austin. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Austin.",
+    "image": "https://placehold.co/400x300?text=Property+32"
+  },
+  {
+    "id": "C33",
+    "address": "1856 Maple Ave, San Jose, CA",
+    "price": 1673000,
+    "sqft": 26802,
+    "type": "Office",
+    "description": "26,802 sq ft office space located in the heart of San Jose. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Jose.",
+    "image": "https://placehold.co/400x300?text=Property+33"
+  },
+  {
+    "id": "C34",
+    "address": "601 Market St, Chicago, IL",
+    "price": 270000,
+    "sqft": 4373,
+    "type": "Office",
+    "description": "4,373 sq ft office space located in the heart of Chicago. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Chicago.",
+    "image": "https://placehold.co/400x300?text=Property+34"
+  },
+  {
+    "id": "C35",
+    "address": "6852 Market St, Seattle, WA",
+    "price": 237000,
+    "sqft": 5126,
+    "type": "Retail",
+    "description": "5,126 sq ft retail space located in the heart of Seattle. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Seattle.",
+    "image": "https://placehold.co/400x300?text=Property+35"
+  },
+  {
+    "id": "C36",
+    "address": "4253 Cedar Rd, San Diego, CA",
+    "price": 299000,
+    "sqft": 19081,
+    "type": "Mixed-use",
+    "description": "19,081 sq ft mixed-use space located in the heart of San Diego. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Diego.",
+    "image": "https://placehold.co/400x300?text=Property+36"
+  },
+  {
+    "id": "C37",
+    "address": "7035 Maple Ave, San Antonio, TX",
+    "price": 619000,
+    "sqft": 4730,
+    "type": "Industrial",
+    "description": "4,730 sq ft industrial space located in the heart of San Antonio. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Antonio.",
+    "image": "https://placehold.co/400x300?text=Property+37"
+  },
+  {
+    "id": "C38",
+    "address": "2959 Main St, Chicago, IL",
+    "price": 1085000,
+    "sqft": 21683,
+    "type": "Office",
+    "description": "21,683 sq ft office space located in the heart of Chicago. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Chicago.",
+    "image": "https://placehold.co/400x300?text=Property+38"
+  },
+  {
+    "id": "C39",
+    "address": "3199 Main St, Charlotte, NC",
+    "price": 1124000,
+    "sqft": 42012,
+    "type": "Retail",
+    "description": "42,012 sq ft retail space located in the heart of Charlotte. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Charlotte.",
+    "image": "https://placehold.co/400x300?text=Property+39"
+  },
+  {
+    "id": "C40",
+    "address": "561 Cedar Rd, Indianapolis, IN",
+    "price": 1462000,
+    "sqft": 31652,
+    "type": "Office",
+    "description": "31,652 sq ft office space located in the heart of Indianapolis. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Indianapolis.",
+    "image": "https://placehold.co/400x300?text=Property+40"
+  },
+  {
+    "id": "C41",
+    "address": "9625 Main St, Fort Worth, TX",
+    "price": 798000,
+    "sqft": 40857,
+    "type": "Office",
+    "description": "40,857 sq ft office space located in the heart of Fort Worth. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Fort Worth.",
+    "image": "https://placehold.co/400x300?text=Property+41"
+  },
+  {
+    "id": "C42",
+    "address": "5960 Broadway, Washington, DC",
+    "price": 1029000,
+    "sqft": 12495,
+    "type": "Land",
+    "description": "12,495 sq ft land space located in the heart of Washington. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Washington.",
+    "image": "https://placehold.co/400x300?text=Property+42"
+  },
+  {
+    "id": "C43",
+    "address": "190 Maple Ave, San Antonio, TX",
+    "price": 1900000,
+    "sqft": 16453,
+    "type": "Retail",
+    "description": "16,453 sq ft retail space located in the heart of San Antonio. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Antonio.",
+    "image": "https://placehold.co/400x300?text=Property+43"
+  },
+  {
+    "id": "C44",
+    "address": "743 Elm St, Philadelphia, PA",
+    "price": 798000,
+    "sqft": 25180,
+    "type": "Industrial",
+    "description": "25,180 sq ft industrial space located in the heart of Philadelphia. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Philadelphia.",
+    "image": "https://placehold.co/400x300?text=Property+44"
+  },
+  {
+    "id": "C45",
+    "address": "2109 Cedar Rd, Chicago, IL",
+    "price": 1185000,
+    "sqft": 27255,
+    "type": "Mixed-use",
+    "description": "27,255 sq ft mixed-use space located in the heart of Chicago. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Chicago.",
+    "image": "https://placehold.co/400x300?text=Property+45"
+  },
+  {
+    "id": "C46",
+    "address": "9652 Maple Ave, San Diego, CA",
+    "price": 850000,
+    "sqft": 1610,
+    "type": "Industrial",
+    "description": "1,610 sq ft industrial space located in the heart of San Diego. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Diego.",
+    "image": "https://placehold.co/400x300?text=Property+46"
+  },
+  {
+    "id": "C47",
+    "address": "3983 Main St, Jacksonville, FL",
+    "price": 1398000,
+    "sqft": 31460,
+    "type": "Land",
+    "description": "31,460 sq ft land space located in the heart of Jacksonville. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Jacksonville.",
+    "image": "https://placehold.co/400x300?text=Property+47"
+  },
+  {
+    "id": "C48",
+    "address": "5515 Cedar Rd, Columbus, OH",
+    "price": 244000,
+    "sqft": 45809,
+    "type": "Office",
+    "description": "45,809 sq ft office space located in the heart of Columbus. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Columbus.",
+    "image": "https://placehold.co/400x300?text=Property+48"
+  },
+  {
+    "id": "C49",
+    "address": "347 Cedar Rd, Phoenix, AZ",
+    "price": 1502000,
+    "sqft": 25472,
+    "type": "Industrial",
+    "description": "25,472 sq ft industrial space located in the heart of Phoenix. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Phoenix.",
+    "image": "https://placehold.co/400x300?text=Property+49"
+  },
+  {
+    "id": "C50",
+    "address": "1552 Market St, Phoenix, AZ",
+    "price": 836000,
+    "sqft": 29549,
+    "type": "Land",
+    "description": "29,549 sq ft land space located in the heart of Phoenix. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Phoenix.",
+    "image": "https://placehold.co/400x300?text=Property+50"
+  },
+  {
+    "id": "C51",
+    "address": "9939 Cedar Rd, Denver, CO",
+    "price": 1578000,
+    "sqft": 4904,
+    "type": "Land",
+    "description": "4,904 sq ft land space located in the heart of Denver. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Denver.",
+    "image": "https://placehold.co/400x300?text=Property+51"
+  },
+  {
+    "id": "C52",
+    "address": "9811 Main St, New York, NY",
+    "price": 1493000,
+    "sqft": 4855,
+    "type": "Industrial",
+    "description": "4,855 sq ft industrial space located in the heart of New York. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in New York.",
+    "image": "https://placehold.co/400x300?text=Property+52"
+  },
+  {
+    "id": "C53",
+    "address": "6068 Cedar Rd, New York, NY",
+    "price": 1014000,
+    "sqft": 49852,
+    "type": "Office",
+    "description": "49,852 sq ft office space located in the heart of New York. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in New York.",
+    "image": "https://placehold.co/400x300?text=Property+53"
+  },
+  {
+    "id": "C54",
+    "address": "9825 Cedar Rd, Fort Worth, TX",
+    "price": 1544000,
+    "sqft": 24495,
+    "type": "Office",
+    "description": "24,495 sq ft office space located in the heart of Fort Worth. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Fort Worth.",
+    "image": "https://placehold.co/400x300?text=Property+54"
+  },
+  {
+    "id": "C55",
+    "address": "4924 Market St, Charlotte, NC",
+    "price": 260000,
+    "sqft": 8451,
+    "type": "Office",
+    "description": "8,451 sq ft office space located in the heart of Charlotte. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Charlotte.",
+    "image": "https://placehold.co/400x300?text=Property+55"
+  },
+  {
+    "id": "C56",
+    "address": "3907 Maple Ave, Columbus, OH",
+    "price": 779000,
+    "sqft": 26991,
+    "type": "Land",
+    "description": "26,991 sq ft land space located in the heart of Columbus. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Columbus.",
+    "image": "https://placehold.co/400x300?text=Property+56"
+  },
+  {
+    "id": "C57",
+    "address": "8436 Broadway, Washington, DC",
+    "price": 574000,
+    "sqft": 16143,
+    "type": "Office",
+    "description": "16,143 sq ft office space located in the heart of Washington. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Washington.",
+    "image": "https://placehold.co/400x300?text=Property+57"
+  },
+  {
+    "id": "C58",
+    "address": "891 Broadway, Los Angeles, CA",
+    "price": 990000,
+    "sqft": 31772,
+    "type": "Industrial",
+    "description": "31,772 sq ft industrial space located in the heart of Los Angeles. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Los Angeles.",
+    "image": "https://placehold.co/400x300?text=Property+58"
+  },
+  {
+    "id": "C59",
+    "address": "3395 Elm St, Seattle, WA",
+    "price": 231000,
+    "sqft": 29940,
+    "type": "Retail",
+    "description": "29,940 sq ft retail space located in the heart of Seattle. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Seattle.",
+    "image": "https://placehold.co/400x300?text=Property+59"
+  },
+  {
+    "id": "C60",
+    "address": "8412 Maple Ave, Phoenix, AZ",
+    "price": 866000,
+    "sqft": 7554,
+    "type": "Retail",
+    "description": "7,554 sq ft retail space located in the heart of Phoenix. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Phoenix.",
+    "image": "https://placehold.co/400x300?text=Property+60"
+  },
+  {
+    "id": "C61",
+    "address": "602 Elm St, Austin, TX",
+    "price": 738000,
+    "sqft": 25117,
+    "type": "Mixed-use",
+    "description": "25,117 sq ft mixed-use space located in the heart of Austin. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Austin.",
+    "image": "https://placehold.co/400x300?text=Property+61"
+  },
+  {
+    "id": "C62",
+    "address": "9379 Maple Ave, Washington, DC",
+    "price": 1858000,
+    "sqft": 12382,
+    "type": "Retail",
+    "description": "12,382 sq ft retail space located in the heart of Washington. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Washington.",
+    "image": "https://placehold.co/400x300?text=Property+62"
+  },
+  {
+    "id": "C63",
+    "address": "6904 Main St, San Francisco, CA",
+    "price": 1309000,
+    "sqft": 25705,
+    "type": "Mixed-use",
+    "description": "25,705 sq ft mixed-use space located in the heart of San Francisco. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Francisco.",
+    "image": "https://placehold.co/400x300?text=Property+63"
+  },
+  {
+    "id": "C64",
+    "address": "905 Maple Ave, Seattle, WA",
+    "price": 1825000,
+    "sqft": 2869,
+    "type": "Mixed-use",
+    "description": "2,869 sq ft mixed-use space located in the heart of Seattle. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Seattle.",
+    "image": "https://placehold.co/400x300?text=Property+64"
+  },
+  {
+    "id": "C65",
+    "address": "1231 Cedar Rd, Austin, TX",
+    "price": 485000,
+    "sqft": 13854,
+    "type": "Industrial",
+    "description": "13,854 sq ft industrial space located in the heart of Austin. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Austin.",
+    "image": "https://placehold.co/400x300?text=Property+65"
+  },
+  {
+    "id": "C66",
+    "address": "1415 Market St, San Antonio, TX",
+    "price": 900000,
+    "sqft": 41401,
+    "type": "Retail",
+    "description": "41,401 sq ft retail space located in the heart of San Antonio. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Antonio.",
+    "image": "https://placehold.co/400x300?text=Property+66"
+  },
+  {
+    "id": "C67",
+    "address": "7390 Broadway, Los Angeles, CA",
+    "price": 1689000,
+    "sqft": 43092,
+    "type": "Land",
+    "description": "43,092 sq ft land space located in the heart of Los Angeles. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Los Angeles.",
+    "image": "https://placehold.co/400x300?text=Property+67"
+  },
+  {
+    "id": "C68",
+    "address": "6662 Maple Ave, San Francisco, CA",
+    "price": 532000,
+    "sqft": 7799,
+    "type": "Land",
+    "description": "7,799 sq ft land space located in the heart of San Francisco. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Francisco.",
+    "image": "https://placehold.co/400x300?text=Property+68"
+  },
+  {
+    "id": "C69",
+    "address": "5571 Market St, San Diego, CA",
+    "price": 1645000,
+    "sqft": 8489,
+    "type": "Industrial",
+    "description": "8,489 sq ft industrial space located in the heart of San Diego. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Diego.",
+    "image": "https://placehold.co/400x300?text=Property+69"
+  },
+  {
+    "id": "C70",
+    "address": "9434 Market St, New York, NY",
+    "price": 1669000,
+    "sqft": 27406,
+    "type": "Industrial",
+    "description": "27,406 sq ft industrial space located in the heart of New York. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in New York.",
+    "image": "https://placehold.co/400x300?text=Property+70"
+  },
+  {
+    "id": "C71",
+    "address": "3198 Maple Ave, San Antonio, TX",
+    "price": 251000,
+    "sqft": 4091,
+    "type": "Mixed-use",
+    "description": "4,091 sq ft mixed-use space located in the heart of San Antonio. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Antonio.",
+    "image": "https://placehold.co/400x300?text=Property+71"
+  },
+  {
+    "id": "C72",
+    "address": "5019 Maple Ave, Indianapolis, IN",
+    "price": 1258000,
+    "sqft": 9173,
+    "type": "Office",
+    "description": "9,173 sq ft office space located in the heart of Indianapolis. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Indianapolis.",
+    "image": "https://placehold.co/400x300?text=Property+72"
+  },
+  {
+    "id": "C73",
+    "address": "5183 Maple Ave, San Jose, CA",
+    "price": 1384000,
+    "sqft": 47211,
+    "type": "Industrial",
+    "description": "47,211 sq ft industrial space located in the heart of San Jose. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Jose.",
+    "image": "https://placehold.co/400x300?text=Property+73"
+  },
+  {
+    "id": "C74",
+    "address": "8910 Main St, Dallas, TX",
+    "price": 501000,
+    "sqft": 39551,
+    "type": "Land",
+    "description": "39,551 sq ft land space located in the heart of Dallas. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Dallas.",
+    "image": "https://placehold.co/400x300?text=Property+74"
+  },
+  {
+    "id": "C75",
+    "address": "4608 Main St, Columbus, OH",
+    "price": 586000,
+    "sqft": 23917,
+    "type": "Land",
+    "description": "23,917 sq ft land space located in the heart of Columbus. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Columbus.",
+    "image": "https://placehold.co/400x300?text=Property+75"
+  },
+  {
+    "id": "C76",
+    "address": "1415 Maple Ave, Philadelphia, PA",
+    "price": 1781000,
+    "sqft": 14812,
+    "type": "Retail",
+    "description": "14,812 sq ft retail space located in the heart of Philadelphia. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Philadelphia.",
+    "image": "https://placehold.co/400x300?text=Property+76"
+  },
+  {
+    "id": "C77",
+    "address": "3076 Maple Ave, Phoenix, AZ",
+    "price": 995000,
+    "sqft": 45795,
+    "type": "Retail",
+    "description": "45,795 sq ft retail space located in the heart of Phoenix. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Phoenix.",
+    "image": "https://placehold.co/400x300?text=Property+77"
+  },
+  {
+    "id": "C78",
+    "address": "9253 Maple Ave, Washington, DC",
+    "price": 1278000,
+    "sqft": 32951,
+    "type": "Land",
+    "description": "32,951 sq ft land space located in the heart of Washington. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Washington.",
+    "image": "https://placehold.co/400x300?text=Property+78"
+  },
+  {
+    "id": "C79",
+    "address": "3768 Market St, San Francisco, CA",
+    "price": 1518000,
+    "sqft": 26903,
+    "type": "Mixed-use",
+    "description": "26,903 sq ft mixed-use space located in the heart of San Francisco. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Francisco.",
+    "image": "https://placehold.co/400x300?text=Property+79"
+  },
+  {
+    "id": "C80",
+    "address": "1338 Elm St, Indianapolis, IN",
+    "price": 1996000,
+    "sqft": 40319,
+    "type": "Land",
+    "description": "40,319 sq ft land space located in the heart of Indianapolis. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Indianapolis.",
+    "image": "https://placehold.co/400x300?text=Property+80"
+  },
+  {
+    "id": "C81",
+    "address": "8026 Elm St, San Jose, CA",
+    "price": 1056000,
+    "sqft": 32659,
+    "type": "Retail",
+    "description": "32,659 sq ft retail space located in the heart of San Jose. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Jose.",
+    "image": "https://placehold.co/400x300?text=Property+81"
+  },
+  {
+    "id": "C82",
+    "address": "7460 Main St, San Francisco, CA",
+    "price": 644000,
+    "sqft": 40942,
+    "type": "Retail",
+    "description": "40,942 sq ft retail space located in the heart of San Francisco. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Francisco.",
+    "image": "https://placehold.co/400x300?text=Property+82"
+  },
+  {
+    "id": "C83",
+    "address": "3054 Cedar Rd, Denver, CO",
+    "price": 1242000,
+    "sqft": 14415,
+    "type": "Office",
+    "description": "14,415 sq ft office space located in the heart of Denver. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Denver.",
+    "image": "https://placehold.co/400x300?text=Property+83"
+  },
+  {
+    "id": "C84",
+    "address": "9755 Broadway, San Francisco, CA",
+    "price": 283000,
+    "sqft": 29971,
+    "type": "Office",
+    "description": "29,971 sq ft office space located in the heart of San Francisco. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Francisco.",
+    "image": "https://placehold.co/400x300?text=Property+84"
+  },
+  {
+    "id": "C85",
+    "address": "2549 Broadway, San Francisco, CA",
+    "price": 1206000,
+    "sqft": 26188,
+    "type": "Industrial",
+    "description": "26,188 sq ft industrial space located in the heart of San Francisco. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Francisco.",
+    "image": "https://placehold.co/400x300?text=Property+85"
+  },
+  {
+    "id": "C86",
+    "address": "919 Maple Ave, Fort Worth, TX",
+    "price": 963000,
+    "sqft": 11518,
+    "type": "Mixed-use",
+    "description": "11,518 sq ft mixed-use space located in the heart of Fort Worth. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Fort Worth.",
+    "image": "https://placehold.co/400x300?text=Property+86"
+  },
+  {
+    "id": "C87",
+    "address": "5936 Market St, Fort Worth, TX",
+    "price": 1350000,
+    "sqft": 35642,
+    "type": "Retail",
+    "description": "35,642 sq ft retail space located in the heart of Fort Worth. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Fort Worth.",
+    "image": "https://placehold.co/400x300?text=Property+87"
+  },
+  {
+    "id": "C88",
+    "address": "9568 Broadway, Indianapolis, IN",
+    "price": 1426000,
+    "sqft": 27888,
+    "type": "Mixed-use",
+    "description": "27,888 sq ft mixed-use space located in the heart of Indianapolis. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Indianapolis.",
+    "image": "https://placehold.co/400x300?text=Property+88"
+  },
+  {
+    "id": "C89",
+    "address": "5220 Elm St, New York, NY",
+    "price": 955000,
+    "sqft": 15011,
+    "type": "Retail",
+    "description": "15,011 sq ft retail space located in the heart of New York. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in New York.",
+    "image": "https://placehold.co/400x300?text=Property+89"
+  },
+  {
+    "id": "C90",
+    "address": "1016 Broadway, Columbus, OH",
+    "price": 269000,
+    "sqft": 36069,
+    "type": "Office",
+    "description": "36,069 sq ft office space located in the heart of Columbus. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Columbus.",
+    "image": "https://placehold.co/400x300?text=Property+90"
+  },
+  {
+    "id": "C91",
+    "address": "6547 Market St, San Jose, CA",
+    "price": 1725000,
+    "sqft": 17998,
+    "type": "Mixed-use",
+    "description": "17,998 sq ft mixed-use space located in the heart of San Jose. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Jose.",
+    "image": "https://placehold.co/400x300?text=Property+91"
+  },
+  {
+    "id": "C92",
+    "address": "3285 Maple Ave, Charlotte, NC",
+    "price": 1167000,
+    "sqft": 30909,
+    "type": "Office",
+    "description": "30,909 sq ft office space located in the heart of Charlotte. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Charlotte.",
+    "image": "https://placehold.co/400x300?text=Property+92"
+  },
+  {
+    "id": "C93",
+    "address": "4067 Elm St, Indianapolis, IN",
+    "price": 1326000,
+    "sqft": 24731,
+    "type": "Retail",
+    "description": "24,731 sq ft retail space located in the heart of Indianapolis. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Indianapolis.",
+    "image": "https://placehold.co/400x300?text=Property+93"
+  },
+  {
+    "id": "C94",
+    "address": "2192 Cedar Rd, Columbus, OH",
+    "price": 365000,
+    "sqft": 3869,
+    "type": "Retail",
+    "description": "3,869 sq ft retail space located in the heart of Columbus. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Columbus.",
+    "image": "https://placehold.co/400x300?text=Property+94"
+  },
+  {
+    "id": "C95",
+    "address": "9071 Broadway, Denver, CO",
+    "price": 1576000,
+    "sqft": 21486,
+    "type": "Land",
+    "description": "21,486 sq ft land space located in the heart of Denver. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Denver.",
+    "image": "https://placehold.co/400x300?text=Property+95"
+  },
+  {
+    "id": "C96",
+    "address": "3286 Main St, San Diego, CA",
+    "price": 1000000,
+    "sqft": 44347,
+    "type": "Mixed-use",
+    "description": "44,347 sq ft mixed-use space located in the heart of San Diego. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in San Diego.",
+    "image": "https://placehold.co/400x300?text=Property+96"
+  },
+  {
+    "id": "C97",
+    "address": "2353 Elm St, Philadelphia, PA",
+    "price": 1878000,
+    "sqft": 45549,
+    "type": "Industrial",
+    "description": "45,549 sq ft industrial space located in the heart of Philadelphia. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Philadelphia.",
+    "image": "https://placehold.co/400x300?text=Property+97"
+  },
+  {
+    "id": "C98",
+    "address": "9777 Elm St, Austin, TX",
+    "price": 1365000,
+    "sqft": 30243,
+    "type": "Office",
+    "description": "30,243 sq ft office space located in the heart of Austin. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Austin.",
+    "image": "https://placehold.co/400x300?text=Property+98"
+  },
+  {
+    "id": "C99",
+    "address": "848 Market St, Chicago, IL",
+    "price": 207000,
+    "sqft": 37694,
+    "type": "Industrial",
+    "description": "37,694 sq ft industrial space located in the heart of Chicago. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Chicago.",
+    "image": "https://placehold.co/400x300?text=Property+99"
+  },
+  {
+    "id": "C100",
+    "address": "7885 Cedar Rd, Dallas, TX",
+    "price": 1234000,
+    "sqft": 49146,
+    "type": "Industrial",
+    "description": "49,146 sq ft industrial space located in the heart of Dallas. Features modern amenities and easy access to transportation. Ideal for businesses seeking visibility in Dallas.",
+    "image": "https://placehold.co/400x300?text=Property+100"
+  }
+]
