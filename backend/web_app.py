@@ -95,8 +95,6 @@ def read_root(request: Request):
 @app.post("/chat")
 async def chat(request: Request):
     data = await request.json()
-    user_input = data.get("text", "")
+    user_input = data.get("message", "")
     print(f"Query: {user_input}")
-    # return {"answer": output["message"]["content"][0]["text"]}
-
     return await process_user_query(user_input)

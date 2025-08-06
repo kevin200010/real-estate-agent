@@ -6,7 +6,7 @@ import json
 import os
 import uuid
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 
 import boto3
 import requests
@@ -157,21 +157,22 @@ class PropertyChatbot:
         self.sonic = sonic
         self.session_id = str(uuid.uuid4())
 
-    def ask_text(self, query: str) -> str:
+    def ask_text(self, query: str) -> Tuple[str, List[Dict[str, object]]]:
+        """Return LLM answer and the listings used for context."""
         listings = self.retriever.search(query)
         print("Query:", query)
         print("Matched Listings:", listings)
         result = self.llm.answer(query, listings)
         print("LLM Response:", result)
-        return result
+        return result, listings
 
     def ask_audio(self, audio_bytes: bytes) -> Dict[str, object]:
         if not self.sonic:
             raise RuntimeError("Sonic client required for audio processing")
         transcript = self.sonic.transcribe(audio_bytes)
-        answer = self.ask_text(transcript)
+        answer, listings = self.ask_text(transcript)
         spoken = self.sonic.synthesize(answer)
-        return {"transcript": transcript, "answer": answer, "audio": spoken}
+        return {"transcript": transcript, "answer": answer, "listings": listings, "audio": spoken}
 
 
 def main() -> None:
@@ -217,5 +218,15 @@ _bot = PropertyChatbot(_retriever, _llm)
 
 
 async def process_user_query(query: str):
-    response = _bot.ask_text(query)
-    return {"answer": response}
+    """Handle a user text query and return answer plus property cards."""
+    answer, listings = _bot.ask_text(query)
+    cards = [
+        {
+            "image": p.get("image", "https://placehold.co/400x300"),
+            "address": p.get("address") or p.get("location"),
+            "price": f"${p.get('price'):,}",
+            "description": p.get("description", "")
+        }
+        for p in listings
+    ]
+    return {"reply": answer, "properties": cards}
