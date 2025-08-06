@@ -1,38 +1,22 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Property Chatbot</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <h1>Ask About Properties</h1>
-  <input type="text" id="query" placeholder="Type your question..." />
-  <button onclick="ask()">Ask</button>
-
-  <div id="response" style="margin-top: 20px; font-family: sans-serif;"></div>
-
-  <script>
-    async function ask() {
-      const query = document.getElementById('query').value;
-      const responseDiv = document.getElementById('response');
-      responseDiv.innerHTML = "Loading...";
-
-      try {
-        const res = await fetch('/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ text: query })
-        });
-
-        const data = await res.json();
-        console.log("Response JSON:", data);
-        responseDiv.innerHTML = data.answer || "(No response)";
-      } catch (err) {
-        console.error(err);
-        responseDiv.innerHTML = "Something went wrong.";
-      }
-    }
-  </script>
+  <div class="chat-container">
+    <header class="chat-header">Property Chatbot</header>
+    <div id="chatWindow" class="chat-window"></div>
+    <div class="input-area">
+      <input type="text" id="chatInput" placeholder="Ask about properties..." />
+      <button id="send">Send</button>
+      <button id="mic">🎙️</button>
+    </div>
+    <audio id="audio" hidden></audio>
+  </div>
+  <script src="app.js"></script>
 </body>
 </html>

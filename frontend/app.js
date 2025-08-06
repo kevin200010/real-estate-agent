@@ -2,19 +2,29 @@ const API_URL = 'http://localhost:8000';
 const chatInput = document.getElementById('chatInput');
 const sendBtn = document.getElementById('send');
 const micBtn = document.getElementById('mic');
-const responseDiv = document.getElementById('response');
+const chatWindow = document.getElementById('chatWindow');
 const audioEl = document.getElementById('audio');
+
+function appendMessage(text, sender) {
+  const msg = document.createElement('div');
+  msg.className = `message ${sender}`;
+  msg.textContent = text;
+  chatWindow.appendChild(msg);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
 
 sendBtn.onclick = async () => {
   const text = chatInput.value.trim();
   if (!text) return;
+  appendMessage(text, 'user');
+  chatInput.value = '';
   const res = await fetch(`${API_URL}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text })
   });
   const data = await res.json();
-  responseDiv.textContent = data.answer || '';
+  if (data.answer) appendMessage(data.answer, 'bot');
   if (data.audio) {
     audioEl.src = `data:audio/wav;base64,${data.audio}`;
     audioEl.play();
@@ -38,10 +48,8 @@ micBtn.onclick = async () => {
         body: blob
       });
       const data = await res.json();
-      let text = '';
-      if (data.transcript) text += `You: ${data.transcript}\n`;
-      if (data.answer) text += `Bot: ${data.answer}`;
-      responseDiv.textContent = text;
+      if (data.transcript) appendMessage(data.transcript, 'user');
+      if (data.answer) appendMessage(data.answer, 'bot');
       if (data.audio) {
         audioEl.src = `data:audio/wav;base64,${data.audio}`;
         audioEl.play();
