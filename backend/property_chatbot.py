@@ -1,16 +1,3 @@
-"""Sample property listing chatbot combining Nova core models and Nova Sonic.
-
-This module demonstrates a simplified architecture:
-- Central orchestrator that routes text and voice inputs
-- Retrieval layer backed by a small property listing dataset
-- Core Nova model for reasoning over retrieved listings
-- Nova Sonic for optional speech-to-text and text-to-speech
-
-The code is intentionally lightweight and focuses on illustrating how the
-components connect. Real deployments should handle authentication,
-error handling, streaming audio, and secure storage of user data.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -21,6 +8,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 
 import boto3
+from botocore.exceptions import NoCredentialsError
 
 
 class PropertyRetriever:
@@ -31,12 +19,11 @@ class PropertyRetriever:
             self.properties: List[Dict[str, object]] = json.load(f)
 
     def search(self, query: str, limit: int = 3) -> List[Dict[str, object]]:
-        """Return listings whose text matches the query."""
-        q = query.lower()
+        q_words = query.lower().split()
         results = []
         for p in self.properties:
             text = f"{p['location']} {p['description']}".lower()
-            if q in text:
+            if all(word in text for word in q_words):  # partial AND match
                 results.append(p)
         return results[:limit]
 
@@ -49,25 +36,49 @@ class LLMClient:
         self.model_id = model_id
 
     def answer(self, question: str, listings: List[Dict[str, object]]) -> str:
-        """Generate an answer about property listings."""
+        """Generate an answer about property listings using valid Claude-compatible prompt."""
         context_lines = [
             f"- {p['id']}: {p['location']} ${p['price']} {p['bedrooms']} bedrooms. {p['description']}"
             for p in listings
         ]
         context = "\n".join(context_lines) or "No listings matched."
-        prompt = (
-            "You are a real-estate assistant. Use the provided property listings to answer the user's question.\n"
-            f"Listings:\n{context}\n\nQuestion: {question}\nAnswer:"
+
+        merged_prompt = (
+            "You are a helpful real-estate assistant. Always answer clearly and concisely "
+            "based only on the listings provided.\n\n"
+            f"Listings:\n{context}\n\nQuestion: {question}"
         )
-        body = json.dumps({"inputText": prompt})
-        response = self.client.invoke_model(
-            modelId=self.model_id,
-            body=body,
-            contentType="application/json",
-            accept="application/json",
-        )
+
+        body = json.dumps({
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [{"text": merged_prompt}]
+                }
+            ]
+        })
+
+        try:
+            response = self.client.invoke_model(
+                modelId=self.model_id,
+                body=body,
+                contentType="application/json",
+                accept="application/json",
+            )
+        except NoCredentialsError:
+            return (
+                "AWS credentials not found. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY "
+                "to enable Bedrock access."
+            )
+
         payload = json.loads(response["body"].read())
-        return payload.get("outputText", "")
+        print("Full Bedrock Response:", json.dumps(payload, indent=2))  # Debugging output
+
+        # return payload.get("content") or payload.get("output", {}).get("text", "")
+        try:
+            return payload["output"]["message"]["content"][0]["text"]
+        except (KeyError, IndexError):
+            return "No answer found."
 
 
 class SonicClient:
@@ -79,12 +90,17 @@ class SonicClient:
 
     def transcribe(self, audio_bytes: bytes) -> str:
         """Convert audio bytes (wav/pcm16) to text."""
-        response = self.client.invoke_model(
-            modelId=self.model_id,
-            body=audio_bytes,
-            contentType="audio/wav",
-            accept="application/json",
-        )
+        try:
+            response = self.client.invoke_model(
+                modelId=self.model_id,
+                body=audio_bytes,
+                contentType="audio/wav",
+                accept="application/json",
+            )
+        except NoCredentialsError as exc:
+            raise RuntimeError(
+                "AWS credentials not found. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY"
+            ) from exc
         payload = json.loads(response["body"].read())
         return payload.get("text", "")
 
@@ -96,12 +112,17 @@ class SonicClient:
                 "audioFormat": {"codec": "pcm", "sampleRateHertz": 24000},
             }
         )
-        response = self.client.invoke_model(
-            modelId=self.model_id,
-            body=body,
-            contentType="application/json",
-            accept="audio/pcm",
-        )
+        try:
+            response = self.client.invoke_model(
+                modelId=self.model_id,
+                body=body,
+                contentType="application/json",
+                accept="audio/pcm",
+            )
+        except NoCredentialsError as exc:
+            raise RuntimeError(
+                "AWS credentials not found. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY"
+            ) from exc
         return response["body"].read()
 
 
@@ -116,7 +137,11 @@ class PropertyChatbot:
 
     def ask_text(self, query: str) -> str:
         listings = self.retriever.search(query)
-        return self.llm.answer(query, listings)
+        print("Query:", query)
+        print("Matched Listings:", listings)
+        result = self.llm.answer(query, listings)
+        print("LLM Response:", result)
+        return result
 
     def ask_audio(self, audio_bytes: bytes) -> Dict[str, object]:
         if not self.sonic:
@@ -154,3 +179,18 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# Add this at the end of property_chatbot.py (outside the classes)
+
+from pathlib import Path
+
+# Load everything once
+_data_path = Path(__file__).with_name("properties.json")
+_retriever = PropertyRetriever(_data_path)
+_llm = LLMClient()
+_bot = PropertyChatbot(_retriever, _llm)
+
+async def process_user_query(query: str):
+    response = _bot.ask_text(query)
+    return {"answer": response}
