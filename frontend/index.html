@@ -1,23 +1,38 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="utf-8" />
-  <title>Property Listing Chatbot</title>
-  <style>
-    body { font-family: sans-serif; max-width: 600px; margin: auto; }
-    #chatInput { width: 100%; height: 80px; }
-    #mic { margin-left: 8px; }
-    #response { margin-top: 1em; white-space: pre-wrap; }
-  </style>
+  <title>Property Chatbot</title>
 </head>
 <body>
-  <h1>Property Listing Chatbot</h1>
-  <textarea id="chatInput" placeholder="Ask about properties"></textarea>
-  <button id="send">Send</button>
-  <button id="mic">🎙️</button>
-  <div id="response"></div>
-  <audio id="audio" controls></audio>
+  <h1>Ask About Properties</h1>
+  <input type="text" id="query" placeholder="Type your question..." />
+  <button onclick="ask()">Ask</button>
 
-  <script src="app.js"></script>
+  <div id="response" style="margin-top: 20px; font-family: sans-serif;"></div>
+
+  <script>
+    async function ask() {
+      const query = document.getElementById('query').value;
+      const responseDiv = document.getElementById('response');
+      responseDiv.innerHTML = "Loading...";
+
+      try {
+        const res = await fetch('/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ text: query })
+        });
+
+        const data = await res.json();
+        console.log("Response JSON:", data);
+        responseDiv.innerHTML = data.answer || "(No response)";
+      } catch (err) {
+        console.error(err);
+        responseDiv.innerHTML = "Something went wrong.";
+      }
+    }
+  </script>
 </body>
 </html>
