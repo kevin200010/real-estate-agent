@@ -11,6 +11,10 @@ This directory hosts the FastAPI service and supporting modules for the property
    export AWS_SECRET_ACCESS_KEY=...
    export AWS_DEFAULT_REGION=us-east-1
    ```
+2. (Optional) Point the chatbot at an external retrieval-augmented generation service:
+   ```bash
+   export RAG_SERVER_URL=http://localhost:8001/query
+   ```
 
 ## Command line
 

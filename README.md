@@ -10,7 +10,7 @@ The project is split into two parts:
 ## Architecture
 
 1. **Central Orchestrator** – `PropertyChatbot` routes text or audio input and coordinates other components.
-2. **Retrieval Layer** – `PropertyRetriever` loads a JSON file of sample listings and performs naive keyword search.
+2. **Retrieval Layer** – `RAGRetriever` queries an external retrieval-augmented generation service for matching listings (falls back to a local JSON file if the service is unavailable).
 3. **Core Nova Model** – `LLMClient` calls a text-based Nova model to reason over retrieved listings and craft answers.
 4. **Nova Sonic** – `SonicClient` converts speech to text and text to speech so the assistant can handle voice interactions.
 
