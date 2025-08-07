@@ -2,10 +2,6 @@
 
 This sample demonstrates how to combine Amazon Nova core models with Nova Sonic to build a multimodal real-estate assistant. The chatbot answers typed or spoken questions about sample property listings.
 
-The project is split into two parts:
-
-- **backend/** – FastAPI service and command-line tools. See `backend/README.md` for setup and API instructions.
-- **frontend/** – Static browser client. See `frontend/README.md` for usage.
 
 ## Architecture
 
@@ -17,3 +13,4 @@ The project is split into two parts:
 ## Notes
 
 This example focuses on illustrating how components fit together. Production applications should implement robust error handling, streaming audio for low latency, and secure storage of user data.
+
