@@ -50,7 +50,7 @@ form.addEventListener('submit', async (e) => {
     const res = await fetch(`${API_URL}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text })
+      body: JSON.stringify({ text })
     });
     if (!res.ok) {
       throw new Error(`Request failed with status ${res.status}`);
