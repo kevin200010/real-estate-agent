@@ -1,8 +1,7 @@
 // Basic frontend logic for the chatbot widget
-// Use the current origin so the frontend works regardless of where the server
-// is hosted. This avoids CORS/port issues when the page is served from the
-// backend itself.
-const API_URL = window.location.origin;
+// Define the backend API URL. This defaults to the local FastAPI server but
+// can be overridden by setting `window.API_URL` before this script loads.
+const API_URL = window.API_URL || 'http://localhost:8000';
 
 const messagesEl = document.getElementById('chatbot-messages');
 const form = document.getElementById('chatbot-form');
