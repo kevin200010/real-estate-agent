@@ -243,6 +243,7 @@ class PropertyChatbot:
         """Return LLM answer and any listings used for context."""
         listings = self.retriever.search(query) if self._wants_listings(query) else []
         normalized = [normalize_listing(p) for p in listings]
+        print("listing = " , listings)
         print(normalized)
         print("Query:", query)
         print("Matched Listings:", normalized)
@@ -339,3 +340,4 @@ async def process_user_audio(audio_bytes: bytes):
         "audio": audio_b64,
         "properties": cards,
     }
+
