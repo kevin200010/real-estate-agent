@@ -94,7 +94,15 @@ def read_root(request: Request):
 
 @app.post("/chat")
 async def chat(request: Request):
-    data = await request.json()
-    user_input = data.get("message", "")
-    print(f"Query: {user_input}")
-    return await process_user_query(user_input)
+    try:
+        data = await request.json()
+        user_input = data.get("message", "")
+        print(f"Query: {user_input}")
+        return await process_user_query(user_input)
+    except Exception as exc:
+        # Ensure the frontend always receives a response instead of a server error
+        print("Chat processing failed:", exc)
+        return {
+            "reply": "Sorry, something went wrong. Please try again later.",
+            "properties": [],
+        }

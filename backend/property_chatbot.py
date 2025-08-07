@@ -17,8 +17,13 @@ class PropertyRetriever:
     """Naive retrieval over local property listing data."""
 
     def __init__(self, data_file: Path):
-        with open(data_file, "r", encoding="utf-8") as f:
-            self.properties: List[Dict[str, object]] = json.load(f)
+        try:
+            with open(data_file, "r", encoding="utf-8") as f:
+                self.properties: List[Dict[str, object]] = json.load(f)
+        except FileNotFoundError:
+            # Gracefully handle missing data file so the server can still run.
+            self.properties = []
+            print(f"Property data file not found: {data_file}. Using empty dataset.")
 
     def search(self, query: str, limit: int = 3) -> List[Dict[str, object]]:
         q_words = query.lower().split()
