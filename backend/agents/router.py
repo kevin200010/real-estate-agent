@@ -18,6 +18,7 @@ class QueryRouterAgent(Agent):
         "apartment",
         "condo",
     }
+    _GREETING_KEYWORDS = {"hi", "hello", "hey"}
 
     def __init__(self, registry=None) -> None:
         super().__init__("QueryRouterAgent", registry)
@@ -29,6 +30,16 @@ class QueryRouterAgent(Agent):
             result = await search_agent.handle(query=query)
             result["source_agents"].insert(0, self.name)
             return result
+
+        if any(word in q for word in self._GREETING_KEYWORDS):
+            return {
+                "result_type": "message",
+                "content": (
+                    "Hello! I can help you find properties. "
+                    "Ask me about homes or listings."
+                ),
+                "source_agents": [self.name],
+            }
 
         return {
             "result_type": "message",
