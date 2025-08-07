@@ -13,6 +13,15 @@ import requests
 from botocore.exceptions import NoCredentialsError
 
 
+def normalize_listing(p: Dict[str, object]) -> Dict[str, object]:
+    """Map a raw property dict to a common schema."""
+    return {
+        **p,
+        "location": p.get("location") or p.get("address", "Unknown location"),
+        "bedrooms": p.get("bedrooms") or p.get("sqft") or "N/A",
+    }
+
+
 class PropertyRetriever:
     """Naive retrieval over local property listing data."""
 
@@ -73,10 +82,15 @@ class LLMClient:
 
     def answer(self, question: str, listings: List[Dict[str, object]]) -> str:
         """Generate an answer about property listings using valid Claude-compatible prompt."""
-        context_lines = [
-            f"- {p['id']}: {p['location']} ${p['price']} {p['bedrooms']} bedrooms. {p['description']}"
-            for p in listings
-        ]
+        context_lines: List[str] = []
+        for p in listings:
+            location = p.get("location") or p.get("address", "Unknown location")
+            bedrooms = p.get("bedrooms") or p.get("sqft") or "N/A"
+            price = p.get("price", "N/A")
+            description = p.get("description", "")
+            context_lines.append(
+                f"- {p.get('id', 'N/A')}: {location} ${price} {bedrooms} bedrooms. {description}"
+            )
         context = "\n".join(context_lines) or "No listings matched."
 
         merged_prompt = (
@@ -185,11 +199,12 @@ class PropertyChatbot:
     def ask_text(self, query: str) -> Tuple[str, List[Dict[str, object]]]:
         """Return LLM answer and the listings used for context."""
         listings = self.retriever.search(query)
+        normalized = [normalize_listing(p) for p in listings]
         print("Query:", query)
-        print("Matched Listings:", listings)
-        result = self.llm.answer(query, listings)
+        print("Matched Listings:", normalized)
+        result = self.llm.answer(query, normalized)
         print("LLM Response:", result)
-        return result, listings
+        return result, normalized
 
     def ask_audio(self, audio_bytes: bytes) -> Dict[str, object]:
         if not self.sonic:
