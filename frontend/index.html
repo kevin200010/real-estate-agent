@@ -11,42 +11,27 @@
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   </head>
-  <body class="font-['Poppins'] min-h-screen bg-gray-50">
-    <main class="p-6">
-      <h1 class="text-2xl font-semibold text-blue-800 mb-4">DreamHome Listings</h1>
-      <p class="text-gray-700 max-w-xl">
+  <body class="font-['Poppins'] min-h-screen">
+    <main class="p-6 text-center text-white drop-shadow-lg">
+      <h1 class="text-3xl font-semibold mb-4">DreamHome Listings</h1>
+      <p class="max-w-xl mx-auto">
         Browse properties or chat with our assistant for personalized help.
       </p>
     </main>
 
-    <!-- Floating toggle button -->
-    <div id="chatbot-toggle" class="fixed bottom-4 right-4">
-      <button
-        class="w-14 h-14 rounded-full bg-blue-600 shadow-lg flex items-center justify-center text-white focus:outline-none"
-        aria-label="Open chat"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H9l-4 3v-3H4a2 2 0 01-2-2V5z" clip-rule="evenodd" />
-        </svg>
-      </button>
-    </div>
-
-    <!-- Chat widget -->
+    <!-- Chat widget centered on the screen -->
     <div
       id="chatbot"
-      class="fixed bottom-0 right-0 sm:bottom-20 sm:right-4 w-full sm:w-96 max-w-md bg-white rounded-t-lg sm:rounded-lg shadow-lg flex flex-col overflow-hidden transform translate-y-full transition-transform duration-300"
+      class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full sm:w-96 max-w-md bg-white rounded-lg shadow-lg flex flex-col overflow-hidden"
     >
       <!-- Header -->
-      <div class="flex items-center justify-between bg-blue-600 text-white px-4 py-3">
-        <div class="flex items-center space-x-2">
-          <img
-            src="https://dummyimage.com/32x32/ffffff/1e3a8a&text=D"
-            alt="Logo"
-            class="h-8 w-8 rounded"
-          />
-          <span class="font-semibold">Ask Listings Assistant</span>
-        </div>
-        <button id="chatbot-close" class="text-white text-xl leading-none" aria-label="Close chat">&times;</button>
+      <div class="flex items-center bg-blue-600 text-white px-4 py-3 space-x-2">
+        <img
+          src="https://dummyimage.com/32x32/ffffff/1e3a8a&text=D"
+          alt="Logo"
+          class="h-8 w-8 rounded"
+        />
+        <span class="font-semibold">Ask Listings Assistant</span>
       </div>
 
       <!-- Messages -->

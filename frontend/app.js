@@ -1,19 +1,9 @@
-// Basic frontend logic for the floating chatbot widget
+// Basic frontend logic for the chatbot widget
 const API_URL = 'http://localhost:8000';
 
-const toggleBtn = document.querySelector('#chatbot-toggle button');
-const chatWindow = document.getElementById('chatbot');
-const closeBtn = document.getElementById('chatbot-close');
 const messagesEl = document.getElementById('chatbot-messages');
 const form = document.getElementById('chatbot-form');
 const input = document.getElementById('chatbot-input');
-
-function toggleChat() {
-  chatWindow.classList.toggle('translate-y-full');
-}
-
-toggleBtn.addEventListener('click', toggleChat);
-closeBtn.addEventListener('click', toggleChat);
 
 // Render text or property card messages
 function appendMessage(message, sender) {

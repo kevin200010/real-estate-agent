@@ -1,6 +1,42 @@
-/* Custom styles for the floating chatbot widget */
+/* Vibrant animated background and custom styles */
 body {
   font-family: 'Poppins', sans-serif;
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Background image layer */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: url('https://images.unsplash.com/photo-1502672023488-70e25813eb80?auto=format&fit=crop&w=1350&q=80')
+    center/cover no-repeat;
+  z-index: -2;
+}
+
+/* Animated gradient overlay */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(-45deg, rgba(238,119,82,0.6), rgba(231,60,126,0.6), rgba(35,166,213,0.6), rgba(35,213,171,0.6));
+  background-size: 400% 400%;
+  animation: gradient 15s ease infinite;
+  z-index: -1;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* Subtle scrollbar styling for chat area */
