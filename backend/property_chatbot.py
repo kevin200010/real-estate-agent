@@ -11,6 +11,11 @@ from typing import List, Dict, Optional, Tuple
 import boto3
 import requests
 from botocore.exceptions import NoCredentialsError
+from dotenv import load_dotenv
+
+# Load environment variables from a .env file at the project root so boto3
+# can pick up AWS credentials during local development.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 
 def normalize_listing(p: Dict[str, object]) -> Dict[str, object]:
