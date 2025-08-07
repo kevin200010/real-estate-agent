@@ -68,12 +68,12 @@
 #     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
-from property_chatbot import process_user_query
+from property_chatbot import process_user_query, process_user_audio
 
 app = FastAPI()
 
@@ -105,4 +105,19 @@ async def chat(request: Request):
         return {
             "reply": "Sorry, something went wrong. Please try again later.",
             "properties": [],
+        }
+
+
+@app.post("/voice")
+async def voice(file: UploadFile = File(...)):
+    try:
+        audio_bytes = await file.read()
+        return await process_user_audio(audio_bytes)
+    except Exception as exc:
+        print("Voice processing failed:", exc)
+        return {
+            "reply": "Sorry, something went wrong. Please try again later.",
+            "properties": [],
+            "transcript": "",
+            "audio": "",
         }
