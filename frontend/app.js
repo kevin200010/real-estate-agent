@@ -72,6 +72,18 @@ form.addEventListener('submit', async (e) => {
       data.content.forEach((p) =>
         appendMessage({ type: 'property', ...p }, 'bot')
       );
+    } else if (
+      data.result_type === 'aggregate' &&
+      data.content
+    ) {
+      if (Array.isArray(data.content.messages)) {
+        data.content.messages.forEach((m) => appendMessage(m, 'bot'));
+      }
+      if (Array.isArray(data.content.property_cards)) {
+        data.content.property_cards.forEach((p) =>
+          appendMessage({ type: 'property', ...p }, 'bot')
+        );
+      }
     } else {
       appendMessage('Sorry, something went wrong. Please try again later.', 'bot');
     }

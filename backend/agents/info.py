@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any, Dict
 
 from .base import Agent
 from property_chatbot import LLMClient
+
+
+logger = logging.getLogger(__name__)
 
 
 class RealEstateInfoAgent(Agent):
@@ -15,7 +19,16 @@ class RealEstateInfoAgent(Agent):
         self.llm = llm or LLMClient()
 
     async def handle(self, query: str, **_: Any) -> Dict[str, Any]:
-        answer = await asyncio.to_thread(self.llm.answer_general, query)
+        logger.debug("Handling info query: %s", query)
+        try:
+            answer = await asyncio.to_thread(self.llm.answer_general, query)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.exception("RealEstateInfoAgent failed")
+            return {
+                "result_type": "error",
+                "content": str(exc),
+                "source_agents": [self.name],
+            }
         return {
             "result_type": "message",
             "content": answer,

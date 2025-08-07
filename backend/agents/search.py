@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from pathlib import Path
 from typing import Any, Dict, List
 
 from .base import Agent
 from property_chatbot import PropertyRetriever
+
+
+logger = logging.getLogger(__name__)
 
 
 class PropertySearchAgent(Agent):
@@ -17,9 +21,18 @@ class PropertySearchAgent(Agent):
         self.limit = limit
 
     async def handle(self, query: str, **_: Any) -> Dict[str, Any]:
-        listings: List[Dict[str, Any]] = await asyncio.to_thread(
-            self.retriever.search, query, self.limit
-        )
+        logger.debug("Searching properties for query: %s", query)
+        try:
+            listings: List[Dict[str, Any]] = await asyncio.to_thread(
+                self.retriever.search, query, self.limit
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.exception("PropertySearchAgent failed")
+            return {
+                "result_type": "error",
+                "content": str(exc),
+                "source_agents": [self.name],
+            }
         cards = [
             {
                 "address": p.get("address") or p.get("location"),

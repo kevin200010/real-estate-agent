@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
@@ -9,10 +10,12 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from agents.base import AgentRegistry
-from agents.router import QueryRouterAgent
+from agents.coordinator import CoordinatorAgent
 from agents.search import PropertySearchAgent
 from agents.info import RealEstateInfoAgent
 from property_chatbot import SonicClient
+
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
 
@@ -33,8 +36,10 @@ _search_agent = PropertySearchAgent(_data_path, registry=_registry)
 _registry.register(_search_agent)
 _info_agent = RealEstateInfoAgent(registry=_registry)
 _registry.register(_info_agent)
-_router_agent = QueryRouterAgent(registry=_registry)
-_registry.register(_router_agent)
+_coordinator_agent = CoordinatorAgent(
+    ["PropertySearchAgent", "RealEstateInfoAgent"], registry=_registry
+)
+_registry.register(_coordinator_agent)
 _sonic = SonicClient()
 
 
@@ -74,12 +79,12 @@ async def chat(request: Request):
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
 
-    return await _router_agent.handle(query=text)
+    return await _coordinator_agent.handle(query=text)
 
 
 @app.post("/voice")
 async def voice(file: UploadFile = File(...)):
     audio_bytes = await file.read()
     transcript = await asyncio.to_thread(_sonic.transcribe, audio_bytes)
-    result = await _router_agent.handle(query=transcript)
+    result = await _coordinator_agent.handle(query=transcript)
     return {**result, "transcript": transcript}
