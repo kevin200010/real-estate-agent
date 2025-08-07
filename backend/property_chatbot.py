@@ -10,7 +10,7 @@ from typing import List, Dict, Optional, Tuple
 
 import boto3
 import requests
-from botocore.exceptions import NoCredentialsError
+from botocore.exceptions import NoCredentialsError, ClientError
 from dotenv import load_dotenv
 
 # Load environment variables from a .env file at the project root so boto3
@@ -142,7 +142,12 @@ class LLMClient:
                 "AWS credentials not found. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY "
                 "to enable Bedrock access."
             )
-        except Exception as exc:
+        except ClientError as exc:
+            error_code = exc.response.get("Error", {}).get("Code", "")
+            if error_code == "InvalidSignatureException":
+                return (
+                    "Invalid AWS signature. Ensure your access key, secret key, and system clock are correct."
+                )
             print("LLM invocation failed:", exc)
             return "Failed to generate an answer."
 
@@ -167,6 +172,13 @@ class SonicClient:
             raise RuntimeError(
                 "AWS credentials not found. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY"
             ) from exc
+        except ClientError as exc:
+            error_code = exc.response.get("Error", {}).get("Code", "")
+            if error_code == "InvalidSignatureException":
+                raise RuntimeError(
+                    "Invalid AWS signature. Ensure your access key, secret key, and system clock are correct."
+                ) from exc
+            raise
         payload = json.loads(response["body"].read())
         return payload.get("text", "")
 
@@ -189,6 +201,13 @@ class SonicClient:
             raise RuntimeError(
                 "AWS credentials not found. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY"
             ) from exc
+        except ClientError as exc:
+            error_code = exc.response.get("Error", {}).get("Code", "")
+            if error_code == "InvalidSignatureException":
+                raise RuntimeError(
+                    "Invalid AWS signature. Ensure your access key, secret key, and system clock are correct."
+                ) from exc
+            raise
         return response["body"].read()
 
 
