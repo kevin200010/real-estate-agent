@@ -10,7 +10,7 @@ from typing import List, Dict, Optional, Tuple
 
 import boto3
 import requests
-from botocore.exceptions import NoCredentialsError
+from botocore.exceptions import NoCredentialsError, ClientError
 from dotenv import load_dotenv
 
 # Load environment variables from a .env file at the project root so boto3
@@ -142,7 +142,12 @@ class LLMClient:
                 "AWS credentials not found. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY "
                 "to enable Bedrock access."
             )
-        except Exception as exc:
+        except ClientError as exc:
+            error_code = exc.response.get("Error", {}).get("Code", "")
+            if error_code == "InvalidSignatureException":
+                return (
+                    "Invalid AWS signature. Ensure your access key, secret key, and system clock are correct."
+                )
             print("LLM invocation failed:", exc)
             return "Failed to generate an answer."
 
@@ -167,6 +172,13 @@ class SonicClient:
             raise RuntimeError(
                 "AWS credentials not found. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY"
             ) from exc
+        except ClientError as exc:
+            error_code = exc.response.get("Error", {}).get("Code", "")
+            if error_code == "InvalidSignatureException":
+                raise RuntimeError(
+                    "Invalid AWS signature. Ensure your access key, secret key, and system clock are correct."
+                ) from exc
+            raise
         payload = json.loads(response["body"].read())
         return payload.get("text", "")
 
@@ -189,6 +201,13 @@ class SonicClient:
             raise RuntimeError(
                 "AWS credentials not found. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY"
             ) from exc
+        except ClientError as exc:
+            error_code = exc.response.get("Error", {}).get("Code", "")
+            if error_code == "InvalidSignatureException":
+                raise RuntimeError(
+                    "Invalid AWS signature. Ensure your access key, secret key, and system clock are correct."
+                ) from exc
+            raise
         return response["body"].read()
 
 
@@ -201,9 +220,28 @@ class PropertyChatbot:
         self.sonic = sonic
         self.session_id = str(uuid.uuid4())
 
+    _LISTING_KEYWORDS = {
+        "listing",
+        "listings",
+        "property",
+        "properties",
+        "home",
+        "house",
+        "apartment",
+        "condo",
+        "office",
+        "industrial",
+        "commercial",
+    }
+
+    @classmethod
+    def _wants_listings(cls, query: str) -> bool:
+        q = query.lower()
+        return any(word in q for word in cls._LISTING_KEYWORDS)
+
     def ask_text(self, query: str) -> Tuple[str, List[Dict[str, object]]]:
-        """Return LLM answer and the listings used for context."""
-        listings = self.retriever.search(query)
+        """Return LLM answer and any listings used for context."""
+        listings = self.retriever.search(query) if self._wants_listings(query) else []
         normalized = [normalize_listing(p) for p in listings]
         print("Query:", query)
         print("Matched Listings:", normalized)
@@ -261,7 +299,8 @@ else:
     _retriever = PropertyRetriever(_data_path)
 
 _llm = LLMClient()
-_bot = PropertyChatbot(_retriever, _llm)
+_sonic = SonicClient()
+_bot = PropertyChatbot(_retriever, _llm, _sonic)
 
 
 async def process_user_query(query: str):
@@ -277,3 +316,24 @@ async def process_user_query(query: str):
         for p in listings
     ]
     return {"reply": answer, "properties": cards}
+
+
+async def process_user_audio(audio_bytes: bytes):
+    """Handle a user audio query returning transcript, answer, and audio."""
+    result = _bot.ask_audio(audio_bytes)
+    cards = [
+        {
+            "image": p.get("image", "https://placehold.co/400x300"),
+            "address": p.get("address") or p.get("location"),
+            "price": f"${p.get('price'):,}",
+            "description": p.get("description", ""),
+        }
+        for p in result["listings"]
+    ]
+    audio_b64 = base64.b64encode(result["audio"]).decode("utf-8")
+    return {
+        "transcript": result["transcript"],
+        "reply": result["answer"],
+        "audio": audio_b64,
+        "properties": cards,
+    }
