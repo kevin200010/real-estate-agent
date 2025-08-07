@@ -57,11 +57,23 @@ form.addEventListener('submit', async (e) => {
     }
     const data = await res.json();
 
-    if (data.reply) appendMessage(data.reply, 'bot');
-    if (Array.isArray(data.properties)) {
+    if (data.reply) {
+      appendMessage(data.reply, 'bot');
+    } else if (Array.isArray(data.properties)) {
       data.properties.forEach((p) =>
         appendMessage({ type: 'property', ...p }, 'bot')
       );
+    } else if (data.result_type === 'message' && data.content) {
+      appendMessage(data.content, 'bot');
+    } else if (
+      data.result_type === 'property_cards' &&
+      Array.isArray(data.content)
+    ) {
+      data.content.forEach((p) =>
+        appendMessage({ type: 'property', ...p }, 'bot')
+      );
+    } else {
+      appendMessage('Sorry, something went wrong. Please try again later.', 'bot');
     }
   } catch (err) {
     console.error(err);
