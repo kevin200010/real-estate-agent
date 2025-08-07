@@ -170,6 +170,47 @@ class LLMClient:
             print("LLM invocation failed:", exc)
             return "Failed to generate an answer."
 
+    def answer_general(self, question: str) -> str:
+        """Generate a general real-estate answer without listing context."""
+        prompt = (
+            "You are a knowledgeable real-estate assistant. Answer the question "
+            "clearly and concisely.\n\nQuestion: "
+            f"{question}"
+        )
+
+        body = json.dumps(
+            {
+                "messages": [{"role": "user", "content": [{"text": prompt}]}],
+                "inferenceConfig": {"maxTokens": 256, "temperature": 0.7},
+            }
+        )
+
+        try:
+            response = self.client.invoke_model(
+                modelId=self.model_id,
+                body=body,
+                contentType="application/json",
+                accept="application/json",
+            )
+            payload = json.loads(response["body"].read())
+            try:
+                return payload["output"]["message"]["content"][0]["text"]
+            except (KeyError, IndexError):
+                return "No answer found."
+        except NoCredentialsError:
+            return (
+                "AWS credentials not found. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY "
+                "to enable Bedrock access."
+            )
+        except ClientError as exc:
+            error_code = exc.response.get("Error", {}).get("Code", "")
+            if error_code == "InvalidSignatureException":
+                return (
+                    "Invalid AWS signature. Ensure your access key, secret key, and system clock are correct."
+                )
+            print("LLM invocation failed:", exc)
+            return "Failed to generate an answer."
+
 
 class SonicClient:
     """Minimal Nova Sonic client for non-streaming STT/TTS."""

@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 from agents.base import AgentRegistry
 from agents.router import QueryRouterAgent
 from agents.search import PropertySearchAgent
+from agents.info import RealEstateInfoAgent
 from property_chatbot import SonicClient
 
 app = FastAPI()
@@ -30,6 +31,8 @@ _registry = AgentRegistry()
 _data_path = Path(__file__).with_name("rag_data.json")
 _search_agent = PropertySearchAgent(_data_path, registry=_registry)
 _registry.register(_search_agent)
+_info_agent = RealEstateInfoAgent(registry=_registry)
+_registry.register(_info_agent)
 _router_agent = QueryRouterAgent(registry=_registry)
 _registry.register(_router_agent)
 _sonic = SonicClient()
