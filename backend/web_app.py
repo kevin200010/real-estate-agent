@@ -7,7 +7,6 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
 
 from agents.base import AgentRegistry
 from agents.router import QueryRouterAgent
@@ -26,10 +25,6 @@ app.add_middleware(
 templates = Jinja2Templates(directory="templates")
 
 
-class ChatRequest(BaseModel):
-    text: str
-
-
 # Instantiate agents once at startup
 _registry = AgentRegistry()
 _data_path = Path(__file__).with_name("rag_data.json")
@@ -46,10 +41,37 @@ async def read_root(request: Request) -> HTMLResponse:
 
 
 @app.post("/chat")
-async def chat(req: ChatRequest):
-    if not req.text:
+async def chat(request: Request):
+    """Handle text chat requests.
+
+    The frontend may send either JSON or form-encoded data. FastAPI's
+    automatic validation would previously reject form posts with a 422
+    error because the `ChatRequest` pydantic model only accepted JSON.
+    To support both payload types we manually parse the request body.
+    """
+    text: str | None = None
+
+    # Try JSON payload first
+    if request.headers.get("content-type", "").startswith("application/json"):
+        try:
+            payload = await request.json()
+            if isinstance(payload, dict):
+                text = payload.get("text")
+        except Exception:
+            text = None
+
+    # Fall back to form data
+    if text is None:
+        try:
+            form = await request.form()
+            text = form.get("text") if form else None
+        except Exception:
+            text = None
+
+    if not text:
         raise HTTPException(status_code=400, detail="text is required")
-    return await _router_agent.handle(query=req.text)
+
+    return await _router_agent.handle(query=text)
 
 
 @app.post("/voice")
