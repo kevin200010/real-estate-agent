@@ -85,14 +85,23 @@ class LLMClient:
             f"Listings:\n{context}\n\nQuestion: {question}"
         )
 
-        body = json.dumps({
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [{"text": merged_prompt}]
-                }
-            ]
-        })
+        body = json.dumps(
+            {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [{"text": merged_prompt}],
+                    }
+                ],
+                # Nova models require an explicit inference configuration. Without at
+                # least ``maxTokens`` the Bedrock service responds with a
+                # ``ValidationException`` which surfaces to the frontend as
+                # "Failed to generate an answer." Supplying a conservative
+                # ``maxTokens`` and temperature ensures the request is valid and
+                # prevents the chat from failing for simple greetings like "Hi".
+                "inferenceConfig": {"maxTokens": 256, "temperature": 0.7},
+            }
+        )
 
         try:
             response = self.client.invoke_model(
