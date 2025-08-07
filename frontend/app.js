@@ -1,5 +1,8 @@
 // Basic frontend logic for the chatbot widget
-const API_URL = 'http://localhost:8000';
+// Use the current origin so the frontend works regardless of where the server
+// is hosted. This avoids CORS/port issues when the page is served from the
+// backend itself.
+const API_URL = window.location.origin;
 
 const messagesEl = document.getElementById('chatbot-messages');
 const form = document.getElementById('chatbot-form');
@@ -50,6 +53,9 @@ form.addEventListener('submit', async (e) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: text })
     });
+    if (!res.ok) {
+      throw new Error(`Request failed with status ${res.status}`);
+    }
     const data = await res.json();
 
     if (data.reply) appendMessage(data.reply, 'bot');
