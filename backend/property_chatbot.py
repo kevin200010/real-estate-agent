@@ -50,19 +50,30 @@ class PropertyRetriever:
 
     def search(self, query: str, limit: int = 3) -> List[Dict[str, object]]:
         q_words = query.lower().split()
-        results = []
+        scored: List[Tuple[int, Dict[str, object]]] = []
         for p in self.properties:
-            text = f"{p['location']} {p['description']}".lower()
-            if all(word in text for word in q_words):  # partial AND match
-                results.append(p)
-        return results[:limit]
+            # Some datasets use "address" instead of "location". Use ``get`` to
+            # avoid ``KeyError`` and to support both schemas so the same
+            # retriever can work with residential ``properties.json`` and the
+            # commercial ``rag_data.json``.
+            location = p.get("location") or p.get("address", "")
+            description = p.get("description", "")
+            category = p.get("type", "")
+            text = f"{location} {description} {category}".lower()
+            score = sum(word in text for word in q_words)
+            if score:
+                scored.append((score, p))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [p for _, p in scored[:limit]]
 
 
 class RAGRetriever:
     """Retrieve property listings from an external RAG service."""
 
-    def __init__(self, endpoint: str):
+    def __init__(self, endpoint: str, fallback: Optional[PropertyRetriever] = None):
         self.endpoint = endpoint
+        self.fallback = fallback
 
     def search(self, query: str, limit: int = 3) -> List[Dict[str, object]]:
         payload = {"query": query, "k": limit}
@@ -71,11 +82,19 @@ class RAGRetriever:
             resp.raise_for_status()
             data = resp.json()
             if isinstance(data, dict):
-                return data.get("results", [])
-            return data
+                results = data.get("results", [])
+            else:
+                results = data
+            if results:
+                return results
         except Exception as exc:  # broad catch to keep chat running
             print("RAG retrieval failed:", exc)
-            return []
+
+        # If the remote call fails or returns no results, fall back to the
+        # local retriever when available so users still see listings.
+        if self.fallback:
+            return self.fallback.search(query, limit)
+        return []
 
 
 class LLMClient:
@@ -291,15 +310,16 @@ if __name__ == "__main__":
 
 
 # Global chatbot instance reused by the web API
-# Prefer an external RAG service if configured; otherwise fall back to local data
+# Prefer an external RAG service if configured; otherwise fall back to the
+# bundled commercial listing data. The local data is also used as a fallback if
+# the remote service is unavailable.
 _rag_url = os.getenv("RAG_SERVER_URL")
+_data_path = Path(__file__).resolve().with_name("rag_data.json")
+_local_retriever = PropertyRetriever(_data_path)
 if _rag_url:
-    _retriever = RAGRetriever(_rag_url)
+    _retriever = RAGRetriever(_rag_url, fallback=_local_retriever)
 else:
-    # Resolve the path to ensure the JSON file is located correctly even when
-    # the working directory differs (e.g. when launched via uvicorn).
-    _data_path = Path(__file__).resolve().with_name("properties.json")
-    _retriever = PropertyRetriever(_data_path)
+    _retriever = _local_retriever
 
 _llm = LLMClient()
 _sonic = SonicClient()
