@@ -41,8 +41,7 @@ class QueryRouterAgent(Agent):
                 "source_agents": [self.name],
             }
 
-        return {
-            "result_type": "message",
-            "content": "Sorry, I can't handle that request yet.",
-            "source_agents": [self.name],
-        }
+        info_agent = self.registry.get("RealEstateInfoAgent")
+        result = await info_agent.handle(query=query)
+        result["source_agents"].insert(0, self.name)
+        return result
