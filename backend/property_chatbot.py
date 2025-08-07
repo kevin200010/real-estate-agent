@@ -16,14 +16,23 @@ from botocore.exceptions import NoCredentialsError
 class PropertyRetriever:
     """Naive retrieval over local property listing data."""
 
-    def __init__(self, data_file: Path):
+    def __init__(self, data_file: Path | str):
+        """Load property data from ``data_file`` if it exists.
+
+        The path is resolved to an absolute ``Path`` to avoid issues with
+        relative imports or different working directories. If the file is
+        missing the chatbot will still start, but with an empty dataset so the
+        front end can continue to function.
+        """
+
+        path = Path(data_file).resolve()
         try:
-            with open(data_file, "r", encoding="utf-8") as f:
+            with path.open("r", encoding="utf-8") as f:
                 self.properties: List[Dict[str, object]] = json.load(f)
         except FileNotFoundError:
             # Gracefully handle missing data file so the server can still run.
             self.properties = []
-            print(f"Property data file not found: {data_file}. Using empty dataset.")
+            print(f"Property data file not found: {path}. Using empty dataset.")
 
     def search(self, query: str, limit: int = 3) -> List[Dict[str, object]]:
         q_words = query.lower().split()
@@ -92,20 +101,22 @@ class LLMClient:
                 contentType="application/json",
                 accept="application/json",
             )
+            payload = json.loads(response["body"].read())
+            print("Full Bedrock Response:", json.dumps(payload, indent=2))  # Debugging output
+
+            # return payload.get("content") or payload.get("output", {}).get("text", "")
+            try:
+                return payload["output"]["message"]["content"][0]["text"]
+            except (KeyError, IndexError):
+                return "No answer found."
         except NoCredentialsError:
             return (
                 "AWS credentials not found. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY "
                 "to enable Bedrock access."
             )
-
-        payload = json.loads(response["body"].read())
-        print("Full Bedrock Response:", json.dumps(payload, indent=2))  # Debugging output
-
-        # return payload.get("content") or payload.get("output", {}).get("text", "")
-        try:
-            return payload["output"]["message"]["content"][0]["text"]
-        except (KeyError, IndexError):
-            return "No answer found."
+        except Exception as exc:
+            print("LLM invocation failed:", exc)
+            return "Failed to generate an answer."
 
 
 class SonicClient:
@@ -215,7 +226,9 @@ _rag_url = os.getenv("RAG_SERVER_URL")
 if _rag_url:
     _retriever = RAGRetriever(_rag_url)
 else:
-    _data_path = Path(__file__).with_name("properties.json")
+    # Resolve the path to ensure the JSON file is located correctly even when
+    # the working directory differs (e.g. when launched via uvicorn).
+    _data_path = Path(__file__).resolve().with_name("properties.json")
     _retriever = PropertyRetriever(_data_path)
 
 _llm = LLMClient()

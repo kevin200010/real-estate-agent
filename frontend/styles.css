@@ -47,3 +47,16 @@ body::after {
   background-color: rgba(107, 114, 128, 0.5); /* tailwind gray-500 */
   border-radius: 3px;
 }
+
+/* Ensure the chatbot widget has a fixed height and scrolls internally */
+#chatbot {
+  height: 32rem;
+  max-height: 32rem;
+  display: flex;
+  flex-direction: column;
+}
+
+#chatbot-messages {
+  flex: 1;
+  overflow-y: auto;
+}
