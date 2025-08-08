@@ -50,7 +50,11 @@ form.addEventListener('submit', async (e) => {
     const res = await fetch(`${API_URL}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text })
+      // The backend `/chat` endpoint expects a JSON payload with a
+      // `text` field. Previously we sent `{ message: text }` which
+      // resulted in a 400 "text is required" error. Send the correct
+      // field so the server can process the request.
+      body: JSON.stringify({ text })
     });
     if (!res.ok) {
       throw new Error(`Request failed with status ${res.status}`);
