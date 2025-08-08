@@ -7,6 +7,20 @@ const messagesEl = document.getElementById('chatbot-messages');
 const form = document.getElementById('chatbot-form');
 const input = document.getElementById('chatbot-input');
 
+// Rotate background images every 30 seconds
+const bgImages = [
+  'https://images.unsplash.com/photo-1502672023488-70e25813eb80?auto=format&fit=crop&w=1350&q=80',
+  'https://images.unsplash.com/photo-1560185127-6c9d8dddb7fb?auto=format&fit=crop&w=1350&q=80',
+  'https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&w=1350&q=80'
+];
+let bgIndex = 0;
+setInterval(() => {
+  bgIndex = (bgIndex + 1) % bgImages.length;
+  document.body.style.setProperty('--bg-image', `url('${bgImages[bgIndex]}')`);
+}, 30000);
+
+input.focus();
+
 // Render text or property card messages
 function appendMessage(message, sender) {
   const wrapper = document.createElement('div');
