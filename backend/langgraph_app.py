@@ -108,6 +108,7 @@ class LLMClient:
 
 class GraphState(TypedDict, total=False):
     user_input: str
+    is_property_query: bool
     listings: List[Dict[str, Any]]
     answer: str
 
@@ -116,8 +117,43 @@ retriever = PropertyRetriever(Path(__file__).with_name("rag_data.json"))
 llm_client = LLMClient()
 
 
+async def query_classifier_agent(state: GraphState) -> GraphState:
+    logger.info("query_classifier_agent input: %s", state.get("user_input"))
+    prompt = (
+        "Does the following message ask about property listings or real estate? "
+        "Respond only with 'yes' or 'no'.\n\n"
+        f"Message: {state.get('user_input', '')}"
+    )
+    body = json.dumps(
+        {
+            "messages": [{"role": "user", "content": [{"text": prompt}]}],
+            "inferenceConfig": {"maxTokens": 5, "temperature": 0},
+        }
+    )
+
+    try:
+        resp = llm_client.client.invoke_model(
+            modelId=llm_client.model_id,
+            body=body,
+            contentType="application/json",
+            accept="application/json",
+        )
+        data = json.loads(resp["body"].read())
+        output = data["output"]["message"]["content"][0]["text"].strip().lower()
+        is_query = output.startswith("y")
+    except (KeyError, IndexError, TypeError, NoCredentialsError, ClientError) as exc:
+        logger.warning("query_classifier_agent failed: %s", exc)
+        is_query = False
+
+    logger.info("query_classifier_agent result: %s", is_query)
+    return {"is_property_query": is_query}
+
+
 async def retrieve_agent(state: GraphState) -> GraphState:
     logger.info("retrieve_agent input: %s", state.get("user_input"))
+    if not state.get("is_property_query"):
+        logger.info("retrieve_agent skipping retrieval; not a property query")
+        return {"listings": []}
     listings = retriever.search(state["user_input"])
     logger.info("retrieve_agent found %d listings", len(listings))
     return {"listings": [normalize_listing(p) for p in listings]}
@@ -153,11 +189,13 @@ async def format_agent(state: GraphState) -> GraphState:
 
 
 workflow = StateGraph(GraphState)
+workflow.add_node("classify", query_classifier_agent)
 workflow.add_node("retrieve", retrieve_agent)
 workflow.add_node("llm", llm_agent)
 workflow.add_node("format", format_agent)
 
-workflow.set_entry_point("retrieve")
+workflow.set_entry_point("classify")
+workflow.add_edge("classify", "retrieve")
 workflow.add_edge("retrieve", "llm")
 workflow.add_edge("llm", "format")
 workflow.add_edge("format", END)
