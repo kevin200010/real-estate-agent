@@ -38,6 +38,47 @@ function appendMessage(message, sender) {
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
+// Render an array of property listings as cards
+function renderListings(listings) {
+  listings.forEach((listing) =>
+    appendMessage({ type: 'property', ...listing }, 'bot')
+  );
+}
+
+// Call the backend `/chat` endpoint and handle the new response shape
+async function fetchChatResponse(text) {
+  const res = await fetch(`${API_URL}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+
+  if (!res.ok) {
+    throw new Error(`Request failed with status ${res.status}`);
+  }
+
+  const data = await res.json();
+
+  // Display assistant answer
+  if (data.answer) {
+    appendMessage(data.answer, 'bot');
+  } else if (data.message && Array.isArray(data.message.content)) {
+    // Fallback for older response format
+    data.message.content.forEach((c) =>
+      appendMessage(c.text || c, 'bot')
+    );
+  } else {
+    appendMessage('Sorry, something went wrong. Please try again later.', 'bot');
+  }
+
+  // Render property listings if present
+  if (Array.isArray(data.listings) && data.listings.length) {
+    renderListings(data.listings);
+  }
+
+  return data;
+}
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const text = input.value.trim();
@@ -47,63 +88,7 @@ form.addEventListener('submit', async (e) => {
   input.value = '';
 
   try {
-    const res = await fetch(`${API_URL}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      // The backend `/chat` endpoint expects a JSON payload with a
-      // `text` field. Previously we sent `{ message: text }` which
-      // resulted in a 400 "text is required" error. Send the correct
-      // field so the server can process the request.
-      body: JSON.stringify({ text })
-    });
-    if (!res.ok) {
-      throw new Error(`Request failed with status ${res.status}`);
-    }
-    const data = await res.json();
-
-    // Track if we handled any known response shape so we don't
-    // accidentally fall through to the generic error message.
-    let handled = false;
-
-    if (data.reply) {
-      appendMessage(data.reply, 'bot');
-      handled = true;
-    }
-    if (Array.isArray(data.properties)) {
-      data.properties.forEach((p) =>
-        appendMessage({ type: 'property', ...p }, 'bot')
-      );
-      handled = true;
-    }
-
-    if (data.result_type === 'message' && data.content) {
-      appendMessage(data.content, 'bot');
-      handled = true;
-    }
-
-    if (data.result_type === 'property_cards' && Array.isArray(data.content)) {
-      data.content.forEach((p) =>
-        appendMessage({ type: 'property', ...p }, 'bot')
-      );
-      handled = true;
-    }
-
-    if (data.result_type === 'aggregate' && data.content) {
-      if (Array.isArray(data.content.messages)) {
-        data.content.messages.forEach((m) => appendMessage(m, 'bot'));
-        handled = true;
-      }
-      if (Array.isArray(data.content.property_cards)) {
-        data.content.property_cards.forEach((p) =>
-          appendMessage({ type: 'property', ...p }, 'bot')
-        );
-        handled = true;
-      }
-    }
-
-    if (!handled) {
-      appendMessage('Sorry, something went wrong. Please try again later.', 'bot');
-    }
+    await fetchChatResponse(text);
   } catch (err) {
     console.error(err);
     appendMessage('Sorry, something went wrong. Please try again later.', 'bot');
