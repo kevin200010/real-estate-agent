@@ -28,15 +28,17 @@ function appendMessage(message, sender) {
 
   if (typeof message === 'string') {
     const bubble = document.createElement('div');
-    bubble.className = `px-4 py-2 rounded-lg max-w-[75%] text-sm whitespace-pre-wrap ${
-      sender === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'
+    bubble.className = `px-4 py-2 rounded-lg max-w-[75%] text-sm whitespace-pre-wrap backdrop-blur-sm ${
+      sender === 'user'
+        ? 'bg-blue-600/80 text-white'
+        : 'bg-gray-200/80 text-gray-800'
     }`;
     bubble.innerHTML = marked.parse(message);
     wrapper.appendChild(bubble);
   } else if (message.type === 'property') {
     const card = document.createElement('div');
     card.className =
-      'w-64 bg-white rounded-lg border shadow-sm overflow-hidden text-left';
+      'w-64 bg-white/80 backdrop-blur-sm rounded-lg border shadow-sm overflow-hidden text-left';
     card.innerHTML = `
       <img src="${message.image}" alt="${message.address}" class="h-36 w-full object-cover" />
       <div class="p-3">
