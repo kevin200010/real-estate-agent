@@ -1,112 +1,66 @@
-// Basic frontend logic for the chatbot widget
-// Define the backend API URL. This defaults to the local FastAPI server but
-// can be overridden by setting `window.API_URL` before this script loads.
-const API_URL = window.API_URL || 'http://localhost:8000';
+import { initTopbar } from './components/topbar.js';
+import { initLeftRail } from './components/left-rail.js';
+import { initAssistantDrawer, toggleAssistant } from './components/assistant-drawer.js';
+import { initCommandPalette, togglePalette } from './components/command-palette.js';
+import { createDataGrid } from './components/datagrid.js';
+import { createKanban } from './components/kanban.js';
+import { initToast } from './components/toast.js';
 
-const messagesEl = document.getElementById('chatbot-messages');
-const form = document.getElementById('chatbot-form');
-const input = document.getElementById('chatbot-input');
+const state={ data:{} };
+let topbarAPI;
 
-// Rotate background images every 30 seconds
-const bgImages = [
-  'https://images.unsplash.com/photo-1502672023488-70e25813eb80?auto=format&fit=crop&w=1350&q=80',
-  'https://images.unsplash.com/photo-1560185127-6c9d8dddb7fb?auto=format&fit=crop&w=1350&q=80',
-  'https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&w=1350&q=80'
-];
-let bgIndex = 0;
-setInterval(() => {
-  bgIndex = (bgIndex + 1) % bgImages.length;
-  document.body.style.setProperty('--bg-image', `url('${bgImages[bgIndex]}')`);
-}, 30000);
+fetch('data/sample.json').then(r=>r.json()).then(d=>{state.data=d;init();});
 
-input.focus();
+function init(){
+  topbarAPI=initTopbar();
+  initLeftRail(state.data);
+  initAssistantDrawer();
+  initCommandPalette(state.data);
+  initToast();
+  window.addEventListener('hashchange',router);
+  router();
+  setupShortcuts();
+}
 
-// Render text or property card messages
-function appendMessage(message, sender) {
-  const wrapper = document.createElement('div');
-  wrapper.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
-
-  if (typeof message === 'string') {
-    const bubble = document.createElement('div');
-    bubble.className = `px-4 py-2 rounded-lg max-w-[75%] text-sm whitespace-pre-wrap backdrop-blur-sm ${
-      sender === 'user'
-        ? 'bg-blue-600/80 text-white'
-        : 'bg-gray-200/80 text-gray-800'
-    }`;
-    bubble.innerHTML = marked.parse(message);
-    wrapper.appendChild(bubble);
-  } else if (message.type === 'property') {
-    const card = document.createElement('div');
-    card.className =
-      'w-64 bg-white/80 backdrop-blur-sm rounded-lg border shadow-sm overflow-hidden text-left';
-    card.innerHTML = `
-      <img src="${message.image}" alt="${message.address}" class="h-36 w-full object-cover" />
-      <div class="p-3">
-        <p class="font-semibold text-gray-800">${message.address}</p>
-        <p class="text-blue-600 font-bold">${message.price}</p>
-        <p class="text-xs text-gray-600 mt-1">${message.description}</p>
-      </div>
-    `;
-    wrapper.appendChild(card);
+function router(){
+  const hash=location.hash||'#/sourcing';
+  const main=document.getElementById('main');
+  main.innerHTML='';
+  if(hash.startsWith('#/sourcing')){
+    topbarAPI.setActive('#/sourcing');
+    const wrap=document.createElement('div');
+    wrap.className='sourcing-view';
+    const map=document.createElement('div');map.id='map';map.textContent='Map';
+    const grid=createDataGrid(state.data.properties||[]);
+    wrap.append(map,grid);
+    main.appendChild(wrap);
+  } else if(hash.startsWith('#/leads')){
+    topbarAPI.setActive('#/leads');
+    const board=createKanban(state.data.leads||[]);
+    main.appendChild(board);
+  } else if(hash.startsWith('#/outreach')){
+    topbarAPI.setActive('#/outreach');
+    main.appendChild(createOutreach());
   }
-
-  messagesEl.appendChild(wrapper);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
-// Render an array of property listings as cards
-function renderListings(listings) {
-  listings.forEach((listing) =>
-    appendMessage({ type: 'property', ...listing }, 'bot')
-  );
-}
-
-// Call the backend `/chat` endpoint and handle the new response shape
-async function fetchChatResponse(text) {
-  const res = await fetch(`${API_URL}/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text })
+function createOutreach(){
+  const view=document.createElement('div');view.className='outreach-view';
+  const cohorts=document.createElement('div');cohorts.className='cohorts';
+  (state.data.cohorts||[]).forEach(c=>{
+    const item=document.createElement('div');item.textContent=c.name;cohorts.appendChild(item);
   });
-
-  if (!res.ok) {
-    throw new Error(`Request failed with status ${res.status}`);
-  }
-
-  const data = await res.json();
-
-  // Display assistant answer
-  if (data.answer) {
-    appendMessage(data.answer, 'bot');
-  } else if (data.message && Array.isArray(data.message.content)) {
-    // Fallback for older response format
-    data.message.content.forEach((c) =>
-      appendMessage(c.text || c, 'bot')
-    );
-  } else {
-    appendMessage('Sorry, something went wrong. Please try again later.', 'bot');
-  }
-
-  // Render property listings if present
-  if (Array.isArray(data.listings) && data.listings.length) {
-    renderListings(data.listings);
-  }
-
-  return data;
+  const editor=document.createElement('div');editor.className='editor';
+  const textarea=document.createElement('textarea');textarea.value=(state.data.templates&&state.data.templates[0].body)||'';
+  const timeline=document.createElement('div');timeline.className='timeline';timeline.textContent='Sequence timeline';
+  editor.append(textarea,timeline);
+  view.append(cohorts,editor);
+  return view;
 }
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const text = input.value.trim();
-  if (!text) return;
-
-  appendMessage(text, 'user');
-  input.value = '';
-
-  try {
-    await fetchChatResponse(text);
-  } catch (err) {
-    console.error(err);
-    appendMessage('Sorry, something went wrong. Please try again later.', 'bot');
-  }
-});
+function setupShortcuts(){
+  document.addEventListener('keydown',e=>{
+    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); togglePalette(); }
+    if(e.key.toLowerCase()==='a' && !e.ctrlKey && !e.metaKey){ e.preventDefault(); toggleAssistant(); }
+  });
+}
