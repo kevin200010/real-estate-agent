@@ -1,6 +1,6 @@
-# Property Listing Chatbot
+# Cascade AI
 
-This sample demonstrates how to combine Amazon Nova core models with Nova Sonic to build a multimodal real-estate assistant. The chatbot answers typed or spoken questions about sample property listings.
+This sample demonstrates how to combine Amazon Nova core models with Nova Sonic to build a multimodal real-estate assistant. The Cascade AI application answers typed or spoken questions about sample property listings.
 
 
 ## Architecture
