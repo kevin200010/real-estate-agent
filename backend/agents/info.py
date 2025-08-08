@@ -20,6 +20,7 @@ class RealEstateInfoAgent(Agent):
 
     async def handle(self, query: str, **_: Any) -> Dict[str, Any]:
         logger.debug("Handling info query: %s", query)
+        print(f"RealEstateInfoAgent triggered with query: {query}")
         try:
             answer = await asyncio.to_thread(self.llm.answer_general, query)
         except Exception as exc:  # pragma: no cover - defensive

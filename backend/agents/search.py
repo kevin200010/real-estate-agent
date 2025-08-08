@@ -22,6 +22,7 @@ class PropertySearchAgent(Agent):
 
     async def handle(self, query: str, **_: Any) -> Dict[str, Any]:
         logger.debug("Searching properties for query: %s", query)
+        print(f"PropertySearchAgent triggered with query: {query}")
         try:
             listings: List[Dict[str, Any]] = await asyncio.to_thread(
                 self.retriever.search, query, self.limit

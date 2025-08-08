@@ -19,6 +19,7 @@ class CoordinatorAgent(Agent):
     async def _run_agent(self, agent: Agent, **kwargs: Any) -> Dict[str, Any]:
         try:
             logger.debug("Running agent %s", agent.name)
+            print(f"CoordinatorAgent triggering {agent.name}")
             return await agent.handle(**kwargs)
         except Exception as exc:  # pragma: no cover - defensive logging
             logger.exception("Agent %s failed", agent.name)
