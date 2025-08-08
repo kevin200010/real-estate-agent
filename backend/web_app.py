@@ -2,17 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from agents.base import AgentRegistry
-from agents.coordinator import CoordinatorAgent
-from agents.search import PropertySearchAgent
-from agents.info import RealEstateInfoAgent
+from langgraph_app import app_graph
 from property_chatbot import SonicClient
 
 logging.basicConfig(level=logging.INFO)
@@ -29,17 +25,7 @@ app.add_middleware(
 templates = Jinja2Templates(directory="templates")
 
 
-# Instantiate agents once at startup
-_registry = AgentRegistry()
-_data_path = Path(__file__).with_name("rag_data.json")
-_search_agent = PropertySearchAgent(_data_path, registry=_registry)
-_registry.register(_search_agent)
-_info_agent = RealEstateInfoAgent(registry=_registry)
-_registry.register(_info_agent)
-_coordinator_agent = CoordinatorAgent(
-    ["PropertySearchAgent", "RealEstateInfoAgent"], registry=_registry
-)
-_registry.register(_coordinator_agent)
+# Instantiate shared clients
 _sonic = SonicClient()
 
 
@@ -79,12 +65,13 @@ async def chat(request: Request):
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
 
-    return await _coordinator_agent.handle(query=text)
+    initial_state = {"user_input": text}
+    return await app_graph.ainvoke(initial_state)
 
 
 @app.post("/voice")
 async def voice(file: UploadFile = File(...)):
     audio_bytes = await file.read()
     transcript = await asyncio.to_thread(_sonic.transcribe, audio_bytes)
-    result = await _coordinator_agent.handle(query=transcript)
+    result = await app_graph.ainvoke({"user_input": transcript})
     return {**result, "transcript": transcript}
