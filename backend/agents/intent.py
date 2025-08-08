@@ -23,6 +23,7 @@ class IntentClassifierAgent(Agent):
         self.limit = limit
 
     async def handle(self, query: str, **_: Any) -> Dict[str, Any]:
+        print(f"IntentClassifierAgent triggered with query: {query}")
         # Remove very short tokens so greetings like "hi" don't match
         tokens = [t.rstrip("s") for t in query.lower().split() if len(t) >= 3]
         if not tokens:
