@@ -3,6 +3,7 @@ from .coordinator import CoordinatorAgent
 from .search import PropertySearchAgent
 from .info import RealEstateInfoAgent
 from .router import QueryRouterAgent
+from .intent import IntentClassifierAgent
 
 __all__ = [
     "Agent",
@@ -11,4 +12,5 @@ __all__ = [
     "PropertySearchAgent",
     "RealEstateInfoAgent",
     "QueryRouterAgent",
+    "IntentClassifierAgent",
 ]
