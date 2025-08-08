@@ -5,6 +5,7 @@ import { initCommandPalette, togglePalette } from './components/command-palette.
 import { createDataGrid } from './components/datagrid.js';
 import { createKanban } from './components/kanban.js';
 import { initToast } from './components/toast.js';
+import { createAgentChat } from './components/agent-chat.js';
 
 const state={ data:{} };
 let topbarAPI;
@@ -41,6 +42,9 @@ function router(){
   } else if(hash.startsWith('#/outreach')){
     topbarAPI.setActive('#/outreach');
     main.appendChild(createOutreach());
+  } else if(hash.startsWith('#/agent')){
+    topbarAPI.setActive('#/agent');
+    main.appendChild(createAgentChat());
   }
 }
 
