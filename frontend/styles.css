@@ -121,6 +121,25 @@ input:focus, textarea:focus, button:hover {
 .editor textarea { flex:1; }
 .timeline { height:120px; background:var(--card); border-radius:var(--radius-lg); padding:var(--gap); overflow-y:auto; }
 
+/* Agent chat */
+.agent-chat { display:flex; align-items:center; justify-content:center; height:100%; }
+.chat-box {
+  width:400px;
+  max-width:100%;
+  background:rgba(21,24,33,.6);
+  backdrop-filter:blur(10px);
+  border:1px solid var(--muted);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow);
+  display:flex;
+  flex-direction:column;
+}
+.chat-messages { flex:1; padding:var(--gap); overflow-y:auto; }
+.chat-form { display:flex; gap:var(--gap); padding:var(--gap); border-top:1px solid var(--muted); }
+.chat-form input { flex:1; }
+.msg { margin-bottom:var(--gap); }
+.msg.user { text-align:right; }
+
 /* Command palette */
 #command-palette {
   position:fixed; inset:0; display:flex; align-items:flex-start; justify-content:center; padding-top:10%; background:rgba(0,0,0,.4); backdrop-filter:blur(2px);
