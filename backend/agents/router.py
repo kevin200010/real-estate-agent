@@ -6,42 +6,22 @@ from .base import Agent
 
 
 class QueryRouterAgent(Agent):
-    """Classify incoming queries and dispatch to specialized agents."""
-
-    _PROPERTY_KEYWORDS = {
-        "property",
-        "properties",
-        "listing",
-        "listings",
-        "home",
-        "house",
-        "apartment",
-        "condo",
-    }
-    _GREETING_KEYWORDS = {"hi", "hello", "hey"}
+    """Dispatch queries to other agents based on detected intent."""
 
     def __init__(self, registry=None) -> None:
         super().__init__("QueryRouterAgent", registry)
 
     async def handle(self, query: str, **_: Any) -> Dict[str, Any]:
-        q = query.lower()
-        if any(word in q for word in self._PROPERTY_KEYWORDS):
+        classifier = self.registry.get("IntentClassifierAgent")
+        intent_res = await classifier.handle(query=query)
+        intent = intent_res.get("content")
+
+        if intent == "property_search":
             search_agent = self.registry.get("PropertySearchAgent")
             result = await search_agent.handle(query=query)
-            result["source_agents"].insert(0, self.name)
-            return result
+        else:
+            info_agent = self.registry.get("RealEstateInfoAgent")
+            result = await info_agent.handle(query=query)
 
-        if any(word in q for word in self._GREETING_KEYWORDS):
-            return {
-                "result_type": "message",
-                "content": (
-                    "Hello! I can help you find properties. "
-                    "Ask me about homes or listings."
-                ),
-                "source_agents": [self.name],
-            }
-
-        info_agent = self.registry.get("RealEstateInfoAgent")
-        result = await info_agent.handle(query=query)
         result["source_agents"].insert(0, self.name)
         return result
