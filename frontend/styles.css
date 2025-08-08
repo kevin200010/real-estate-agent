@@ -4,6 +4,7 @@ body {
   min-height: 100vh;
   position: relative;
   overflow: hidden;
+  --bg-image: url('https://images.unsplash.com/photo-1502672023488-70e25813eb80?auto=format&fit=crop&w=1350&q=80');
 }
 
 /* Background image layer */
@@ -11,8 +12,9 @@ body::before {
   content: "";
   position: fixed;
   inset: 0;
-  background: url('https://images.unsplash.com/photo-1502672023488-70e25813eb80?auto=format&fit=crop&w=1350&q=80')
-    center/cover no-repeat;
+  background: center/cover no-repeat;
+  background-image: var(--bg-image);
+  filter: blur(8px);
   z-index: -2;
 }
 
@@ -60,3 +62,4 @@ body::after {
   flex: 1;
   overflow-y: auto;
 }
+
