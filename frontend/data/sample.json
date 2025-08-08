@@ -1,0 +1,20 @@
+{
+  "properties": [
+    {"id":1,"address":"123 Main St","price":"$500k"},
+    {"id":2,"address":"456 Oak Ave","price":"$750k"},
+    {"id":3,"address":"789 Pine Dr","price":"$1.2M"}
+  ],
+  "leads": [
+    {"id":1,"name":"Alice","stage":"New"},
+    {"id":2,"name":"Bob","stage":"Contacted"},
+    {"id":3,"name":"Carol","stage":"Qualified"}
+  ],
+  "templates": [
+    {"id":1,"title":"Welcome","body":"Hello {{name}}, thanks for your interest."}
+  ],
+  "cohorts": [
+    {"id":1,"name":"Investors"},
+    {"id":2,"name":"First-time Buyers"}
+  ],
+  "savedSearches": ["Austin Deals","Bay Area Luxury"]
+}
