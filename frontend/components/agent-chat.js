@@ -25,10 +25,10 @@ export function createAgentChat() {
       const resp = await fetch('http://localhost:8000/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text })
+        body: JSON.stringify({ text: text })
       });
       const data = await resp.json();
-      addMessage('bot', data.reply || 'No reply');
+      addMessage('bot', data.answer || 'No reply');
     } catch (err) {
       addMessage('bot', 'Error contacting server');
     }
