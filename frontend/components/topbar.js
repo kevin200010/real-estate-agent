@@ -1,7 +1,7 @@
 export function initTopbar() {
   const bar = document.getElementById('topbar');
   bar.innerHTML = `
-    <div class="logo">EstateAI</div>
+    <div class="logo">Cascade AI</div>
     <div class="tabs">
       <span class="tab" data-route="#/sourcing">Sourcing</span>
       <span class="tab" data-route="#/leads">Leads</span>
