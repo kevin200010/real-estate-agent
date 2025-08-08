@@ -130,7 +130,7 @@ input:focus, textarea:focus, button:hover {
 .chat-box {
   width:400px;
   height:600px;
-  background:var(--card);
+
   background-image:url('./chat-bg.svg');
   background-size:cover;
   background-position:center;
@@ -144,8 +144,7 @@ input:focus, textarea:focus, button:hover {
 .chat-box:hover { box-shadow:0 0 15px var(--accent); }
 .chat-messages { flex:1; padding:var(--gap); overflow-y:auto; background:transparent; }
 .chat-form { display:flex; gap:var(--gap); padding:var(--gap); border-top:1px solid var(--muted); background:transparent; }
-.chat-form input { flex:1; background:var(--muted); transition:box-shadow 0.3s, border 0.3s; }
-.chat-form button { background:var(--muted); transition:box-shadow 0.3s, border 0.3s; }
+
 .chat-form input:hover, .chat-form button:hover { box-shadow:0 0 8px var(--accent); border-color:var(--accent); }
 .msg { margin-bottom:var(--gap); }
 .msg.user { text-align:right; }
