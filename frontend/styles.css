@@ -17,10 +17,20 @@ body {
   font-family:'Inter', sans-serif;
   font-size:14px;
   color:var(--text);
-  background:var(--bg) url('./global-bg.svg') no-repeat center center fixed;
-  background-size:cover;
+  background:var(--bg);
   height:100vh;
   overflow:hidden;
+  position:relative;
+}
+
+body::before {
+  content:"";
+  position:fixed;
+  inset:0;
+  background:url('./apartment-bg.svg') no-repeat center center;
+  background-size:cover;
+  filter:blur(8px);
+  z-index:-1;
 }
 
 #topbar {
@@ -56,11 +66,15 @@ body {
   border-right:1px solid var(--muted);
   padding:var(--gap);
   overflow-y:auto;
-  transition:width 0.18s;
+  transition:width 0.18s, box-shadow 0.3s;
 }
-#left-rail.collapsed { width:60px; }
+#left-rail:hover { box-shadow:0 0 15px var(--accent); }
+#left-rail.collapsed { width:60px; overflow:hidden; }
+#left-rail.collapsed .filters,
+#left-rail.collapsed .saved { display:none; }
 #left-rail #collapse-rail {background:none;border:none;color:var(--text);margin-bottom:var(--gap);cursor:pointer;}
-.saved-item {cursor:pointer;padding:4px 0;}
+.saved-item {cursor:pointer;padding:4px 0; transition:background 0.3s, box-shadow 0.3s;}
+.saved-item:hover {background:var(--muted); box-shadow:0 0 8px var(--accent);}
 
 #assistant {
   width:320px;
@@ -69,8 +83,9 @@ body {
   border-left:1px solid var(--muted);
   padding:var(--gap);
   overflow-y:auto;
-  transition:transform 0.18s;
+  transition:transform 0.18s, box-shadow 0.3s;
 }
+#assistant:hover { box-shadow:0 0 15px var(--accent); }
 #assistant.hidden { transform:translateX(100%); }
 
 main {
@@ -79,7 +94,9 @@ main {
   padding:var(--gap);
   background:var(--card);
   border-radius:var(--radius-lg);
+  transition:box-shadow 0.3s;
 }
+main:hover { box-shadow:0 0 15px var(--accent); }
 
 .tab {
   padding:8px 12px;
@@ -92,6 +109,9 @@ main {
 }
 
 .chip { display:inline-block; background:var(--muted); padding:4px 8px; border-radius:var(--radius-sm); margin:2px; font-size:12px; }
+
+.chip { transition:background 0.3s, box-shadow 0.3s; }
+.chip:hover { background:var(--accent); color:white; box-shadow:0 0 8px var(--accent); }
 
 input, textarea, button {
   background:var(--card);
@@ -118,6 +138,8 @@ input:focus, textarea:focus, button:hover {
 .kanban-column { flex:1; background:var(--card); border-radius:var(--radius-lg); padding:var(--gap); display:flex; flex-direction:column; }
 .kanban-column h3 { margin-top:0; font-size:14px; }
 .lead-card { background:var(--muted); border-radius:var(--radius-sm); padding:var(--gap); margin-bottom:var(--gap); cursor:grab; }
+.lead-card { transition:background 0.3s, box-shadow 0.3s; }
+.lead-card:hover { background:var(--card); box-shadow:0 0 8px var(--accent); }
 
 .outreach-view { display:flex; height:100%; gap:var(--gap); }
 .cohorts { width:220px; background:var(--card); border-radius:var(--radius-lg); padding:var(--gap); overflow-y:auto; }
@@ -130,10 +152,8 @@ input:focus, textarea:focus, button:hover {
 .chat-box {
   width:400px;
   height:600px;
-
-  background-image:url('./chat-bg.svg');
-  background-size:cover;
-  background-position:center;
+  background:rgba(255,255,255,0.2);
+  backdrop-filter:blur(10px);
   border:1px solid var(--muted);
   border-radius:var(--radius-lg);
   box-shadow:var(--shadow);
