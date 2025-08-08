@@ -125,18 +125,24 @@ input:focus, textarea:focus, button:hover {
 .agent-chat { display:flex; align-items:center; justify-content:center; height:100%; }
 .chat-box {
   width:400px;
-  max-width:100%;
-  background:rgba(21,24,33,.6);
-  backdrop-filter:blur(10px);
+  height:600px;
+  background:transparent;
+  background-image:url('./chat-bg.svg');
+  background-size:cover;
+  background-position:center;
   border:1px solid var(--muted);
   border-radius:var(--radius-lg);
   box-shadow:var(--shadow);
   display:flex;
   flex-direction:column;
+  transition:box-shadow 0.3s;
 }
-.chat-messages { flex:1; padding:var(--gap); overflow-y:auto; }
-.chat-form { display:flex; gap:var(--gap); padding:var(--gap); border-top:1px solid var(--muted); }
-.chat-form input { flex:1; }
+.chat-box:hover { box-shadow:0 0 15px var(--accent); }
+.chat-messages { flex:1; padding:var(--gap); overflow-y:auto; background:transparent; }
+.chat-form { display:flex; gap:var(--gap); padding:var(--gap); border-top:1px solid var(--muted); background:transparent; }
+.chat-form input { flex:1; background:transparent; transition:box-shadow 0.3s, border 0.3s; }
+.chat-form button { background:transparent; transition:box-shadow 0.3s, border 0.3s; }
+.chat-form input:hover, .chat-form button:hover { box-shadow:0 0 8px var(--accent); border-color:var(--accent); }
 .msg { margin-bottom:var(--gap); }
 .msg.user { text-align:right; }
 
