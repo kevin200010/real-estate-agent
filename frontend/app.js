@@ -61,34 +61,47 @@ form.addEventListener('submit', async (e) => {
     }
     const data = await res.json();
 
+    // Track if we handled any known response shape so we don't
+    // accidentally fall through to the generic error message.
+    let handled = false;
+
     if (data.reply) {
       appendMessage(data.reply, 'bot');
-    } else if (Array.isArray(data.properties)) {
+      handled = true;
+    }
+    if (Array.isArray(data.properties)) {
       data.properties.forEach((p) =>
         appendMessage({ type: 'property', ...p }, 'bot')
       );
-    } else if (data.result_type === 'message' && data.content) {
+      handled = true;
+    }
+
+    if (data.result_type === 'message' && data.content) {
       appendMessage(data.content, 'bot');
-    } else if (
-      data.result_type === 'property_cards' &&
-      Array.isArray(data.content)
-    ) {
+      handled = true;
+    }
+
+    if (data.result_type === 'property_cards' && Array.isArray(data.content)) {
       data.content.forEach((p) =>
         appendMessage({ type: 'property', ...p }, 'bot')
       );
-    } else if (
-      data.result_type === 'aggregate' &&
-      data.content
-    ) {
+      handled = true;
+    }
+
+    if (data.result_type === 'aggregate' && data.content) {
       if (Array.isArray(data.content.messages)) {
         data.content.messages.forEach((m) => appendMessage(m, 'bot'));
+        handled = true;
       }
       if (Array.isArray(data.content.property_cards)) {
         data.content.property_cards.forEach((p) =>
           appendMessage({ type: 'property', ...p }, 'bot')
         );
+        handled = true;
       }
-    } else {
+    }
+
+    if (!handled) {
       appendMessage('Sorry, something went wrong. Please try again later.', 'bot');
     }
   } catch (err) {
