@@ -461,7 +461,15 @@ async def process_user_query(query: str):
         {
             "image": p.get("image", "https://placehold.co/400x300"),
             "address": p.get("address") or p.get("location"),
-            "price": f"${p.get('price'):,}",
+            # ``price`` may be ``None`` when the source data is missing a value.
+            # Formatting ``None`` with ``:,`` raises ``TypeError`` which used to
+            # crash the request handler.  Provide a human friendly placeholder
+            # instead so the web API remains robust regardless of data quality.
+            "price": (
+                f"${p.get('price'):,}"
+                if isinstance(p.get("price"), (int, float))
+                else "N/A"
+            ),
             "description": p.get("description", "")
         }
         for p in listings
@@ -476,7 +484,11 @@ async def process_user_audio(audio_bytes: bytes):
         {
             "image": p.get("image", "https://placehold.co/400x300"),
             "address": p.get("address") or p.get("location"),
-            "price": f"${p.get('price'):,}",
+            "price": (
+                f"${p.get('price'):,}"
+                if isinstance(p.get("price"), (int, float))
+                else "N/A"
+            ),
             "description": p.get("description", ""),
         }
         for p in result["listings"]
