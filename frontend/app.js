@@ -23,7 +23,7 @@ const state={ data:{} };
 let topbarAPI;
 
 // cycle through simple real-estate themed backgrounds
-const backgrounds=['property1.svg','property2.svg','property3.svg'];
+const backgrounds=['property1.jpg','property2.png','property3.jpg'];
 let bgIndex=0;
 
 fetch('data/sample.json').then(r=>r.json()).then(d=>{state.data=d;init();});
