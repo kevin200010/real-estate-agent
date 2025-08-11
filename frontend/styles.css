@@ -23,12 +23,14 @@ body {
   position:relative;
 }
 
-body::before {
-  content:"";
+#bg {
   position:fixed;
   inset:0;
-  background:url('./global-bg.svg') no-repeat center center/cover;
+  background-size:cover;
+  background-position:center;
   z-index:-1;
+  opacity:1;
+  transition:opacity 1s ease-in-out;
 }
 
 #topbar {
@@ -96,6 +98,8 @@ main {
 }
 main:hover { box-shadow:0 0 15px var(--accent); }
 
+main > * { width:100%; }
+
 .tab {
   padding:8px 12px;
   border-radius:var(--radius-sm);
@@ -124,9 +128,9 @@ input:focus, textarea:focus, button:hover {
 }
 
 /* Views */
-.sourcing-view { display:flex; height:100%; }
-.sourcing-view #map { flex:1; margin-right:var(--gap); background:var(--card); border-radius:var(--radius-lg); display:flex; align-items:center; justify-content:center; }
-.sourcing-view #grid { flex:1; }
+.sourcing-view { display:flex; flex-direction:column; height:100%; }
+.sourcing-view #map { width:100%; margin-right:0; margin-bottom:var(--gap); background:var(--card); border-radius:var(--radius-lg); display:flex; align-items:center; justify-content:center; height:300px; }
+.sourcing-view #grid { width:100%; }
 
 .data {width:100%; border-collapse:collapse;}
 .data th, .data td {padding:8px; border-bottom:1px solid var(--muted); text-align:left;}
@@ -146,10 +150,12 @@ input:focus, textarea:focus, button:hover {
 .timeline { height:120px; background:var(--card); border-radius:var(--radius-lg); padding:var(--gap); overflow-y:auto; }
 
 /* Agent chat */
-.agent-chat { display:flex; align-items:center; justify-content:center; height:100%; }
+.agent-chat { display:flex; align-items:center; justify-content:center; height:100%; width:100%; }
 .chat-box {
-  width:400px;
-  height:600px;
+  width:100%;
+  max-width:800px;
+  height:700px;
+  max-height:100%;
   background:var(--card);
   border:1px solid var(--muted);
   border-radius:var(--radius-lg);
@@ -229,6 +235,5 @@ input:focus, textarea:focus, button:hover {
 /* Responsive */
 @media (max-width:1024px) {
   #left-rail { display:none; }
-  .sourcing-view { flex-direction:column; }
-  .sourcing-view #map { margin-right:0; margin-bottom:var(--gap); height:200px; }
+  .sourcing-view #map { height:200px; }
 }

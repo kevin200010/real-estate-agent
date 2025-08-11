@@ -10,6 +10,9 @@ import { createAgentChat } from './components/agent-chat.js';
 const state={ data:{} };
 let topbarAPI;
 
+const backgrounds=['global-bg.svg','apartment-bg.svg','chat-bg.svg'];
+let bgIndex=0;
+
 fetch('data/sample.json').then(r=>r.json()).then(d=>{state.data=d;init();});
 
 function init(){
@@ -21,6 +24,7 @@ function init(){
   window.addEventListener('hashchange',router);
   router();
   setupShortcuts();
+  setupBackground();
 }
 
 function router(){
@@ -31,10 +35,19 @@ function router(){
     topbarAPI.setActive('#/sourcing');
     const wrap=document.createElement('div');
     wrap.className='sourcing-view';
-    const map=document.createElement('div');map.id='map';map.textContent='Map';
+    const map=document.createElement('div');map.id='map';
     const grid=createDataGrid(state.data.properties||[]);
     wrap.append(map,grid);
     main.appendChild(wrap);
+    if(window.google&&window.google.maps&&state.data.properties&&state.data.properties.length){
+      const first=state.data.properties[0];
+      const gmap=new google.maps.Map(map,{center:{lat:first.lat,lng:first.lng},zoom:10});
+      state.data.properties.forEach(p=>{
+        if(p.lat&&p.lng){
+          new google.maps.Marker({position:{lat:p.lat,lng:p.lng},map:gmap,title:p.address});
+        }
+      });
+    }
   } else if(hash.startsWith('#/leads')){
     topbarAPI.setActive('#/leads');
     const board=createKanban(state.data.leads||[]);
@@ -67,4 +80,18 @@ function setupShortcuts(){
     if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); togglePalette(); }
     if(e.key.toLowerCase()==='a' && !e.ctrlKey && !e.metaKey){ e.preventDefault(); toggleAssistant(); }
   });
+}
+
+function setupBackground(){
+  const bg=document.getElementById('bg');
+  if(!bg) return;
+  bg.style.backgroundImage=`url('${backgrounds[0]}')`;
+  setInterval(()=>{
+    bg.style.opacity=0;
+    setTimeout(()=>{
+      bgIndex=(bgIndex+1)%backgrounds.length;
+      bg.style.backgroundImage=`url('${backgrounds[bgIndex]}')`;
+      bg.style.opacity=1;
+    },1000);
+  },10000);
 }

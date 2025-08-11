@@ -1,8 +1,8 @@
 {
   "properties": [
-    {"id":1,"address":"123 Main St","price":"$500k"},
-    {"id":2,"address":"456 Oak Ave","price":"$750k"},
-    {"id":3,"address":"789 Pine Dr","price":"$1.2M"}
+    {"id":1,"address":"123 Main St","price":"$500k","lat":47.6062,"lng":-122.3321},
+    {"id":2,"address":"456 Oak Ave","price":"$750k","lat":45.5122,"lng":-122.6587},
+    {"id":3,"address":"789 Pine Dr","price":"$1.2M","lat":37.7749,"lng":-122.4194}
   ],
   "leads": [
     {"id":1,"name":"Alice","stage":"New"},
