@@ -7,15 +7,26 @@ import { createKanban } from './components/kanban.js';
 import { initToast } from './components/toast.js';
 import { createAgentChat } from './components/agent-chat.js';
 
-if (window.GOOGLE_MAPS_API_KEY) {
-  const script = document.createElement('script');
-  // use only the marker lib; weekly channel; re-route on load
-  script.src = `https://maps.googleapis.com/maps/api/js?key=${window.GOOGLE_MAPS_API_KEY}&libraries=marker&v=weekly`;
-  script.async = true;
-  script.defer = true;
-  script.onload = () => router();
-  document.head.appendChild(script);
-}
+const mapReady = new Promise(resolve => {
+  if (window.GOOGLE_MAPS_API_KEY) {
+    const script = document.createElement('script');
+    // use only the marker lib; weekly channel
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${window.GOOGLE_MAPS_API_KEY}&libraries=marker&v=weekly`;
+    script.async = true;
+    script.defer = true;
+    script.onload = resolve;
+    document.head.appendChild(script);
+  } else {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(link);
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.onload = resolve;
+    document.head.appendChild(script);
+  }
+});
 
 const state={ data:{}, gmap:null, markers:{}, infoWin:null };
 let topbarAPI;
@@ -24,7 +35,10 @@ let topbarAPI;
 const backgrounds=['property1.jpg','property2.png','property3.jpg'];
 let bgIndex=0;
 
-fetch('data/sample.json').then(r=>r.json()).then(d=>{state.data=d;init();});
+Promise.all([
+  fetch('data/sample.json').then(r=>r.json()),
+  mapReady
+]).then(([d])=>{state.data=d;init();});
 
 function init(){
   topbarAPI=initTopbar();
@@ -69,19 +83,27 @@ function router(){
       if(!p) return;
       const lat=Number(p.lat), lng=Number(p.lng);
       if(isNaN(lat)||isNaN(lng)) return;
-      state.gmap.panTo({lat,lng});
-      state.gmap.setZoom(16);
+      if(window.google?.maps){
+        state.gmap.panTo({lat,lng});
+        state.gmap.setZoom(16);
+      } else if(window.L){
+        state.gmap.setView([lat,lng],16);
+      }
       const marker=state.markers[p.id];
       if(marker){
-        state.infoWin.setContent(`<div>${p.address}<br/>${p.price}</div>`);
-        if(google.maps.marker?.AdvancedMarkerElement && marker instanceof google.maps.marker.AdvancedMarkerElement){
-          state.infoWin.open({map:state.gmap,anchor:marker});
-        } else {
-          state.infoWin.open(state.gmap,marker);
-          if(marker.getAnimation){
-            marker.setAnimation(google.maps.Animation.BOUNCE);
-            setTimeout(()=>marker.setAnimation(null),700);
+        if(window.google?.maps){
+          state.infoWin.setContent(`<div>${p.address}<br/>${p.price}</div>`);
+          if(google.maps.marker?.AdvancedMarkerElement && marker instanceof google.maps.marker.AdvancedMarkerElement){
+            state.infoWin.open({map:state.gmap,anchor:marker});
+          } else {
+            state.infoWin.open(state.gmap,marker);
+            if(marker.getAnimation){
+              marker.setAnimation(google.maps.Animation.BOUNCE);
+              setTimeout(()=>marker.setAnimation(null),700);
+            }
           }
+        } else if(window.L){
+          marker.openPopup();
         }
       }
       document.querySelectorAll('#grid tr.active').forEach(r=>r.classList.remove('active'));
@@ -91,32 +113,49 @@ function router(){
     const grid=createDataGrid(props,selectProperty);
     wrap.append(map,addBtn,grid);
     main.appendChild(wrap);
-    if(!window.google?.maps){
+    if(!window.google?.maps && !window.L){
       map.textContent='Loading map…';
       return;
     }
     state.markers={};
     const center=props.length?{lat:Number(props[0].lat),lng:Number(props[0].lng)}:{lat:39.5,lng:-98.35};
     const zoom=props.length?10:5;
-    state.gmap=new google.maps.Map(map,{center,zoom});
-    state.infoWin=state.infoWin||new google.maps.InfoWindow();
-    const bounds=new google.maps.LatLngBounds();
-    props.forEach(p=>{
-      const lat=Number(p.lat), lng=Number(p.lng);
-      if(!isNaN(lat)&&!isNaN(lng)){
-        const position={lat,lng};
-        let marker;
-        if(google.maps.marker?.AdvancedMarkerElement){
-          marker=new google.maps.marker.AdvancedMarkerElement({position,map:state.gmap,title:p.address});
-        } else {
-          marker=new google.maps.Marker({position,map:state.gmap,title:p.address});
+    if(window.google?.maps){
+      state.gmap=new google.maps.Map(map,{center,zoom});
+      state.infoWin=state.infoWin||new google.maps.InfoWindow();
+      const bounds=new google.maps.LatLngBounds();
+      props.forEach(p=>{
+        const lat=Number(p.lat), lng=Number(p.lng);
+        if(!isNaN(lat)&&!isNaN(lng)){
+          const position={lat,lng};
+          let marker;
+          if(google.maps.marker?.AdvancedMarkerElement){
+            marker=new google.maps.marker.AdvancedMarkerElement({position,map:state.gmap,title:p.address});
+          } else {
+            marker=new google.maps.Marker({position,map:state.gmap,title:p.address});
+          }
+          state.markers[p.id]=marker;
+          bounds.extend(position);
+          marker.addListener('click',()=>selectProperty(p.id));
         }
-        state.markers[p.id]=marker;
-        bounds.extend(position);
-        marker.addListener('click',()=>selectProperty(p.id));
-      }
-    });
-    if(props.length>1){state.gmap.fitBounds(bounds);}    
+      });
+      if(props.length>1){state.gmap.fitBounds(bounds);}
+    } else if(window.L){
+      state.gmap=L.map(map).setView([center.lat,center.lng],zoom);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors'}).addTo(state.gmap);
+      const bounds=L.latLngBounds();
+      props.forEach(p=>{
+        const lat=Number(p.lat), lng=Number(p.lng);
+        if(!isNaN(lat)&&!isNaN(lng)){
+          const position=[lat,lng];
+          const marker=L.marker(position).addTo(state.gmap).bindPopup(`<div>${p.address}<br/>${p.price}</div>`);
+          state.markers[p.id]=marker;
+          bounds.extend(position);
+          marker.on('click',()=>selectProperty(p.id));
+        }
+      });
+      if(props.length>1){state.gmap.fitBounds(bounds);}
+    }
     } else if(hash.startsWith('#/leads')){
       topbarAPI.setActive('#/leads');
     const board=createKanban(state.data.leads||[],{
