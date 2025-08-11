@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel
-from .property_chatbot import PropertyRetriever
+from property_chatbot import PropertyRetriever
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
