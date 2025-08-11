@@ -5,7 +5,7 @@ export function createAgentChat() {
     <div class="chat-box">
       <div id="chat-messages" class="chat-messages"></div>
       <form id="chat-form" class="chat-form">
-        <input id="chat-input" placeholder="Ask about properties..." autocomplete="off" />
+        <input id="chat-input" placeholder="Type your message..." autocomplete="off" />
         <button type="submit">Send</button>
       </form>
     </div>
@@ -37,7 +37,9 @@ export function createAgentChat() {
   function addMessage(role, text) {
     const div = document.createElement('div');
     div.className = `msg ${role}`;
-    div.textContent = text;
+    const span = document.createElement('span');
+    span.textContent = text;
+    div.appendChild(span);
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
   }
