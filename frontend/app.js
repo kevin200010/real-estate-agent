@@ -17,7 +17,7 @@ if (window.GOOGLE_MAPS_API_KEY) {
   document.head.appendChild(script);
 }
 
-const state={ data:{} };
+const state={ data:{}, gmap:null, markers:{}, infoWin:null };
 let topbarAPI;
 
 // cycle through simple real-estate themed backgrounds
@@ -62,26 +62,61 @@ function router(){
         router();
       }
     });
-    const grid=createDataGrid(state.data.properties||[]);
+    const props=state.data.properties||[];
+    function selectProperty(id){
+      if(!state.gmap) return;
+      const p=(state.data.properties||[]).find(x=>String(x.id)===String(id));
+      if(!p) return;
+      const lat=Number(p.lat), lng=Number(p.lng);
+      if(isNaN(lat)||isNaN(lng)) return;
+      state.gmap.panTo({lat,lng});
+      state.gmap.setZoom(16);
+      const marker=state.markers[p.id];
+      if(marker){
+        state.infoWin.setContent(`<div>${p.address}<br/>${p.price}</div>`);
+        if(google.maps.marker?.AdvancedMarkerElement && marker instanceof google.maps.marker.AdvancedMarkerElement){
+          state.infoWin.open({map:state.gmap,anchor:marker});
+        } else {
+          state.infoWin.open(state.gmap,marker);
+          if(marker.getAnimation){
+            marker.setAnimation(google.maps.Animation.BOUNCE);
+            setTimeout(()=>marker.setAnimation(null),700);
+          }
+        }
+      }
+      document.querySelectorAll('#grid tr.active').forEach(r=>r.classList.remove('active'));
+      const row=document.querySelector(`#grid tr[data-prop-id='${p.id}']`);
+      if(row) row.classList.add('active');
+    }
+    const grid=createDataGrid(props,selectProperty);
     wrap.append(map,addBtn,grid);
     main.appendChild(wrap);
     if(!window.google?.maps){
       map.textContent='Loading map…';
       return;
     }
-    const props=state.data.properties||[];
-    const center=props.length?{lat:props[0].lat,lng:props[0].lng}:{lat:39.5,lng:-98.35};
+    state.markers={};
+    const center=props.length?{lat:Number(props[0].lat),lng:Number(props[0].lng)}:{lat:39.5,lng:-98.35};
     const zoom=props.length?10:5;
-    const gmap=new google.maps.Map(map,{center,zoom});
+    state.gmap=new google.maps.Map(map,{center,zoom});
+    state.infoWin=state.infoWin||new google.maps.InfoWindow();
+    const bounds=new google.maps.LatLngBounds();
     props.forEach(p=>{
-      if(p.lat&&p.lng){
+      const lat=Number(p.lat), lng=Number(p.lng);
+      if(!isNaN(lat)&&!isNaN(lng)){
+        const position={lat,lng};
+        let marker;
         if(google.maps.marker?.AdvancedMarkerElement){
-          new google.maps.marker.AdvancedMarkerElement({position:{lat:p.lat,lng:p.lng},map:gmap,title:p.address});
+          marker=new google.maps.marker.AdvancedMarkerElement({position,map:state.gmap,title:p.address});
         } else {
-          new google.maps.Marker({position:{lat:p.lat,lng:p.lng},map:gmap,title:p.address});
+          marker=new google.maps.Marker({position,map:state.gmap,title:p.address});
         }
+        state.markers[p.id]=marker;
+        bounds.extend(position);
+        marker.addListener('click',()=>selectProperty(p.id));
       }
     });
+    if(props.length>1){state.gmap.fitBounds(bounds);}    
     } else if(hash.startsWith('#/leads')){
       topbarAPI.setActive('#/leads');
     const board=createKanban(state.data.leads||[],{
