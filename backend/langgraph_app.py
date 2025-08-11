@@ -123,7 +123,18 @@ async def query_classifier_agent(state: GraphState) -> GraphState:
         is_query = output.startswith("y")
     except (KeyError, IndexError, TypeError, NoCredentialsError, ClientError) as exc:
         logger.warning("query_classifier_agent failed: %s", exc)
-        is_query = False
+        # Fall back to a simple keyword check when the LLM is unavailable
+        text = state.get("user_input", "").lower()
+        keywords = [
+            "house",
+            "home",
+            "apartment",
+            "property",
+            "rent",
+            "price",
+            "listing",
+        ]
+        is_query = any(k in text for k in keywords)
 
     logger.info("query_classifier_agent result: %s", is_query)
     return {"is_property_query": is_query}
