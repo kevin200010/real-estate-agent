@@ -49,8 +49,22 @@ function router(){
     const wrap=document.createElement('div');
     wrap.className='sourcing-view';
     const map=document.createElement('div');map.id='map';
+    const addBtn=document.createElement('button');
+    addBtn.textContent='Add Property';
+    addBtn.addEventListener('click',()=>{
+      const address=prompt('Address?');
+      const price=prompt('Price?');
+      const lat=parseFloat(prompt('Latitude?'));
+      const lng=parseFloat(prompt('Longitude?'));
+      if(address&&price&&!isNaN(lat)&&!isNaN(lng)){
+        const id=Date.now();
+        state.data.properties=state.data.properties||[];
+        state.data.properties.push({id,address,price,lat,lng});
+        router();
+      }
+    });
     const grid=createDataGrid(state.data.properties||[]);
-    wrap.append(map,grid);
+    wrap.append(map,addBtn,grid);
     main.appendChild(wrap);
     if(window.google&&window.google.maps&&state.data.properties&&state.data.properties.length){
       const first=state.data.properties[0];
@@ -63,7 +77,14 @@ function router(){
     }
   } else if(hash.startsWith('#/leads')){
     topbarAPI.setActive('#/leads');
-    const board=createKanban(state.data.leads||[]);
+    const board=createKanban(state.data.leads||[],{
+      onAdd:l=>{state.data.leads.push(l);router();},
+      onEdit:l=>{
+        const i=state.data.leads.findIndex(x=>x.id===l.id);
+        if(i>-1) state.data.leads[i]=l; else state.data.leads.push(l);
+        router();
+      }
+    });
     main.appendChild(board);
   } else if(hash.startsWith('#/outreach')){
     topbarAPI.setActive('#/outreach');
