@@ -9,16 +9,11 @@ import { createAgentChat } from './components/agent-chat.js';
 
 if (window.GOOGLE_MAPS_API_KEY) {
   const script = document.createElement('script');
-  // Load the Maps JavaScript API with the marker library. AdvancedMarkerElement
-  // lives in this optional library and without it the map would fail to render
-  // markers and in some cases not initialize at all.
-  script.src = `https://maps.googleapis.com/maps/api/js?key=${window.GOOGLE_MAPS_API_KEY}&libraries=maps,marker&v=beta`;
+  // use only the marker lib; weekly channel; re-route on load
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${window.GOOGLE_MAPS_API_KEY}&libraries=marker&v=weekly`;
   script.async = true;
-  script.onload = () => {
-    if (location.hash.startsWith('#/sourcing')) {
-      router();
-    }
-  };
+  script.defer = true;
+  script.onload = () => router();
   document.head.appendChild(script);
 }
 
@@ -37,6 +32,7 @@ function init(){
   initAssistantDrawer();
   initCommandPalette(state.data);
   initToast();
+  if(!location.hash) location.hash = '#/sourcing';
   window.addEventListener('hashchange',router);
   router();
   setupShortcuts();
@@ -69,17 +65,25 @@ function router(){
     const grid=createDataGrid(state.data.properties||[]);
     wrap.append(map,addBtn,grid);
     main.appendChild(wrap);
-    if(window.google&&window.google.maps&&state.data.properties&&state.data.properties.length){
-      const first=state.data.properties[0];
-      const gmap=new google.maps.Map(map,{center:{lat:first.lat,lng:first.lng},zoom:10});
-      state.data.properties.forEach(p=>{
-        if(p.lat&&p.lng){
-          new google.maps.marker.AdvancedMarkerElement({position:{lat:p.lat,lng:p.lng},map:gmap,title:p.address});
-        }
-      });
+    if(!window.google?.maps){
+      map.textContent='Loading map…';
+      return;
     }
-  } else if(hash.startsWith('#/leads')){
-    topbarAPI.setActive('#/leads');
+    const props=state.data.properties||[];
+    const center=props.length?{lat:props[0].lat,lng:props[0].lng}:{lat:39.5,lng:-98.35};
+    const zoom=props.length?10:5;
+    const gmap=new google.maps.Map(map,{center,zoom});
+    props.forEach(p=>{
+      if(p.lat&&p.lng){
+        if(google.maps.marker?.AdvancedMarkerElement){
+          new google.maps.marker.AdvancedMarkerElement({position:{lat:p.lat,lng:p.lng},map:gmap,title:p.address});
+        } else {
+          new google.maps.Marker({position:{lat:p.lat,lng:p.lng},map:gmap,title:p.address});
+        }
+      }
+    });
+    } else if(hash.startsWith('#/leads')){
+      topbarAPI.setActive('#/leads');
     const board=createKanban(state.data.leads||[],{
       onAdd:l=>{state.data.leads.push(l);router();},
       onEdit:l=>{
