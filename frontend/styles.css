@@ -156,6 +156,7 @@ button:hover{
 .data {width:100%; border-collapse:collapse;}
 .data th, .data td {padding:8px; border-bottom:1px solid var(--muted); text-align:left; background-color: rgb(255, 255, 255,0.6);}
 .data tr:hover {background:var(--muted);}
+.data tr.active {background:rgba(59,130,246,0.2);}
 
 .kanban { display:flex; gap:var(--gap); height:100%; }
 .kanban-column { flex:1; background:var(--card); border-radius:var(--radius-lg); padding:var(--gap); display:flex; flex-direction:column; }
