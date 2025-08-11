@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from .base import Agent
-from property_chatbot import PropertyRetriever
+from ..property_chatbot import PropertyRetriever
 
 
 class IntentClassifierAgent(Agent):
@@ -17,8 +17,17 @@ class IntentClassifierAgent(Agent):
     ``property_search``.
     """
 
-    def __init__(self, data_file: Path | str, limit: int = 1, registry=None) -> None:
+    def __init__(
+        self, data_file: Path | str | None = None, limit: int = 1, registry=None
+    ) -> None:
         super().__init__("IntentClassifierAgent", registry)
+        if data_file is None:
+            data_file = (
+                Path(__file__).resolve().parents[2]
+                / "frontend"
+                / "data"
+                / "listings.csv"
+            )
         self.retriever = PropertyRetriever(data_file)
         self.limit = limit
 
