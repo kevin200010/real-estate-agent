@@ -12,7 +12,8 @@ export function createKanban(leads=[],callbacks={}) {
   addBtn.textContent='Add Lead';
   addBtn.addEventListener('click',()=>{
     const name=prompt('Lead name?');
-    if(name){ const id=Date.now(); if(onAdd) onAdd({id,name,stage:'New'}); }
+    const property=prompt('Interested property?');
+    if(name){ const id=Date.now(); if(onAdd) onAdd({id,name,stage:'New',property}); }
   });
   controls.appendChild(addBtn);
   board.appendChild(controls);
@@ -30,7 +31,7 @@ export function createKanban(leads=[],callbacks={}) {
       const card=document.getElementById(id);
       col.appendChild(card);
       showToast(`Moved ${card.dataset.name} to ${s}`);
-      if(onEdit){ const leadId=parseInt(id.replace('lead-','')); onEdit({id:leadId,name:card.dataset.name,stage:s}); }
+      if(onEdit){ const leadId=parseInt(id.replace('lead-','')); onEdit({id:leadId,name:card.dataset.name,stage:s,property:card.dataset.property}); }
     });
     board.appendChild(col);
     columns[s]=col;
@@ -44,13 +45,15 @@ export function createKanban(leads=[],callbacks={}) {
       card.draggable=true;
       card.id='lead-'+l.id;
       card.dataset.name=l.name;
-      card.innerText=l.name;
+      card.dataset.property=l.property||'';
+      card.innerHTML=`<strong>${l.name}</strong>${l.property?`<br/><small>${l.property}</small>`:''}`;
       card.addEventListener('dragstart',e=>e.dataTransfer.setData('id',card.id));
       card.addEventListener('dblclick',()=>{
         const name=prompt('Lead name',l.name);
         if(!name) return;
         const stage=prompt('Stage',l.stage)||l.stage;
-        if(onEdit){ onEdit({id:l.id,name,stage:stages.includes(stage)?stage:l.stage}); }
+        const property=prompt('Property',l.property||'')||l.property||'';
+        if(onEdit){ onEdit({id:l.id,name,stage:stages.includes(stage)?stage:l.stage,property}); }
       });
       columns[l.stage].appendChild(card);
     });
