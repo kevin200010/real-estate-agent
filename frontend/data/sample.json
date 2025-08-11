@@ -1,8 +1,13 @@
 {
   "properties": [
-    {"id":1,"address":"123 Main St","price":"$500k","lat":47.6062,"lng":-122.3321},
-    {"id":2,"address":"456 Oak Ave","price":"$750k","lat":45.5122,"lng":-122.6587},
-    {"id":3,"address":"789 Pine Dr","price":"$1.2M","lat":37.7749,"lng":-122.4194}
+    {"id":"F10317770","address":"8400 N University Dr #216, Tamarac, FL 33321","price":"$895","lat":26.2280705,"lng":-80.252189},
+    {"id":"F10337475","address":"18606 NW 67th Ave, Hialeah, FL 33015","price":"$49","lat":25.94353339,"lng":-80.30832473},
+    {"id":"F10358671","address":"2020 NW 150th Avenue #304, Pembroke Pines, FL 33028","price":"$21","lat":26.02741499,"lng":-80.34837174},
+    {"id":"F10365069","address":"1212 NE 26th St, Wilton Manors, FL 33305","price":"$2,000,000","lat":26.15908704,"lng":-80.13086873},
+    {"id":"F10388461","address":"309 SE 22nd Ave, Pompano Beach, FL 33062","price":"$1,900,000","lat":26.22864145,"lng":-80.10204566},
+    {"id":"F10388914","address":"111 Briny Ave #Ph18, Pompano Beach, FL 33062","price":"$1,499,999","lat":26.23055677,"lng":-80.09046936},
+    {"id":"F10405069","address":"1680 NE 191st St #202-2, Miami, FL 33179","price":"$265,000","lat":25.94908326,"lng":-80.16891599},
+    {"id":"F10415112","address":"2200 N Ocean Blvd #S903, Fort Lauderdale, FL 33305","price":"$4,750,000","lat":26.1569554,"lng":-80.10075357}
   ],
   "leads": [
     {"id":1,"name":"Alice","stage":"New"},

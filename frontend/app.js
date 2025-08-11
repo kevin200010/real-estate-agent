@@ -9,7 +9,10 @@ import { createAgentChat } from './components/agent-chat.js';
 
 if (window.GOOGLE_MAPS_API_KEY) {
   const script = document.createElement('script');
-  script.src = `https://maps.googleapis.com/maps/api/js?key=${window.GOOGLE_MAPS_API_KEY}`;
+  // Load the Maps JavaScript API with the marker library. AdvancedMarkerElement
+  // lives in this optional library and without it the map would fail to render
+  // markers and in some cases not initialize at all.
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${window.GOOGLE_MAPS_API_KEY}&libraries=maps,marker&v=beta`;
   script.async = true;
   script.onload = () => {
     if (location.hash.startsWith('#/sourcing')) {
