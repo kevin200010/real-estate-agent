@@ -154,6 +154,7 @@ async def format_agent(state: GraphState) -> GraphState:
     )
     cards = [
         {
+            "id": p.get("id"),
             "address": p.get("address"),
             "price": (
                 f"${p.get('price'):,}"

@@ -230,6 +230,10 @@ button:hover{
 .msg.user { justify-content:flex-end; }
 .msg.user span { background:var(--accent); color:white; }
 
+.prop-cards { margin-top:var(--gap); display:flex; flex-direction:column; gap:var(--gap); }
+.prop-card { background:var(--muted); padding:var(--gap); border-radius:var(--radius-sm); cursor:pointer; box-shadow:var(--shadow); }
+.prop-card:hover { background:var(--card); }
+
 @keyframes slide-up {
   from { opacity:0; transform:translateY(4px); }
   to { opacity:1; transform:translateY(0); }
