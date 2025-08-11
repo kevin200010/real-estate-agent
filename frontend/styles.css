@@ -1,7 +1,7 @@
 :root {
-  --bg: #f9fafb;
-  --card: rgba(255,255,255,0.9);
-  --muted: #e5e7eb;
+  --bg: transparent;
+  --card: rgba(255,255,255,0.2);
+  --muted: rgba(255,255,255,0.1);
   --text: #111827;
   --text-dim: #6b7280;
   --accent: #3b82f6;
@@ -31,6 +31,15 @@ body {
   z-index:-1;
   opacity:1;
   transition:opacity 1s ease-in-out;
+}
+
+#bg.changing {
+  animation:bg-change 1s ease-in-out;
+}
+
+@keyframes bg-change {
+  from {transform:scale(1.1); filter:blur(2px);}
+  to {transform:scale(1); filter:blur(0);}
 }
 
 #topbar {
