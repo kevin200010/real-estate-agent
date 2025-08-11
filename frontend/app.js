@@ -1,6 +1,6 @@
 import { initTopbar } from './components/topbar.js';
 import { initLeftRail } from './components/left-rail.js';
-import { initAssistantDrawer, toggleAssistant } from './components/assistant-drawer.js';
+import { initAssistantDrawer } from './components/assistant-drawer.js';
 import { initCommandPalette, togglePalette } from './components/command-palette.js';
 import { createDataGrid } from './components/datagrid.js';
 import { createKanban } from './components/kanban.js';
@@ -8,9 +8,14 @@ import { initToast } from './components/toast.js';
 import { createAgentChat } from './components/agent-chat.js';
 
 if (window.GOOGLE_MAPS_API_KEY) {
-  const script=document.createElement('script');
-  script.src=`https://maps.googleapis.com/maps/api/js?key=${window.GOOGLE_MAPS_API_KEY}&loading=async`;
-  script.async=true;
+  const script = document.createElement('script');
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${window.GOOGLE_MAPS_API_KEY}`;
+  script.async = true;
+  script.onload = () => {
+    if (location.hash.startsWith('#/sourcing')) {
+      router();
+    }
+  };
   document.head.appendChild(script);
 }
 
@@ -85,7 +90,6 @@ function createOutreach(){
 function setupShortcuts(){
   document.addEventListener('keydown',e=>{
     if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); togglePalette(); }
-    if(e.key.toLowerCase()==='a' && !e.ctrlKey && !e.metaKey){ e.preventDefault(); toggleAssistant(); }
   });
 }
 
