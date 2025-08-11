@@ -149,7 +149,7 @@ button:hover{
 }
 /* Views */
 .sourcing-view { display:flex; flex-direction:column; height:100%; }
-.sourcing-view #map { width:100%; margin-right:0; margin-bottom:var(--gap); background:var(--card); border-radius:var(--radius-lg); display:flex; align-items:center; justify-content:center; height:300px; }
+#map { min-height: 380px; width: 100%; border-radius: 12px; overflow: hidden; margin-right:0; margin-bottom:var(--gap); }
 .sourcing-view #grid { width:100%; margin-top:2%;  backdrop-filter:blur(5px);}
 
 
@@ -260,5 +260,4 @@ button:hover{
 /* Responsive */
 @media (max-width:1024px) {
   #left-rail { display:none; }
-  .sourcing-view #map { height:200px; }
 }
