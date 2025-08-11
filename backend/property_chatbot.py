@@ -466,6 +466,7 @@ async def process_user_query(query: str):
     answer, listings = _bot.ask_text(query)
     cards = [
         {
+            "id": p.get("id"),
             "image": p.get("image", "https://placehold.co/400x300"),
             "address": p.get("address") or p.get("location"),
             # ``price`` may be ``None`` when the source data is missing a value.
@@ -489,6 +490,7 @@ async def process_user_audio(audio_bytes: bytes):
     result = _bot.ask_audio(audio_bytes)
     cards = [
         {
+            "id": p.get("id"),
             "image": p.get("image", "https://placehold.co/400x300"),
             "address": p.get("address") or p.get("location"),
             "price": (
