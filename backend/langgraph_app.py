@@ -6,6 +6,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, TypedDict
+from urllib.parse import unquote
 
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
@@ -36,7 +37,9 @@ class LLMClient:
 
     def __init__(self, model_id: str = "amazon.nova-lite-v1:0", region: str = "us-east-1"):
         self.client = boto3.client("bedrock-runtime", region_name=region)
-        self.model_id = model_id
+        # Normalize model ID to avoid double-encoding of special characters like ':'
+        # which would result in ``InvalidSignatureException`` errors from Bedrock.
+        self.model_id = unquote(model_id)
 
     def answer(self, question: str, listings: List[Dict[str, Any]]) -> str:
         context_lines: List[str] = []
