@@ -22,7 +22,8 @@ if (window.GOOGLE_MAPS_API_KEY) {
 const state={ data:{} };
 let topbarAPI;
 
-const backgrounds=['global-bg.svg','apartment-bg.svg','chat-bg.svg'];
+// cycle through simple real-estate themed backgrounds
+const backgrounds=['property1.svg','property2.svg','property3.svg'];
 let bgIndex=0;
 
 fetch('data/sample.json').then(r=>r.json()).then(d=>{state.data=d;init();});
