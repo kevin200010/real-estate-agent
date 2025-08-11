@@ -7,6 +7,13 @@ import { createKanban } from './components/kanban.js';
 import { initToast } from './components/toast.js';
 import { createAgentChat } from './components/agent-chat.js';
 
+if (window.GOOGLE_MAPS_API_KEY) {
+  const script=document.createElement('script');
+  script.src=`https://maps.googleapis.com/maps/api/js?key=${window.GOOGLE_MAPS_API_KEY}&loading=async`;
+  script.async=true;
+  document.head.appendChild(script);
+}
+
 const state={ data:{} };
 let topbarAPI;
 
@@ -44,7 +51,7 @@ function router(){
       const gmap=new google.maps.Map(map,{center:{lat:first.lat,lng:first.lng},zoom:10});
       state.data.properties.forEach(p=>{
         if(p.lat&&p.lng){
-          new google.maps.Marker({position:{lat:p.lat,lng:p.lng},map:gmap,title:p.address});
+          new google.maps.marker.AdvancedMarkerElement({position:{lat:p.lat,lng:p.lng},map:gmap,title:p.address});
         }
       });
     }
@@ -88,10 +95,12 @@ function setupBackground(){
   bg.style.backgroundImage=`url('${backgrounds[0]}')`;
   setInterval(()=>{
     bg.style.opacity=0;
+    bg.classList.add('changing');
     setTimeout(()=>{
       bgIndex=(bgIndex+1)%backgrounds.length;
       bg.style.backgroundImage=`url('${backgrounds[bgIndex]}')`;
       bg.style.opacity=1;
+      bg.classList.remove('changing');
     },1000);
   },10000);
 }

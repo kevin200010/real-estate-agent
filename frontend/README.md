@@ -12,6 +12,8 @@ This directory contains a minimal browser client that displays a floating chat w
    ```
 3. Open [http://localhost:8001](http://localhost:8001) in a browser. Click the blue chat bubble in the bottom-right corner to open the widget and ask about properties.
 
+   To display Google Maps, copy `config.sample.js` to `config.js` and replace `YOUR_API_KEY_HERE` with a valid API key.
+
 The client sends requests to the backend's `/chat` endpoint and renders markdown or property cards included in the response. A sample JSON reply expected from the backend:
 
 ```json
