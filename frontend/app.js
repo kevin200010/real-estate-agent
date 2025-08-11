@@ -37,8 +37,13 @@ let bgIndex=0;
 
 Promise.all([
   fetch('data/sample.json').then(r=>r.json()),
+  fetch('data/listings.csv').then(r=>r.text()),
   mapReady
-]).then(([d])=>{state.data=d;init();});
+]).then(([d,csv])=>{
+  d.properties=parseCSV(csv);
+  state.data=d;
+  init();
+});
 
 function init(){
   topbarAPI=initTopbar();
@@ -55,9 +60,10 @@ function init(){
 
 function router(){
   const hash=location.hash||'#/sourcing';
+  const [route,query]=hash.split('?');
   const main=document.getElementById('main');
   main.innerHTML='';
-  if(hash.startsWith('#/sourcing')){
+  if(route.startsWith('#/sourcing')){
     topbarAPI.setActive('#/sourcing');
     const wrap=document.createElement('div');
     wrap.className='sourcing-view';
@@ -92,7 +98,11 @@ function router(){
       const marker=state.markers[p.id];
       if(marker){
         if(window.google?.maps){
-          state.infoWin.setContent(`<div>${p.address}<br/>${p.price}</div>`);
+          state.infoWin.setContent(`<div>${p.address}<br/>${p.price}<br/><button id="addLead">Add to Leads</button></div>`);
+          state.infoWin.addListener('domready',()=>{
+            const btn=document.getElementById('addLead');
+            if(btn) btn.onclick=()=>{location.hash=`#/leads?prop=${p.id}`;};
+          });
           if(google.maps.marker?.AdvancedMarkerElement && marker instanceof google.maps.marker.AdvancedMarkerElement){
             state.infoWin.open({map:state.gmap,anchor:marker});
           } else {
@@ -104,6 +114,14 @@ function router(){
           }
         } else if(window.L){
           marker.openPopup();
+          const popup=marker.getPopup();
+          if(popup){
+            const el=popup.getElement();
+            if(el){
+              const btn=el.querySelector('.add-lead');
+              if(btn) btn.onclick=()=>{location.hash=`#/leads?prop=${p.id}`;};
+            }
+          }
         }
       }
       document.querySelectorAll('#grid tr.active').forEach(r=>r.classList.remove('active'));
@@ -148,29 +166,51 @@ function router(){
         const lat=Number(p.lat), lng=Number(p.lng);
         if(!isNaN(lat)&&!isNaN(lng)){
           const position=[lat,lng];
-          const marker=L.marker(position).addTo(state.gmap).bindPopup(`<div>${p.address}<br/>${p.price}</div>`);
+          const marker=L.marker(position).addTo(state.gmap).bindPopup(`<div>${p.address}<br/>${p.price}<br/><button class='add-lead'>Add to Leads</button></div>`);
           state.markers[p.id]=marker;
           bounds.extend(position);
           marker.on('click',()=>selectProperty(p.id));
+          marker.on('popupopen',e=>{
+            const btn=e.popup.getElement().querySelector('.add-lead');
+            if(btn) btn.addEventListener('click',()=>{location.hash=`#/leads?prop=${p.id}`;});
+          });
         }
       });
       if(props.length>1){state.gmap.fitBounds(bounds);}
     }
-    } else if(hash.startsWith('#/leads')){
+    } else if(route.startsWith('#/leads')){
       topbarAPI.setActive('#/leads');
-    const board=createKanban(state.data.leads||[],{
-      onAdd:l=>{state.data.leads.push(l);router();},
-      onEdit:l=>{
-        const i=state.data.leads.findIndex(x=>x.id===l.id);
-        if(i>-1) state.data.leads[i]=l; else state.data.leads.push(l);
-        router();
+      const params=new URLSearchParams(query||'');
+      const propId=params.get('prop');
+      if(propId){
+        const p=(state.data.properties||[]).find(x=>String(x.id)===String(propId));
+        const form=document.createElement('form');
+        form.className='lead-form';
+        form.innerHTML=`<h2>Lead for ${p?p.address:propId}</h2><label>Name:<input name='name' required/></label><button type='submit'>Save</button>`;
+        form.addEventListener('submit',e=>{
+          e.preventDefault();
+          const name=form.name.value.trim();
+          if(!name) return;
+          state.data.leads=state.data.leads||[];
+          state.data.leads.push({id:Date.now(),name,stage:'New',property:p?p.address:''});
+          location.hash='#/leads';
+        });
+        main.appendChild(form);
+      } else {
+        const board=createKanban(state.data.leads||[],{
+          onAdd:l=>{state.data.leads.push(l);router();},
+          onEdit:l=>{
+            const i=state.data.leads.findIndex(x=>x.id===l.id);
+            if(i>-1) state.data.leads[i]=l; else state.data.leads.push(l);
+            router();
+          }
+        });
+        main.appendChild(board);
       }
-    });
-    main.appendChild(board);
-  } else if(hash.startsWith('#/outreach')){
+  } else if(route.startsWith('#/outreach')){
     topbarAPI.setActive('#/outreach');
     main.appendChild(createOutreach());
-  } else if(hash.startsWith('#/agent')){
+  } else if(route.startsWith('#/agent')){
     topbarAPI.setActive('#/agent');
     main.appendChild(createAgentChat());
   }
@@ -210,4 +250,21 @@ function setupBackground(){
       bg.classList.remove('changing');
     },1000);
   },10000);
+}
+
+function parseCSV(text){
+  const lines=text.trim().split(/\r?\n/);
+  if(!lines.length) return [];
+  const headers=lines.shift().split(',').map(h=>h.trim());
+  return lines.map(line=>{
+    const values=line.split(/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/).map(v=>v.trim().replace(/^"|"$/g,''));
+    const obj={};
+    headers.forEach((h,i)=>obj[h]=values[i]||'');
+    const id=obj['Listing Number'];
+    const address=`${obj['Address']}, ${obj['City']}, ${obj['State']} ${obj['Zip Code']}`;
+    const price=obj[' List Price ']||obj['List Price']||'';
+    const lat=parseFloat(obj['Latitude']);
+    const lng=parseFloat(obj['Longitude']);
+    return {id,address,price,lat,lng};
+  });
 }
