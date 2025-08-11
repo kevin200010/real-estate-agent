@@ -18,6 +18,61 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 
+_STATE_ABBREVIATIONS = {
+    "AL": "Alabama",
+    "AK": "Alaska",
+    "AZ": "Arizona",
+    "AR": "Arkansas",
+    "CA": "California",
+    "CO": "Colorado",
+    "CT": "Connecticut",
+    "DE": "Delaware",
+    "FL": "Florida",
+    "GA": "Georgia",
+    "HI": "Hawaii",
+    "ID": "Idaho",
+    "IL": "Illinois",
+    "IN": "Indiana",
+    "IA": "Iowa",
+    "KS": "Kansas",
+    "KY": "Kentucky",
+    "LA": "Louisiana",
+    "ME": "Maine",
+    "MD": "Maryland",
+    "MA": "Massachusetts",
+    "MI": "Michigan",
+    "MN": "Minnesota",
+    "MS": "Mississippi",
+    "MO": "Missouri",
+    "MT": "Montana",
+    "NE": "Nebraska",
+    "NV": "Nevada",
+    "NH": "New Hampshire",
+    "NJ": "New Jersey",
+    "NM": "New Mexico",
+    "NY": "New York",
+    "NC": "North Carolina",
+    "ND": "North Dakota",
+    "OH": "Ohio",
+    "OK": "Oklahoma",
+    "OR": "Oregon",
+    "PA": "Pennsylvania",
+    "RI": "Rhode Island",
+    "SC": "South Carolina",
+    "SD": "South Dakota",
+    "TN": "Tennessee",
+    "TX": "Texas",
+    "UT": "Utah",
+    "VT": "Vermont",
+    "VA": "Virginia",
+    "WA": "Washington",
+    "WV": "West Virginia",
+    "WI": "Wisconsin",
+    "WY": "Wyoming",
+    "DC": "District of Columbia",
+}
+
+
 def normalize_listing(p: Dict[str, object]) -> Dict[str, object]:
     """Map a raw property dict to a common schema."""
     return {
@@ -41,8 +96,35 @@ class PropertyRetriever:
 
         path = Path(data_file).resolve()
         try:
-            with path.open("r", encoding="utf-8") as f:
-                self.properties: List[Dict[str, object]] = json.load(f)
+            if path.suffix.lower() == ".csv":
+                import csv
+
+                with path.open("r", encoding="utf-8", newline="") as f:
+                    reader = csv.DictReader(f)
+                    self.properties = []
+                    for row in reader:
+                        cleaned = {k.strip(): (v.strip() if isinstance(v, str) else v) for k, v in row.items()}
+                        state_abbr = cleaned.get("State", "").upper()
+                        state_full = _STATE_ABBREVIATIONS.get(state_abbr, state_abbr)
+                        location = f"{cleaned.get('City', '')}, {state_full}".strip(", ")
+                        price_str = cleaned.get("List Price", "").replace("$", "").replace(",", "")
+                        try:
+                            price = int(float(price_str)) if price_str else None
+                        except ValueError:
+                            price = None
+                        self.properties.append(
+                            {
+                                "id": cleaned.get("Listing Number"),
+                                "address": cleaned.get("Address"),
+                                "location": location,
+                                "price": price,
+                                "type": cleaned.get("Property Type"),
+                                "description": cleaned.get("Property Subtype"),
+                            }
+                        )
+            else:
+                with path.open("r", encoding="utf-8") as f:
+                    self.properties = json.load(f)
         except FileNotFoundError:
             # Gracefully handle missing data file so the server can still run.
             self.properties = []
@@ -326,7 +408,7 @@ def main() -> None:
     parser.add_argument("--audio", help="Path to wav file containing spoken question")
     args = parser.parse_args()
 
-    data_path = Path(__file__).with_name("properties.json")
+    data_path = Path(__file__).resolve().parents[1] / "frontend" / "data" / "listings.csv"
     retriever = PropertyRetriever(data_path)
     llm = LLMClient()
     sonic = SonicClient()
@@ -355,7 +437,12 @@ if __name__ == "__main__":
 # bundled commercial listing data. The local data is also used as a fallback if
 # the remote service is unavailable.
 _rag_url = os.getenv("RAG_SERVER_URL")
-_data_path = Path(__file__).resolve().with_name("rag_data.json")
+_data_path = (
+    Path(__file__).resolve().parents[1]
+    / "frontend"
+    / "data"
+    / "listings.csv"
+)
 _local_retriever = PropertyRetriever(_data_path)
 if _rag_url:
     _retriever = RAGRetriever(_rag_url, fallback=_local_retriever)

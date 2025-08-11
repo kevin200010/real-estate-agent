@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel
+from .property_chatbot import PropertyRetriever
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -28,32 +29,6 @@ def normalize_listing(p: Dict[str, Any]) -> Dict[str, Any]:
         "address": p.get("address") or p.get("location", "Unknown location"),
         "bedrooms": p.get("bedrooms") or p.get("sqft") or "N/A",
     }
-
-
-class PropertyRetriever:
-    """Naive keyword search over local property data."""
-
-    def __init__(self, data_file: Path | str):
-        path = Path(data_file).resolve()
-        try:
-            with path.open("r", encoding="utf-8") as f:
-                self.properties: List[Dict[str, Any]] = json.load(f)
-        except FileNotFoundError:
-            self.properties = []
-
-    def search(self, query: str, limit: int = 3) -> List[Dict[str, Any]]:
-        q_words = query.lower().split()
-        results: List[Dict[str, Any]] = []
-        for p in self.properties:
-            text = (
-                f"{p.get('address', '')} {p.get('description', '')} "
-                f"{p.get('type', '')}"
-            ).lower()
-            if all(word in text for word in q_words):
-                results.append(p)
-            if len(results) >= limit:
-                break
-        return results
 
 
 class LLMClient:
@@ -113,7 +88,9 @@ class GraphState(TypedDict, total=False):
     answer: str
 
 
-retriever = PropertyRetriever(Path(__file__).with_name("rag_data.json"))
+retriever = PropertyRetriever(
+    Path(__file__).resolve().parents[1] / "frontend" / "data" / "listings.csv"
+)
 llm_client = LLMClient()
 
 
