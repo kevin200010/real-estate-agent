@@ -83,6 +83,8 @@ function router(){
       }
     });
     const props=state.data.properties||[];
+    const params=new URLSearchParams(query||'');
+    const initialProp=params.get('prop');
     function selectProperty(id){
       if(!state.gmap) return;
       const p=(state.data.properties||[]).find(x=>String(x.id)===String(id));
@@ -178,6 +180,7 @@ function router(){
       });
       if(props.length>1){state.gmap.fitBounds(bounds);}
     }
+    if(initialProp){ selectProperty(initialProp); }
     } else if(route.startsWith('#/leads')){
       topbarAPI.setActive('#/leads');
       const params=new URLSearchParams(query||'');
