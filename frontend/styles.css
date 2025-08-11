@@ -30,6 +30,7 @@ body {
   background-position:center;
   z-index:-1;
   opacity:1;
+  filter:blur(8px);
   transition:opacity 1s ease-in-out;
 }
 
@@ -38,8 +39,8 @@ body {
 }
 
 @keyframes bg-change {
-  from {transform:scale(1.1); filter:blur(2px);}
-  to {transform:scale(1); filter:blur(0);}
+  from {transform:scale(1.1);}
+  to {transform:scale(1);}
 }
 
 #topbar {
