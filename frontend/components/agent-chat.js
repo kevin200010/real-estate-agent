@@ -59,12 +59,27 @@ export function createAgentChat() {
       properties.forEach(p => {
         const card = document.createElement('div');
         card.className = 'prop-card';
-        card.innerHTML = `<strong>${p.address || ''}</strong><br/>${p.price || ''}<br/>${p.description || ''}`;
+
+        const img = document.createElement('img');
+        img.src = p.image || 'https://placehold.co/400x300';
+        img.alt = p.address || 'Property image';
+
+        const info = document.createElement('div');
+        info.className = 'details';
+        info.innerHTML = `<strong>${p.address || ''}</strong><br/>${p.price || ''}<br/>${p.description || ''}`;
+
         if (p.id) {
-          card.addEventListener('click', () => {
+          const btn = document.createElement('button');
+          btn.textContent = 'Show Property';
+          btn.addEventListener('click', () => {
             location.hash = `#/sourcing?prop=${p.id}`;
           });
+          info.appendChild(document.createElement('br'));
+          info.appendChild(btn);
         }
+
+        card.appendChild(img);
+        card.appendChild(info);
         list.appendChild(card);
       });
       div.appendChild(list);

@@ -231,7 +231,23 @@ button:hover{
 .msg.user span { background:var(--accent); color:white; }
 
 .prop-cards { margin-top:var(--gap); display:flex; flex-direction:column; gap:var(--gap); }
-.prop-card { background:var(--muted); padding:var(--gap); border-radius:var(--radius-sm); cursor:pointer; box-shadow:var(--shadow); }
+.prop-card {
+  display:flex;
+  gap:var(--gap);
+  background:var(--muted);
+  padding:var(--gap);
+  border-radius:var(--radius-sm);
+  box-shadow:var(--shadow);
+  align-items:flex-start;
+}
+.prop-card img {
+  width:80px;
+  height:60px;
+  object-fit:cover;
+  border-radius:var(--radius-sm);
+}
+.prop-card .details { flex:1; }
+.prop-card button { margin-top:var(--gap); }
 .prop-card:hover { background:var(--card); }
 
 @keyframes slide-up {
