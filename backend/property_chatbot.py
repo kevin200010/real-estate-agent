@@ -7,6 +7,7 @@ import os
 import uuid
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
+from urllib.parse import unquote
 
 import boto3
 import requests
@@ -184,7 +185,12 @@ class LLMClient:
 
     def __init__(self, model_id: str = "amazon.nova-lite-v1:0", region: str = "us-east-1"):
         self.client = boto3.client("bedrock-runtime", region_name=region)
-        self.model_id = model_id
+        # ``model_id`` may be supplied already URL-encoded (e.g. ``%3A`` for ``:``),
+        # which would cause the Bedrock client to double encode the value and
+        # produce ``InvalidSignatureException`` errors.  Normalize the identifier
+        # to its canonical form before invoking the service so the request path
+        # matches the signature computation.
+        self.model_id = unquote(model_id)
 
     def answer(self, question: str, listings: List[Dict[str, object]]) -> str:
         """Generate an answer about property listings using valid Claude-compatible prompt."""
@@ -299,7 +305,8 @@ class SonicClient:
 
     def __init__(self, model_id: str = "amazon.nova-sonic-v1:0", region: str = "us-east-1"):
         self.client = boto3.client("bedrock-runtime", region_name=region)
-        self.model_id = model_id
+        # Ensure the model ID is not URL encoded for the same reason as above.
+        self.model_id = unquote(model_id)
 
     def transcribe(self, audio_bytes: bytes) -> str:
         """Convert audio bytes (wav/pcm16) to text."""
