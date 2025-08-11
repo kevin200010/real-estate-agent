@@ -150,7 +150,7 @@ button:hover{
 /* Views */
 .sourcing-view { display:flex; flex-direction:column; height:100%; }
 #map { min-height: 380px; width: 100%; border-radius: 12px; overflow: hidden; margin-right:0; margin-bottom:var(--gap); }
-.sourcing-view #grid { width:100%; margin-top:2%;  backdrop-filter:blur(5px);}
+.sourcing-view #grid { width:100%; margin-top:2%;  backdrop-filter:blur(5px); flex:1; overflow-y:auto;}
 
 
 .data {width:100%; border-collapse:collapse;}
