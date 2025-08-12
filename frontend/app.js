@@ -73,6 +73,8 @@ function router(){
     const addBtn=document.createElement('button');
     addBtn.textContent='Add Property';
     addBtn.addEventListener('click',()=>{
+      const overlay=document.createElement('div');
+      overlay.className='modal';
       const form=document.createElement('form');
       form.className='property-form';
       form.innerHTML=`<h2>Add Property</h2>
@@ -84,6 +86,8 @@ function router(){
           <button type='submit'>Save</button>
           <button type='button' id='cancelProperty'>Cancel</button>
         </div>`;
+      const close=()=>overlay.remove();
+      overlay.addEventListener('click',e=>{ if(e.target===overlay) close(); });
       form.addEventListener('submit',e=>{
         e.preventDefault();
         const address=form.address.value.trim();
@@ -94,11 +98,13 @@ function router(){
           const id=Date.now();
           state.data.properties=state.data.properties||[];
           state.data.properties.push({id,address,price,lat,lng});
+          close();
           router();
         }
       });
-      form.querySelector('#cancelProperty').addEventListener('click',()=>form.remove());
-      main.appendChild(form);
+      form.querySelector('#cancelProperty').addEventListener('click',()=>{close();});
+      overlay.appendChild(form);
+      document.body.appendChild(overlay);
     });
     const props=state.data.properties||[];
     const params=new URLSearchParams(query||'');
@@ -262,11 +268,23 @@ function router(){
     if(initialProp){ selectProperty(initialProp); }
     } else if(route.startsWith('#/leads')){
       topbarAPI.setActive('#/leads');
+      const board=createKanban(state.data.leads||[],{
+        onAdd:()=>{location.hash='#/leads?new=1';},
+        onEdit:l=>{
+          const i=state.data.leads.findIndex(x=>x.id===l.id);
+          if(i>-1) state.data.leads[i]=l; else state.data.leads.push(l);
+          router();
+        }
+      });
+      main.appendChild(board);
+
       const params=new URLSearchParams(query||'');
       const propId=params.get('prop');
       const isNew=params.has('new');
       if(propId || isNew){
         const p=propId?(state.data.properties||[]).find(x=>String(x.id)===String(propId)):null;
+        const overlay=document.createElement('div');
+        overlay.className='modal';
         const form=document.createElement('form');
         form.className='lead-form';
         form.innerHTML=`<h2>Add Lead${p?` for ${p.address}`:''}</h2>
@@ -277,6 +295,8 @@ function router(){
             <button type='submit'>Save</button>
             <button type='button' id='cancelLead'>Cancel</button>
           </div>`;
+        const close=()=>{ overlay.remove(); location.hash='#/leads'; };
+        overlay.addEventListener('click',e=>{ if(e.target===overlay) close(); });
         form.addEventListener('submit',e=>{
           e.preventDefault();
           const name=form.name.value.trim();
@@ -285,20 +305,11 @@ function router(){
           if(!name) return;
           state.data.leads=state.data.leads||[];
           state.data.leads.push({id:Date.now(),name,email,phone,stage:'New',property:p?p.address:''});
-          location.hash='#/leads';
+          close();
         });
-        form.querySelector('#cancelLead').addEventListener('click',()=>{location.hash='#/leads';});
-        main.appendChild(form);
-      } else {
-        const board=createKanban(state.data.leads||[],{
-          onAdd:()=>{location.hash='#/leads?new=1';},
-          onEdit:l=>{
-            const i=state.data.leads.findIndex(x=>x.id===l.id);
-            if(i>-1) state.data.leads[i]=l; else state.data.leads.push(l);
-            router();
-          }
-        });
-        main.appendChild(board);
+        form.querySelector('#cancelLead').addEventListener('click',close);
+        overlay.appendChild(form);
+        document.body.appendChild(overlay);
       }
   } else if(route.startsWith('#/outreach')){
     topbarAPI.setActive('#/outreach');

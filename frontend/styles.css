@@ -149,12 +149,22 @@ button:hover{
 }
 
 /* Forms */
+.modal {
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.4);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:1000;
+}
+
 .property-form, .lead-form {
   display:flex;
   flex-direction:column;
   gap:var(--gap);
   max-width:320px;
-  margin:20px auto;
+  margin:0;
   background:var(--card);
   padding:var(--gap);
   border-radius:var(--radius-lg);
