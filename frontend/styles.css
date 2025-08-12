@@ -165,6 +165,8 @@ button:hover{
   gap:var(--gap);
   width:50vw;
   max-width:none;
+  max-height:80vh;
+  overflow-y:auto;
   margin:0;
   background:#fff;
   padding:var(--gap);
@@ -177,6 +179,8 @@ button:hover{
   flex-direction:column;
   gap:var(--gap);
   max-width:400px;
+  max-height:80vh;
+  overflow-y:auto;
   margin:0;
   background:#fff;
   padding:var(--gap);

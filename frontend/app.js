@@ -359,6 +359,8 @@ function router(){
             <label>Name:<input name='name' required/></label>
             <label>Email:<input name='email' type='email'/></label>
             <label>Phone:<input name='phone'/></label>
+            <label>Address:<input name='address'/></label>
+            <label>Notes:<textarea name='notes'></textarea></label>
             <div class='form-actions'>
               <button type='submit'>Save</button>
               <button type='button' id='cancelLead'>Cancel</button>
@@ -371,9 +373,11 @@ function router(){
             const name=form.name.value.trim();
             const email=form.email.value.trim();
             const phone=form.phone.value.trim();
+            const address=form.address.value.trim();
+            const notes=form.notes.value.trim();
             if(!name||!listing) return;
             state.data.leads=state.data.leads||[];
-            state.data.leads.push({id:Date.now(),listingNumber:listing,name,email,phone,stage:'New',property:p?fullAddress:''});
+            state.data.leads.push({id:Date.now(),listingNumber:listing,name,email,phone,address,notes,stage:'New',property:p?fullAddress:''});
             close();
           });
         form.querySelector('#cancelLead').addEventListener('click',close);
