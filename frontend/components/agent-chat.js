@@ -66,7 +66,8 @@ export function createAgentChat() {
 
         const info = document.createElement('div');
         info.className = 'details';
-        info.innerHTML = `<strong>${p.address || ''}</strong><br/>${p.price || ''}<br/>${p.description || ''}`;
+        const details=[p.beds?`${p.beds} bd`:'',p.baths?`${p.baths} ba`:'',p.year?`Built ${p.year}`:''].filter(Boolean).join(' | ');
+        info.innerHTML = `<strong>${p.address || ''}</strong><br/>${p.price || ''}${details?`<br/>${details}`:''}<br/>${p.description || ''}`;
 
         if (p.id) {
           const btn = document.createElement('button');
