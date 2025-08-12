@@ -89,6 +89,8 @@ class GraphState(TypedDict, total=False):
     is_property_query: bool
     listings: List[Dict[str, Any]]
     answer: str
+    reply: str
+    properties: List[Dict[str, Any]]
 
 
 retriever = PropertyRetriever(
