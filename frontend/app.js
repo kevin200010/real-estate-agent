@@ -28,7 +28,7 @@ const mapReady = new Promise(resolve => {
   }
 });
 
-const state={ data:{}, gmap:null, markers:{}, infoWin:null };
+const state={ data:{}, gmap:null, markers:{}, infoWin:null, activeMarkerId:null };
 let topbarAPI;
 
 // cycle through simple real-estate themed backgrounds
@@ -63,6 +63,8 @@ function router(){
   const [route,query]=hash.split('?');
   const main=document.getElementById('main');
   main.innerHTML='';
+  const searchInput=document.getElementById('global-search');
+  if(searchInput){ searchInput.oninput=null; searchInput.value=''; }
   if(route.startsWith('#/sourcing')){
     topbarAPI.setActive('#/sourcing');
     const wrap=document.createElement('div');
@@ -91,12 +93,25 @@ function router(){
       if(!p) return;
       const lat=Number(p.lat), lng=Number(p.lng);
       if(isNaN(lat)||isNaN(lng)) return;
+
+      // Center map on selection
       if(window.google?.maps){
         state.gmap.panTo({lat,lng});
         state.gmap.setZoom(16);
       } else if(window.L){
         state.gmap.setView([lat,lng],16);
       }
+
+      // Reset previous marker highlight
+      if(state.activeMarkerId && state.markers[state.activeMarkerId]){
+        const prev=state.markers[state.activeMarkerId];
+        if(window.google?.maps){
+          if(prev.setIcon) prev.setIcon(null);
+        } else if(window.L){
+          if(state.defaultIcon && prev.setIcon) prev.setIcon(state.defaultIcon);
+        }
+      }
+
       const marker=state.markers[p.id];
       if(marker){
         if(window.google?.maps){
@@ -117,6 +132,7 @@ function router(){
             state.infoWin.open({map:state.gmap,anchor:marker});
           } else {
             state.infoWin.open(state.gmap,marker);
+            if(marker.setIcon) marker.setIcon('http://maps.google.com/mapfiles/ms/icons/blue-dot.png');
             if(marker.getAnimation){
               marker.setAnimation(google.maps.Animation.BOUNCE);
               setTimeout(()=>marker.setAnimation(null),700);
@@ -124,6 +140,7 @@ function router(){
           }
         } else if(window.L){
           marker.openPopup();
+          if(state.activeIcon && marker.setIcon) marker.setIcon(state.activeIcon);
           const popup=marker.getPopup();
           if(popup){
             const el=popup.getElement();
@@ -133,13 +150,28 @@ function router(){
             }
           }
         }
+        state.activeMarkerId=p.id;
       }
+
       document.querySelectorAll('#grid tr.active').forEach(r=>r.classList.remove('active'));
       const row=document.querySelector(`#grid tr[data-prop-id='${p.id}']`);
-      if(row) row.classList.add('active');
+      if(row){
+        row.classList.add('active');
+        row.scrollIntoView({behavior:'smooth',block:'center'});
+      }
     }
     const grid=createDataGrid(props,selectProperty);
-    wrap.append(map,addBtn,grid);
+    wrap.append(map,addBtn,grid.el);
+    // Filter listings based on topbar search input
+    if(searchInput){
+      const applyFilter=()=>{
+        const term=searchInput.value.toLowerCase();
+        const filtered=props.filter(p=>p.address.toLowerCase().includes(term));
+        grid.update(filtered);
+      };
+      searchInput.addEventListener('input',applyFilter);
+      applyFilter();
+    }
     main.appendChild(wrap);
     if(!window.google?.maps && !window.L){
       map.textContent='Loading map…';
@@ -171,6 +203,8 @@ function router(){
     } else if(window.L){
       state.gmap=L.map(map).setView([center.lat,center.lng],zoom);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors'}).addTo(state.gmap);
+      state.defaultIcon=state.defaultIcon||L.icon({iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
+      state.activeIcon=state.activeIcon||L.icon({iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x-green.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
       const bounds=L.latLngBounds();
       props.forEach(p=>{
         const lat=Number(p.lat), lng=Number(p.lng);
@@ -184,7 +218,7 @@ function router(){
             p.type||'',
             p.saleOrRent||''
           ].filter(Boolean).join(' | ');
-          const marker=L.marker(position).addTo(state.gmap).bindPopup(`<div>${p.address}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button></div>`);
+          const marker=L.marker(position,{icon:state.defaultIcon}).addTo(state.gmap).bindPopup(`<div>${p.address}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button></div>`);
           state.markers[p.id]=marker;
           bounds.extend(position);
           marker.on('click',()=>selectProperty(p.id));

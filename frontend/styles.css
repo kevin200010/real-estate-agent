@@ -158,6 +158,14 @@ button:hover{
 .data tr:hover {background:var(--muted);}
 .data tr.active {background:rgba(59,130,246,0.2);}
 
+/* Keep the grid header visible while scrolling */
+.data thead th {
+  position: sticky;
+  top: 0;
+  background: var(--list-item);
+  z-index: 1;
+}
+
 .kanban { display:flex; gap:var(--gap); height:100%; }
 .kanban-column { flex:1; background:var(--card); border-radius:var(--radius-lg); padding:var(--gap); display:flex; flex-direction:column; }
 .kanban-column h3 { margin-top:0; font-size:14px; }
