@@ -159,7 +159,20 @@ button:hover{
   z-index:1000;
 }
 
-.property-form, .lead-form {
+.property-form {
+  display:flex;
+  flex-direction:column;
+  gap:var(--gap);
+  width:50vw;
+  max-width:none;
+  margin:0;
+  background:#fff;
+  padding:var(--gap);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow);
+}
+
+.lead-form {
   display:flex;
   flex-direction:column;
   gap:var(--gap);
@@ -170,6 +183,7 @@ button:hover{
   border-radius:var(--radius-lg);
   box-shadow:var(--shadow);
 }
+
 .property-form label, .lead-form label {
   display:flex;
   flex-direction:column;
