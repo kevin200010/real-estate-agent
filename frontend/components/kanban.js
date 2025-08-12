@@ -29,7 +29,7 @@ export function createKanban(leads=[],callbacks={}) {
       const card=document.getElementById(id);
       col.appendChild(card);
       showToast(`Moved ${card.dataset.name} to ${s}`);
-      if(onEdit){ const leadId=parseInt(id.replace('lead-','')); onEdit({id:leadId,name:card.dataset.name,stage:s,property:card.dataset.property,email:card.dataset.email,phone:card.dataset.phone,listingNumber:card.dataset.listing}); }
+      if(onEdit){ const leadId=parseInt(id.replace('lead-','')); onEdit({id:leadId,name:card.dataset.name,stage:s,property:card.dataset.property,email:card.dataset.email,phone:card.dataset.phone,listingNumber:card.dataset.listing,address:card.dataset.address,notes:card.dataset.notes}); }
     });
     board.appendChild(col);
     columns[s]=col;
@@ -47,7 +47,9 @@ export function createKanban(leads=[],callbacks={}) {
       card.dataset.email=l.email||'';
       card.dataset.phone=l.phone||'';
       card.dataset.listing=l.listingNumber||'';
-      card.innerHTML=`<strong>${l.name}</strong>${l.property?`<br/><small>${l.property}</small>`:''}${l.listingNumber?`<br/><small>${l.listingNumber}</small>`:''}`;
+      card.dataset.address=l.address||'';
+      card.dataset.notes=l.notes||'';
+      card.innerHTML=`<strong>${l.name}</strong>${l.property?`<br/><small>${l.property}</small>`:''}${l.listingNumber?`<br/><small>${l.listingNumber}</small>`:''}${l.address?`<br/><small>${l.address}</small>`:''}`;
       card.addEventListener('dragstart',e=>e.dataTransfer.setData('id',card.id));
       card.addEventListener('dblclick',()=>{
         const name=prompt('Lead name',l.name);
@@ -57,7 +59,9 @@ export function createKanban(leads=[],callbacks={}) {
         const email=prompt('Email',l.email||'')||l.email||'';
         const phone=prompt('Phone',l.phone||'')||l.phone||'';
         const listing=prompt('Listing Number',l.listingNumber||'')||l.listingNumber||'';
-        if(onEdit){ onEdit({id:l.id,name,stage:stages.includes(stage)?stage:l.stage,property,email,phone,listingNumber:listing}); }
+        const address=prompt('Address',l.address||'')||l.address||'';
+        const notes=prompt('Notes',l.notes||'')||l.notes||'';
+        if(onEdit){ onEdit({id:l.id,name,stage:stages.includes(stage)?stage:l.stage,property,email,phone,listingNumber:listing,address,notes}); }
       });
       columns[l.stage].appendChild(card);
     });
