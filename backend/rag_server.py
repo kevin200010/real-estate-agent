@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import List
 
@@ -8,6 +7,12 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
+# Reuse the CSV loading logic from ``PropertyRetriever`` so the RAG server
+# can index the same dataset used by the rest of the application.  This avoids
+# duplicating the somewhat messy CSV parsing code and keeps the data source in
+# one place.
+from .property_chatbot import PropertyRetriever
 
 
 class Query(BaseModel):
@@ -17,12 +22,20 @@ class Query(BaseModel):
 
 app = FastAPI()
 
-_data_path = Path(__file__).with_name("rag_data.json")
-with open(_data_path, "r", encoding="utf-8") as f:
-    _properties: List[dict] = json.load(f)
+# Load listings from the CSV dataset shipped with the project.  ``PropertyRetriever``
+# normalizes the raw data into dictionaries with ``address`` and ``description``
+# fields which we then index for semantic similarity search.
+_data_path = (
+    Path(__file__).resolve().parents[1] / "frontend" / "data" / "listings.csv"
+)
+_retriever = PropertyRetriever(_data_path)
+_properties: List[dict] = _retriever.properties
 
 # Build simple TF-IDF index at startup
-_corpus = [f"{p['address']} {p['description']}" for p in _properties]
+_corpus = [
+    f"{p.get('address', '')} {p.get('description', '')} {p.get('type', '')}"
+    for p in _properties
+]
 _vectorizer = TfidfVectorizer().fit(_corpus)
 _doc_matrix = _vectorizer.transform(_corpus)
 
