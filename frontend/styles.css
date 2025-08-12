@@ -215,7 +215,7 @@ button:hover{
 .msg {
   margin-bottom:var(--gap);
   display:flex;
- 
+  flex-direction:column;
 }
 .msg span {
   padding:8px 12px;
@@ -225,9 +225,9 @@ button:hover{
   animation:slide-up 0.2s ease;
   backdrop-filter: blur(12px);
 }
-.msg.bot { justify-content:flex-start; }
+.msg.bot { align-items:flex-start; }
 .msg.bot span { background:var(--muted); color:var(--text); }
-.msg.user { justify-content:flex-end; }
+.msg.user { align-items:flex-end; }
 .msg.user span { background:var(--accent); color:white; }
 
 .prop-cards { margin-top:var(--gap); display:flex; flex-direction:column; gap:var(--gap); }
