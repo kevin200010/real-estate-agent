@@ -11,9 +11,7 @@ export function createKanban(leads=[],callbacks={}) {
   const addBtn=document.createElement('button');
   addBtn.textContent='Add Lead';
   addBtn.addEventListener('click',()=>{
-    const name=prompt('Lead name?');
-    const property=prompt('Interested property?');
-    if(name){ const id=Date.now(); if(onAdd) onAdd({id,name,stage:'New',property}); }
+    if(onAdd) onAdd();
   });
   controls.appendChild(addBtn);
   board.appendChild(controls);
@@ -31,7 +29,7 @@ export function createKanban(leads=[],callbacks={}) {
       const card=document.getElementById(id);
       col.appendChild(card);
       showToast(`Moved ${card.dataset.name} to ${s}`);
-      if(onEdit){ const leadId=parseInt(id.replace('lead-','')); onEdit({id:leadId,name:card.dataset.name,stage:s,property:card.dataset.property}); }
+      if(onEdit){ const leadId=parseInt(id.replace('lead-','')); onEdit({id:leadId,name:card.dataset.name,stage:s,property:card.dataset.property,email:card.dataset.email,phone:card.dataset.phone}); }
     });
     board.appendChild(col);
     columns[s]=col;
@@ -46,6 +44,8 @@ export function createKanban(leads=[],callbacks={}) {
       card.id='lead-'+l.id;
       card.dataset.name=l.name;
       card.dataset.property=l.property||'';
+      card.dataset.email=l.email||'';
+      card.dataset.phone=l.phone||'';
       card.innerHTML=`<strong>${l.name}</strong>${l.property?`<br/><small>${l.property}</small>`:''}`;
       card.addEventListener('dragstart',e=>e.dataTransfer.setData('id',card.id));
       card.addEventListener('dblclick',()=>{
@@ -53,7 +53,9 @@ export function createKanban(leads=[],callbacks={}) {
         if(!name) return;
         const stage=prompt('Stage',l.stage)||l.stage;
         const property=prompt('Property',l.property||'')||l.property||'';
-        if(onEdit){ onEdit({id:l.id,name,stage:stages.includes(stage)?stage:l.stage,property}); }
+        const email=prompt('Email',l.email||'')||l.email||'';
+        const phone=prompt('Phone',l.phone||'')||l.phone||'';
+        if(onEdit){ onEdit({id:l.id,name,stage:stages.includes(stage)?stage:l.stage,property,email,phone}); }
       });
       columns[l.stage].appendChild(card);
     });
