@@ -73,16 +73,32 @@ function router(){
     const addBtn=document.createElement('button');
     addBtn.textContent='Add Property';
     addBtn.addEventListener('click',()=>{
-      const address=prompt('Address?');
-      const price=prompt('Price?');
-      const lat=parseFloat(prompt('Latitude?'));
-      const lng=parseFloat(prompt('Longitude?'));
-      if(address&&price&&!isNaN(lat)&&!isNaN(lng)){
-        const id=Date.now();
-        state.data.properties=state.data.properties||[];
-        state.data.properties.push({id,address,price,lat,lng});
-        router();
-      }
+      const form=document.createElement('form');
+      form.className='property-form';
+      form.innerHTML=`<h2>Add Property</h2>
+        <label>Address:<input name='address' required/></label>
+        <label>Price:<input name='price' required/></label>
+        <label>Latitude:<input name='lat' type='number' step='any' required/></label>
+        <label>Longitude:<input name='lng' type='number' step='any' required/></label>
+        <div class='form-actions'>
+          <button type='submit'>Save</button>
+          <button type='button' id='cancelProperty'>Cancel</button>
+        </div>`;
+      form.addEventListener('submit',e=>{
+        e.preventDefault();
+        const address=form.address.value.trim();
+        const price=form.price.value.trim();
+        const lat=parseFloat(form.lat.value);
+        const lng=parseFloat(form.lng.value);
+        if(address&&price&&!isNaN(lat)&&!isNaN(lng)){
+          const id=Date.now();
+          state.data.properties=state.data.properties||[];
+          state.data.properties.push({id,address,price,lat,lng});
+          router();
+        }
+      });
+      form.querySelector('#cancelProperty').addEventListener('click',()=>form.remove());
+      main.appendChild(form);
     });
     const props=state.data.properties||[];
     const params=new URLSearchParams(query||'');
@@ -248,23 +264,34 @@ function router(){
       topbarAPI.setActive('#/leads');
       const params=new URLSearchParams(query||'');
       const propId=params.get('prop');
-      if(propId){
-        const p=(state.data.properties||[]).find(x=>String(x.id)===String(propId));
+      const isNew=params.has('new');
+      if(propId || isNew){
+        const p=propId?(state.data.properties||[]).find(x=>String(x.id)===String(propId)):null;
         const form=document.createElement('form');
         form.className='lead-form';
-        form.innerHTML=`<h2>Lead for ${p?p.address:propId}</h2><label>Name:<input name='name' required/></label><button type='submit'>Save</button>`;
+        form.innerHTML=`<h2>Add Lead${p?` for ${p.address}`:''}</h2>
+          <label>Name:<input name='name' required/></label>
+          <label>Email:<input name='email' type='email'/></label>
+          <label>Phone:<input name='phone'/></label>
+          <div class='form-actions'>
+            <button type='submit'>Save</button>
+            <button type='button' id='cancelLead'>Cancel</button>
+          </div>`;
         form.addEventListener('submit',e=>{
           e.preventDefault();
           const name=form.name.value.trim();
+          const email=form.email.value.trim();
+          const phone=form.phone.value.trim();
           if(!name) return;
           state.data.leads=state.data.leads||[];
-          state.data.leads.push({id:Date.now(),name,stage:'New',property:p?p.address:''});
+          state.data.leads.push({id:Date.now(),name,email,phone,stage:'New',property:p?p.address:''});
           location.hash='#/leads';
         });
+        form.querySelector('#cancelLead').addEventListener('click',()=>{location.hash='#/leads';});
         main.appendChild(form);
       } else {
         const board=createKanban(state.data.leads||[],{
-          onAdd:l=>{state.data.leads.push(l);router();},
+          onAdd:()=>{location.hash='#/leads?new=1';},
           onEdit:l=>{
             const i=state.data.leads.findIndex(x=>x.id===l.id);
             if(i>-1) state.data.leads[i]=l; else state.data.leads.push(l);
