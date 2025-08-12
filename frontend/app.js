@@ -100,7 +100,8 @@ function router(){
       const marker=state.markers[p.id];
       if(marker){
         if(window.google?.maps){
-          state.infoWin.setContent(`<div>${p.address}<br/>${p.price}<br/><button id="addLead">Add to Leads</button></div>`);
+          const details=[p.beds?`${p.beds} bd`:'',p.baths?`${p.baths} ba`:'',p.year?`Built ${p.year}`:''].filter(Boolean).join(' | ');
+          state.infoWin.setContent(`<div>${p.address}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button id="addLead">Add to Leads</button></div>`);
           state.infoWin.addListener('domready',()=>{
             const btn=document.getElementById('addLead');
             if(btn) btn.onclick=()=>{location.hash=`#/leads?prop=${p.id}`;};
@@ -168,7 +169,8 @@ function router(){
         const lat=Number(p.lat), lng=Number(p.lng);
         if(!isNaN(lat)&&!isNaN(lng)){
           const position=[lat,lng];
-          const marker=L.marker(position).addTo(state.gmap).bindPopup(`<div>${p.address}<br/>${p.price}<br/><button class='add-lead'>Add to Leads</button></div>`);
+          const details=[p.beds?`${p.beds} bd`:'',p.baths?`${p.baths} ba`:'',p.year?`Built ${p.year}`:''].filter(Boolean).join(' | ');
+          const marker=L.marker(position).addTo(state.gmap).bindPopup(`<div>${p.address}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button></div>`);
           state.markers[p.id]=marker;
           bounds.extend(position);
           marker.on('click',()=>selectProperty(p.id));
@@ -268,6 +270,12 @@ function parseCSV(text){
     const price=obj[' List Price ']||obj['List Price']||'';
     const lat=parseFloat(obj['Latitude']);
     const lng=parseFloat(obj['Longitude']);
-    return {id,address,price,lat,lng};
+    const beds=obj['Bedrooms'];
+    const fullBaths=parseFloat(obj['Full Bathrooms'])||0;
+    const halfBaths=parseFloat(obj['Half Bathrooms'])||0;
+    const bathsVal=fullBaths+halfBaths*0.5;
+    const baths=bathsVal||'';
+    const year=obj['Year Built'];
+    return {id,address,price,lat,lng,beds,baths,year};
   });
 }
