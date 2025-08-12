@@ -9,11 +9,11 @@ export function createDataGrid(props = [], onSelect) {
   setTimeout(() => render(), 800);
   function render() {
     el.innerHTML =
-      `<table class="data"><thead><tr><th>Address</th><th>Price</th></tr></thead><tbody>` +
+      `<table class="data"><thead><tr><th>Address</th><th>Price</th><th>Type</th><th>Beds</th><th>Baths</th></tr></thead><tbody>` +
       props
         .map(
           (p) =>
-            `<tr data-prop-id="${p.id}"><td>${p.address}</td><td>${p.price}</td></tr>`
+            `<tr data-prop-id="${p.id}"><td>${p.address}</td><td>${p.price}</td><td>${p.type||''}</td><td>${p.bedrooms||''}</td><td>${p.bathrooms||''}</td></tr>`
         )
         .join('') +
       `</tbody></table>`;
