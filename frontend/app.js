@@ -78,7 +78,9 @@ function router(){
       const form=document.createElement('form');
       form.className='property-form';
       form.innerHTML=`<h2>Add Property</h2>
+        <label>Listing Number:<input name='listing' required/></label>
         <label>Address:<input name='address' required/></label>
+        <label>City:<input name='city'/></label>
         <label>Price:<input name='price' required/></label>
         <label>Latitude:<input name='lat' type='number' step='any' required/></label>
         <label>Longitude:<input name='lng' type='number' step='any' required/></label>
@@ -90,14 +92,16 @@ function router(){
       overlay.addEventListener('click',e=>{ if(e.target===overlay) close(); });
       form.addEventListener('submit',e=>{
         e.preventDefault();
+        const listing=form.listing.value.trim();
         const address=form.address.value.trim();
+        const city=form.city.value.trim();
         const price=form.price.value.trim();
         const lat=parseFloat(form.lat.value);
         const lng=parseFloat(form.lng.value);
-        if(address&&price&&!isNaN(lat)&&!isNaN(lng)){
+        if(listing&&address&&price&&!isNaN(lat)&&!isNaN(lng)){
           const id=Date.now();
           state.data.properties=state.data.properties||[];
-          state.data.properties.push({id,address,price,lat,lng});
+          state.data.properties.push({id,listingNumber:listing,address,city,price,lat,lng});
           close();
           router();
         }
@@ -138,6 +142,7 @@ function router(){
       if(marker){
         if(window.google?.maps){
           const details=[
+            p.listingNumber?`Listing #${p.listingNumber}`:'',
             p.beds?`${p.beds} bd`:'',
             p.baths?`${p.baths} ba`:'',
             p.year?`Built ${p.year}`:'',
@@ -145,7 +150,8 @@ function router(){
             p.type||'',
             p.saleOrRent||''
           ].filter(Boolean).join(' | ');
-          state.infoWin.setContent(`<div>${p.address}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button id="addLead">Add to Leads</button></div>`);
+          const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
+          state.infoWin.setContent(`<div>${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button id="addLead">Add to Leads</button></div>`);
           state.infoWin.addListener('domready',()=>{
             const btn=document.getElementById('addLead');
             if(btn) btn.onclick=()=>{location.hash=`#/leads?prop=${p.id}`;};
@@ -191,7 +197,7 @@ function router(){
       const apply=()=>{
         const term=searchInput?searchInput.value.toLowerCase():'';
         const filter=filterSelect?filterSelect.value:'all';
-        let filtered=props.filter(p=>p.address.toLowerCase().includes(term));
+          let filtered=props.filter(p=>(`${p.address} ${p.city||''}`).toLowerCase().includes(term));
         if(filter==='sale') filtered=filtered.filter(p=>String(p.saleOrRent).toLowerCase().includes('sale'));
         else if(filter==='rent') filtered=filtered.filter(p=>String(p.saleOrRent).toLowerCase().includes('rent'));
         if(sortSelect&&sortSelect.value){
@@ -219,17 +225,18 @@ function router(){
       state.gmap=new google.maps.Map(map,{center,zoom});
       state.infoWin=state.infoWin||new google.maps.InfoWindow();
       const bounds=new google.maps.LatLngBounds();
-      props.forEach(p=>{
-        const lat=Number(p.lat), lng=Number(p.lng);
-        if(!isNaN(lat)&&!isNaN(lng)){
-          const position={lat,lng};
-          let marker;
-          if(google.maps.marker?.AdvancedMarkerElement){
-            marker=new google.maps.marker.AdvancedMarkerElement({position,map:state.gmap,title:p.address});
-          } else {
-            marker=new google.maps.Marker({position,map:state.gmap,title:p.address});
-          }
-          state.markers[p.id]=marker;
+        props.forEach(p=>{
+          const lat=Number(p.lat), lng=Number(p.lng);
+          if(!isNaN(lat)&&!isNaN(lng)){
+            const position={lat,lng};
+            const title=p.city?`${p.address}, ${p.city}`:p.address;
+            let marker;
+            if(google.maps.marker?.AdvancedMarkerElement){
+              marker=new google.maps.marker.AdvancedMarkerElement({position,map:state.gmap,title});
+            } else {
+              marker=new google.maps.Marker({position,map:state.gmap,title});
+            }
+            state.markers[p.id]=marker;
           bounds.extend(position);
           marker.addListener('click',()=>selectProperty(p.id));
         }
@@ -246,6 +253,7 @@ function router(){
         if(!isNaN(lat)&&!isNaN(lng)){
           const position=[lat,lng];
           const details=[
+            p.listingNumber?`Listing #${p.listingNumber}`:'',
             p.beds?`${p.beds} bd`:'',
             p.baths?`${p.baths} ba`:'',
             p.year?`Built ${p.year}`:'',
@@ -253,7 +261,8 @@ function router(){
             p.type||'',
             p.saleOrRent||''
           ].filter(Boolean).join(' | ');
-          const marker=L.marker(position,{icon:state.defaultIcon}).addTo(state.gmap).bindPopup(`<div>${p.address}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button></div>`);
+          const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
+          const marker=L.marker(position,{icon:state.defaultIcon}).addTo(state.gmap).bindPopup(`<div>${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button></div>`);
           state.markers[p.id]=marker;
           bounds.extend(position);
           marker.on('click',()=>selectProperty(p.id));
@@ -268,45 +277,48 @@ function router(){
     if(initialProp){ selectProperty(initialProp); }
     } else if(route.startsWith('#/leads')){
       topbarAPI.setActive('#/leads');
-      const board=createKanban(state.data.leads||[],{
-        onAdd:()=>{location.hash='#/leads?new=1';},
-        onEdit:l=>{
-          const i=state.data.leads.findIndex(x=>x.id===l.id);
-          if(i>-1) state.data.leads[i]=l; else state.data.leads.push(l);
-          router();
-        }
-      });
+        const board=createKanban(state.data.leads||[],{
+          onAdd:()=>{location.hash='#/leads?new=1';},
+          onEdit:l=>{
+            const i=state.data.leads.findIndex(x=>x.id===l.id);
+            if(i>-1) state.data.leads[i]={...state.data.leads[i],...l}; else state.data.leads.push(l);
+            router();
+          }
+        });
       main.appendChild(board);
 
       const params=new URLSearchParams(query||'');
       const propId=params.get('prop');
       const isNew=params.has('new');
-      if(propId || isNew){
-        const p=propId?(state.data.properties||[]).find(x=>String(x.id)===String(propId)):null;
-        const overlay=document.createElement('div');
-        overlay.className='modal';
-        const form=document.createElement('form');
-        form.className='lead-form';
-        form.innerHTML=`<h2>Add Lead${p?` for ${p.address}`:''}</h2>
-          <label>Name:<input name='name' required/></label>
-          <label>Email:<input name='email' type='email'/></label>
-          <label>Phone:<input name='phone'/></label>
-          <div class='form-actions'>
-            <button type='submit'>Save</button>
-            <button type='button' id='cancelLead'>Cancel</button>
-          </div>`;
+        if(propId || isNew){
+          const p=propId?(state.data.properties||[]).find(x=>String(x.id)===String(propId)):null;
+          const overlay=document.createElement('div');
+          overlay.className='modal';
+          const form=document.createElement('form');
+          form.className='lead-form';
+          const fullAddress=p? (p.city?`${p.address}, ${p.city}`:p.address):'';
+          form.innerHTML=`<h2>Add Lead${p?` for ${fullAddress}`:''}</h2>
+            <label>Listing Number:<input name='listing' ${p?`value='${p.listingNumber||''}'`:''} required/></label>
+            <label>Name:<input name='name' required/></label>
+            <label>Email:<input name='email' type='email'/></label>
+            <label>Phone:<input name='phone'/></label>
+            <div class='form-actions'>
+              <button type='submit'>Save</button>
+              <button type='button' id='cancelLead'>Cancel</button>
+            </div>`;
         const close=()=>{ overlay.remove(); location.hash='#/leads'; };
         overlay.addEventListener('click',e=>{ if(e.target===overlay) close(); });
-        form.addEventListener('submit',e=>{
-          e.preventDefault();
-          const name=form.name.value.trim();
-          const email=form.email.value.trim();
-          const phone=form.phone.value.trim();
-          if(!name) return;
-          state.data.leads=state.data.leads||[];
-          state.data.leads.push({id:Date.now(),name,email,phone,stage:'New',property:p?p.address:''});
-          close();
-        });
+          form.addEventListener('submit',e=>{
+            e.preventDefault();
+            const listing=form.listing.value.trim();
+            const name=form.name.value.trim();
+            const email=form.email.value.trim();
+            const phone=form.phone.value.trim();
+            if(!name||!listing) return;
+            state.data.leads=state.data.leads||[];
+            state.data.leads.push({id:Date.now(),listingNumber:listing,name,email,phone,stage:'New',property:p?fullAddress:''});
+            close();
+          });
         form.querySelector('#cancelLead').addEventListener('click',close);
         overlay.appendChild(form);
         document.body.appendChild(overlay);

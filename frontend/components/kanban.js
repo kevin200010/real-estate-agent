@@ -29,7 +29,7 @@ export function createKanban(leads=[],callbacks={}) {
       const card=document.getElementById(id);
       col.appendChild(card);
       showToast(`Moved ${card.dataset.name} to ${s}`);
-      if(onEdit){ const leadId=parseInt(id.replace('lead-','')); onEdit({id:leadId,name:card.dataset.name,stage:s,property:card.dataset.property,email:card.dataset.email,phone:card.dataset.phone}); }
+      if(onEdit){ const leadId=parseInt(id.replace('lead-','')); onEdit({id:leadId,name:card.dataset.name,stage:s,property:card.dataset.property,email:card.dataset.email,phone:card.dataset.phone,listingNumber:card.dataset.listing}); }
     });
     board.appendChild(col);
     columns[s]=col;
@@ -46,7 +46,8 @@ export function createKanban(leads=[],callbacks={}) {
       card.dataset.property=l.property||'';
       card.dataset.email=l.email||'';
       card.dataset.phone=l.phone||'';
-      card.innerHTML=`<strong>${l.name}</strong>${l.property?`<br/><small>${l.property}</small>`:''}`;
+      card.dataset.listing=l.listingNumber||'';
+      card.innerHTML=`<strong>${l.name}</strong>${l.property?`<br/><small>${l.property}</small>`:''}${l.listingNumber?`<br/><small>${l.listingNumber}</small>`:''}`;
       card.addEventListener('dragstart',e=>e.dataTransfer.setData('id',card.id));
       card.addEventListener('dblclick',()=>{
         const name=prompt('Lead name',l.name);
@@ -55,7 +56,8 @@ export function createKanban(leads=[],callbacks={}) {
         const property=prompt('Property',l.property||'')||l.property||'';
         const email=prompt('Email',l.email||'')||l.email||'';
         const phone=prompt('Phone',l.phone||'')||l.phone||'';
-        if(onEdit){ onEdit({id:l.id,name,stage:stages.includes(stage)?stage:l.stage,property,email,phone}); }
+        const listing=prompt('Listing Number',l.listingNumber||'')||l.listingNumber||'';
+        if(onEdit){ onEdit({id:l.id,name,stage:stages.includes(stage)?stage:l.stage,property,email,phone,listingNumber:listing}); }
       });
       columns[l.stage].appendChild(card);
     });
