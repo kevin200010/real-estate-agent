@@ -100,7 +100,14 @@ function router(){
       const marker=state.markers[p.id];
       if(marker){
         if(window.google?.maps){
-          const details=[p.beds?`${p.beds} bd`:'',p.baths?`${p.baths} ba`:'',p.year?`Built ${p.year}`:''].filter(Boolean).join(' | ');
+          const details=[
+            p.beds?`${p.beds} bd`:'',
+            p.baths?`${p.baths} ba`:'',
+            p.year?`Built ${p.year}`:'',
+            p.status||'',
+            p.type||'',
+            p.saleOrRent||''
+          ].filter(Boolean).join(' | ');
           state.infoWin.setContent(`<div>${p.address}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button id="addLead">Add to Leads</button></div>`);
           state.infoWin.addListener('domready',()=>{
             const btn=document.getElementById('addLead');
@@ -169,7 +176,14 @@ function router(){
         const lat=Number(p.lat), lng=Number(p.lng);
         if(!isNaN(lat)&&!isNaN(lng)){
           const position=[lat,lng];
-          const details=[p.beds?`${p.beds} bd`:'',p.baths?`${p.baths} ba`:'',p.year?`Built ${p.year}`:''].filter(Boolean).join(' | ');
+          const details=[
+            p.beds?`${p.beds} bd`:'',
+            p.baths?`${p.baths} ba`:'',
+            p.year?`Built ${p.year}`:'',
+            p.status||'',
+            p.type||'',
+            p.saleOrRent||''
+          ].filter(Boolean).join(' | ');
           const marker=L.marker(position).addTo(state.gmap).bindPopup(`<div>${p.address}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button></div>`);
           state.markers[p.id]=marker;
           bounds.extend(position);
@@ -276,6 +290,9 @@ function parseCSV(text){
     const bathsVal=fullBaths+halfBaths*0.5;
     const baths=bathsVal||'';
     const year=obj['Year Built'];
-    return {id,address,price,lat,lng,beds,baths,year};
+    const status=obj['Listing Status'];
+    const saleOrRent=obj['Sale or Rent'];
+    const type=obj['Property Type']||obj['Property Subtype'];
+    return {id,address,price,lat,lng,beds,baths,year,status,saleOrRent,type};
   });
 }
