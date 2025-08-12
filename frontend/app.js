@@ -78,12 +78,66 @@ function router(){
       const form=document.createElement('form');
       form.className='property-form';
       form.innerHTML=`<h2>Add Property</h2>
-        <label>Listing Number:<input name='listing' required/></label>
+        <label>Listing Number:<input name='listingNumber' required/></label>
         <label>Address:<input name='address' required/></label>
         <label>City:<input name='city'/></label>
-        <label>Price:<input name='price' required/></label>
-        <label>Latitude:<input name='lat' type='number' step='any' required/></label>
-        <label>Longitude:<input name='lng' type='number' step='any' required/></label>
+        <label>State:<input name='state'/></label>
+        <label>Zip Code:<input name='zipCode'/></label>
+        <label>Listing Status:<input name='listingStatus'/></label>
+        <label>Sale or Rent:<input name='saleOrRent'/></label>
+        <label>Property Type:<input name='propertyType'/></label>
+        <label>Property Subtype:<input name='propertySubtype'/></label>
+        <label>List Price:<input name='listPrice' type='number' step='any' required/></label>
+        <label>List Date:<input name='listDate' type='date'/></label>
+        <label>Sold Price:<input name='soldPrice' type='number' step='any'/></label>
+        <label>Sold Date:<input name='soldDate' type='date'/></label>
+        <label>Withdrawn Date:<input name='withdrawnDate' type='date'/></label>
+        <label>Expired Date:<input name='expiredDate' type='date'/></label>
+        <label>Pending Date:<input name='pendingDate' type='date'/></label>
+        <label>REO:<input name='reo' type='checkbox'/></label>
+        <label>Short Sale:<input name='shortSale' type='checkbox'/></label>
+        <label>Listing Agent Name:<input name='listingAgentName'/></label>
+        <label>Listing Office Name:<input name='listingOfficeName'/></label>
+        <label>Listing Agent Phone Number:<input name='listingAgentPhone' type='tel'/></label>
+        <label>Listing Agent E-Mail Address:<input name='listingAgentEmail' type='email'/></label>
+        <label>Sale Agent Name:<input name='saleAgentName'/></label>
+        <label>Sale Office Name:<input name='saleOfficeName'/></label>
+        <label>County:<input name='county'/></label>
+        <label>Parcel ID #:<input name='parcelId'/></label>
+        <label>Style:<input name='style'/></label>
+        <label>Building/Living Area (sf):<input name='buildingArea' type='number' step='any'/></label>
+        <label>PPSF:<input name='ppsf' type='number' step='any'/></label>
+        <label>Full Bathrooms:<input name='fullBathrooms' type='number' step='1'/></label>
+        <label>Half Bathrooms:<input name='halfBathrooms' type='number' step='1'/></label>
+        <label>Bedrooms:<input name='bedrooms' type='number' step='1'/></label>
+        <label>Year Built:<input name='yearBuilt' type='number' step='1'/></label>
+        <label>Pool:<input name='pool' type='checkbox'/></label>
+        <label>Garage:<input name='garage' type='checkbox'/></label>
+        <label>Parking Total:<input name='parkingTotal' type='number' step='1'/></label>
+        <label>Lot Size (sf):<input name='lotSizeSf' type='number' step='any'/></label>
+        <label>Lot Size (acres):<input name='lotSizeAcres' type='number' step='any'/></label>
+        <label>Subdivision:<input name='subdivision'/></label>
+        <label>Development Name:<input name='developmentName'/></label>
+        <label>Zoning:<input name='zoning'/></label>
+        <label>Waterfront:<input name='waterfront' type='checkbox'/></label>
+        <label>Property SqFt:<input name='propertySqFt' type='number' step='any'/></label>
+        <label>Elementary School:<input name='elementarySchool'/></label>
+        <label>Middle School:<input name='middleSchool'/></label>
+        <label>High School:<input name='highSchool'/></label>
+        <label>Net Operating Income:<input name='netOperatingIncome' type='number' step='any'/></label>
+        <label>Gross Operating Income:<input name='grossOperatingIncome' type='number' step='any'/></label>
+        <label>Last Sale Date (Tax Records):<input name='lastSaleDate' type='date'/></label>
+        <label>Owner Name 1:<input name='ownerName1'/></label>
+        <label>Owner Name 2:<input name='ownerName2'/></label>
+        <label>Owner Address:<input name='ownerAddress'/></label>
+        <label>Owner City:<input name='ownerCity'/></label>
+        <label>Owner State:<input name='ownerState'/></label>
+        <label>Owner Zip Code:<input name='ownerZipCode'/></label>
+        <label>Owner County:<input name='ownerCounty'/></label>
+        <label>Owner Occupied:<input name='ownerOccupied' type='checkbox'/></label>
+        <label>MLS Area:<input name='mlsArea'/></label>
+        <label>Longitude:<input name='longitude' type='number' step='any' required/></label>
+        <label>Latitude:<input name='latitude' type='number' step='any' required/></label>
         <div class='form-actions'>
           <button type='submit'>Save</button>
           <button type='button' id='cancelProperty'>Cancel</button>
@@ -92,19 +146,22 @@ function router(){
       overlay.addEventListener('click',e=>{ if(e.target===overlay) close(); });
       form.addEventListener('submit',e=>{
         e.preventDefault();
-        const listing=form.listing.value.trim();
-        const address=form.address.value.trim();
-        const city=form.city.value.trim();
-        const price=form.price.value.trim();
-        const lat=parseFloat(form.lat.value);
-        const lng=parseFloat(form.lng.value);
-        if(listing&&address&&price&&!isNaN(lat)&&!isNaN(lng)){
-          const id=Date.now();
-          state.data.properties=state.data.properties||[];
-          state.data.properties.push({id,listingNumber:listing,address,city,price,lat,lng});
-          close();
-          router();
-        }
+        if(!form.reportValidity()) return;
+        const fd=new FormData(form);
+        const obj=Object.fromEntries(fd.entries());
+        obj.reo=form.reo.checked;
+        obj.shortSale=form.shortSale.checked;
+        obj.pool=form.pool.checked;
+        obj.garage=form.garage.checked;
+        obj.waterfront=form.waterfront.checked;
+        obj.ownerOccupied=form.ownerOccupied.checked;
+        ['listPrice','soldPrice','buildingArea','ppsf','fullBathrooms','halfBathrooms','bedrooms','yearBuilt','parkingTotal','lotSizeSf','lotSizeAcres','propertySqFt','netOperatingIncome','grossOperatingIncome','latitude','longitude'].forEach(f=>{ if(obj[f]) obj[f]=parseFloat(obj[f]); });
+        const id=Date.now();
+        const property={id,...obj,lat:obj.latitude,lng:obj.longitude,price:obj.listPrice,year:obj.yearBuilt,beds:obj.bedrooms,baths:(obj.fullBathrooms||0)+0.5*(obj.halfBathrooms||0)};
+        state.data.properties=state.data.properties||[];
+        state.data.properties.push(property);
+        close();
+        router();
       });
       form.querySelector('#cancelProperty').addEventListener('click',()=>{close();});
       overlay.appendChild(form);
