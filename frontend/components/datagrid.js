@@ -61,6 +61,12 @@ export function createDataGrid(props = [], onSelect) {
     render();
   }
 
+  // Programmatic sorting for external controls
+  function setSort(key = null, asc = true) {
+    sortKey = key;
+    sortAsc = asc;
+  }
+
   // Sort data array based on current sort state
   function sortData() {
     if (!sortKey) return;
@@ -100,5 +106,5 @@ export function createDataGrid(props = [], onSelect) {
     if (onSelect) onSelect(row.dataset.propId);
   });
 
-  return { el, update };
+  return { el, update, setSort };
 }

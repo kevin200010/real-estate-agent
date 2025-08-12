@@ -162,15 +162,28 @@ function router(){
     }
     const grid=createDataGrid(props,selectProperty);
     wrap.append(map,addBtn,grid.el);
-    // Filter listings based on topbar search input
-    if(searchInput){
-      const applyFilter=()=>{
-        const term=searchInput.value.toLowerCase();
-        const filtered=props.filter(p=>p.address.toLowerCase().includes(term));
+    // Filter and sort listings based on topbar controls
+    const sortSelect=document.getElementById('sort-select');
+    const filterSelect=document.getElementById('filter-select');
+    if(searchInput||sortSelect||filterSelect){
+      const apply=()=>{
+        const term=searchInput?searchInput.value.toLowerCase():'';
+        const filter=filterSelect?filterSelect.value:'all';
+        let filtered=props.filter(p=>p.address.toLowerCase().includes(term));
+        if(filter==='sale') filtered=filtered.filter(p=>String(p.saleOrRent).toLowerCase().includes('sale'));
+        else if(filter==='rent') filtered=filtered.filter(p=>String(p.saleOrRent).toLowerCase().includes('rent'));
+        if(sortSelect&&sortSelect.value){
+          const [key,dir]=sortSelect.value.split('-');
+          grid.setSort(key,dir==='asc');
+        } else {
+          grid.setSort(null,true);
+        }
         grid.update(filtered);
       };
-      searchInput.addEventListener('input',applyFilter);
-      applyFilter();
+      if(searchInput) searchInput.addEventListener('input',apply);
+      if(sortSelect) sortSelect.addEventListener('change',apply);
+      if(filterSelect) filterSelect.addEventListener('change',apply);
+      apply();
     }
     main.appendChild(wrap);
     if(!window.google?.maps && !window.L){
