@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Customer Portal</title>
+</head>
+<body>
+  <h1>Customer Portal</h1>
+  <form id="login-form">
+    <input name="username" placeholder="username" required>
+    <input name="password" type="password" placeholder="password" required>
+    <button type="submit">Login</button>
+  </form>
+  <section id="content" style="display:none">
+    <h2>Properties</h2>
+    <ul id="property-list"></ul>
+    <h2>Your Appointments</h2>
+    <ul id="appointment-list"></ul>
+  </section>
+  <script type="module" src="customer.js"></script>
+</body>
+</html>
