@@ -22,10 +22,18 @@ export function initTopbar() {
         <option value="sale">For Sale</option>
         <option value="rent">For Rent</option>
       </select>
+      <button id="logout-btn">Logout</button>
       <div class="avatar">⚫</div>
     </div>
   `;
   bar.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>location.hash=t.dataset.route));
+  const logoutBtn = bar.querySelector('#logout-btn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      localStorage.removeItem('loggedIn');
+      window.location.href = 'signin.html';
+    });
+  }
   return { setActive: (route)=> {
     bar.querySelectorAll('.tab').forEach(t=>{
       if(t.dataset.route===route) t.classList.add('active');
