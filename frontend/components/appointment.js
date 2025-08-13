@@ -28,10 +28,12 @@ export async function openAppointmentForm(property){
   // Default daily time slots
   const defaultTimes = ['9:00 AM', '11:00 AM', '1:00 PM'];
 
+  const API_BASE = window.API_BASE_URL || 'http://localhost:8000';
+
   // Fetch booked events from backend
   const booked = {};
   try {
-    const res = await fetch('/appointments');
+    const res = await fetch(`${API_BASE}/appointments`);
     const data = await res.json();
     data.forEach(ev => {
       const d = new Date(ev.start);
@@ -127,7 +129,7 @@ export async function openAppointmentForm(property){
     }
     const { name, phone, email, date, time } = form;
     try {
-      const res = await fetch('/appointments', {
+      const res = await fetch(`${API_BASE}/appointments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
