@@ -20,8 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const { username, password } = signupForm;
       localStorage.setItem('user', JSON.stringify({ username: username.value, password: password.value }));
-      localStorage.setItem('loggedIn', 'true');
-      window.location.href = 'index.html';
+      localStorage.removeItem('loggedIn');
+      window.location.href = 'signin.html';
     });
   }
 });
