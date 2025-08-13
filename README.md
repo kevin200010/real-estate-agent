@@ -26,6 +26,20 @@ AWS_DEFAULT_REGION=us-east-1
 The application automatically loads this file on startup, allowing boto3 to pick
 up the credentials without exporting them manually.
 
+### Google Calendar integration
+
+The appointment booking feature can write events directly to a Google
+Calendar. Create a service account with access to the desired calendar and set
+the following variables in your `.env` file:
+
+```
+GOOGLE_CREDENTIALS_FILE=/path/to/service_account.json
+GOOGLE_CALENDAR_ID=your_calendar_id
+```
+
+If these values are omitted the backend falls back to an in-memory store, so
+appointments will not persist across restarts.
+
 ## Notes
 
 This example focuses on illustrating how components fit together. Production applications should implement robust error handling, streaming audio for low latency, and secure storage of user data.
