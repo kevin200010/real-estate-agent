@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from typing import Any, Dict, List
+from uuid import uuid4
 
 try:  # Optional dependency; module may be absent in test environments
     from google.oauth2 import service_account
@@ -28,6 +29,7 @@ class GoogleCalendarClient:
         creds_file = os.getenv("GOOGLE_CREDENTIALS_FILE")
         self.calendar_id = os.getenv("GOOGLE_CALENDAR_ID")
         self.service = None
+        self._local_events: List[Dict[str, Any]] = []
         if creds_file and self.calendar_id and service_account and build:
             creds = service_account.Credentials.from_service_account_file(
                 creds_file,
@@ -38,7 +40,7 @@ class GoogleCalendarClient:
     def list_events(self) -> List[Dict[str, Any]]:
         """Return upcoming events from the realtor's calendar."""
         if not self.service:
-            return []
+            return self._local_events
         now = datetime.utcnow().isoformat() + "Z"
         events_result = (
             self.service.events()
@@ -68,10 +70,18 @@ class GoogleCalendarClient:
     ) -> Dict[str, Any]:
         """Create a calendar event.
 
-        Raises ``RuntimeError`` if the calendar is not configured.
+        Falls back to an in-memory store when Google Calendar is not configured.
         """
         if not self.service:
-            raise RuntimeError("Google Calendar not configured")
+            event = {
+                "id": str(uuid4()),
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "summary": summary,
+                "description": description,
+            }
+            self._local_events.append(event)
+            return {"id": event["id"]}
 
         event_body = {
             "summary": summary,
