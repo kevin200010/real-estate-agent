@@ -28,22 +28,30 @@ export function createDataGrid(props = [], onSelect) {
       '<th data-sort="status">Status</th>' +
       '<th data-sort="type">Type</th>' +
       '<th data-sort="saleOrRent">Sale/Rent</th>' +
+      '<th>Details</th>' +
       '</tr></thead><tbody>';
 
     const rows = data
       .map(
         (p) =>
-          `<tr data-prop-id="${p.id}"><td>${p.address}</td><td>${p.price}</td><td>${p.beds || ''}</td><td>${p.baths || ''}</td><td>${p.year || ''}</td><td>${p.status || ''}</td><td>${p.type || ''}</td><td>${p.saleOrRent || ''}</td></tr>`
+          `<tr data-prop-id="${p.id}"><td>${p.address}</td><td>${p.price}</td><td>${p.beds || ''}</td><td>${p.baths || ''}</td><td>${p.year || ''}</td><td>${p.status || ''}</td><td>${p.type || ''}</td><td>${p.saleOrRent || ''}</td><td><button class="view-details" data-id="${p.id}">View</button></td></tr>`
       )
       .join('');
 
     el.innerHTML = header + rows + '</tbody></table>';
 
-    // Attach sort handlers after rendering
+    // Attach event handlers after rendering
     const thead = el.querySelector('thead');
     if (thead) {
       thead.addEventListener('click', onSortClick);
     }
+    el.querySelectorAll('button.view-details').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        if (id) location.hash = `#/property?prop=${id}`;
+      });
+    });
   }
 
   // Handle sorting when clicking header cells
