@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, TypedDict
 from urllib.parse import unquote
@@ -11,10 +12,11 @@ from urllib.parse import unquote
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel
 from property_chatbot import PropertyRetriever
+from appointments import GoogleCalendarClient
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -97,6 +99,7 @@ retriever = PropertyRetriever(
     Path(__file__).resolve().parents[1] / "frontend" / "data" / "listings.csv"
 )
 llm_client = LLMClient()
+_calendar = GoogleCalendarClient()
 
 
 async def query_classifier_agent(state: GraphState) -> GraphState:
@@ -194,6 +197,16 @@ class ChatRequest(BaseModel):
     message: str
 
 
+class AppointmentRequest(BaseModel):
+    """Payload for booking a calendar slot."""
+
+    name: str
+    phone: str
+    email: str
+    date: str  # YYYY-MM-DD
+    time: str  # e.g. "9:00 AM"
+
+
 @app.post("/chat")
 async def chat(req: ChatRequest) -> Dict[str, Any]:
     logger.info("/chat request: %s", req.message)
@@ -201,4 +214,32 @@ async def chat(req: ChatRequest) -> Dict[str, Any]:
     result = await app_graph.ainvoke(initial_state)
     logger.info("/chat response: %s", result)
     return result
+
+
+@app.get("/appointments")
+async def list_appointments() -> List[Dict[str, Any]]:
+    """Return upcoming appointments from the realtor's calendar."""
+
+    return _calendar.list_events()
+
+
+@app.post("/appointments")
+async def book_appointment(payload: AppointmentRequest) -> Dict[str, Any]:
+    """Book a new appointment on the realtor's calendar."""
+
+    try:
+        dt = datetime.strptime(
+            f"{payload.date} {payload.time}", "%Y-%m-%d %I:%M %p"
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid date or time format")
+
+    end = dt + timedelta(hours=1)
+    description = f"Phone: {payload.phone}\nEmail: {payload.email}"
+    summary = f"Appointment with {payload.name}"
+    try:
+        event = _calendar.create_event(summary, dt, end, description)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    return {"event": event}
 
