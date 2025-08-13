@@ -347,7 +347,46 @@ function router(){
       const params=new URLSearchParams(query||'');
       const propId=params.get('prop');
       const isNew=params.has('new');
-        if(propId || isNew){
+      const editId=params.get('edit');
+        if(propId || isNew || editId){
+          if(editId){
+            const lead=(state.data.leads||[]).find(x=>String(x.id)===String(editId));
+            if(lead){
+              const overlay=document.createElement('div');
+              overlay.className='modal';
+              const form=document.createElement('form');
+              form.className='lead-form';
+              form.innerHTML=`<h2>Edit Lead${lead.property?` for ${lead.property}`:''}</h2>
+                <label>Listing Number:<input name='listing' value='${lead.listingNumber||''}' required/></label>
+                <label>Name:<input name='name' value='${lead.name||''}' required/></label>
+                <label>Email:<input name='email' type='email' value='${lead.email||''}'/></label>
+                <label>Phone:<input name='phone' value='${lead.phone||''}'/></label>
+                <label>Address:<input name='address' value='${lead.address||''}'/></label>
+                <label>Notes:<textarea name='notes'>${lead.notes||''}</textarea></label>
+                <div class='form-actions'>
+                  <button type='submit'>Save</button>
+                  <button type='button' id='cancelLead'>Cancel</button>
+                </div>`;
+              const close=()=>{ overlay.remove(); location.hash='#/leads'; };
+              overlay.addEventListener('click',e=>{ if(e.target===overlay) close(); });
+              form.addEventListener('submit',e=>{
+                e.preventDefault();
+                const listing=form.listing.value.trim();
+                const name=form.name.value.trim();
+                const email=form.email.value.trim();
+                const phone=form.phone.value.trim();
+                const address=form.address.value.trim();
+                const notes=form.notes.value.trim();
+                if(!name||!listing) return;
+                const i=state.data.leads.findIndex(x=>x.id===lead.id);
+                if(i>-1) state.data.leads[i]={...state.data.leads[i],listingNumber:listing,name,email,phone,address,notes};
+                close();
+              });
+              form.querySelector('#cancelLead').addEventListener('click',close);
+              overlay.appendChild(form);
+              document.body.appendChild(overlay);
+            }
+          } else {
           const p=propId?(state.data.properties||[]).find(x=>String(x.id)===String(propId)):null;
           const overlay=document.createElement('div');
           overlay.className='modal';
@@ -383,7 +422,8 @@ function router(){
         form.querySelector('#cancelLead').addEventListener('click',close);
         overlay.appendChild(form);
         document.body.appendChild(overlay);
-      }
+          }
+        }
   } else if(route.startsWith('#/outreach')){
     topbarAPI.setActive('#/outreach');
     main.appendChild(createOutreach());
