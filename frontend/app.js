@@ -48,18 +48,7 @@ function startApp(){
   });
 }
 
-const loginForm=document.getElementById('login-form');
-if(loginForm){
-  loginForm.addEventListener('submit',e=>{
-    e.preventDefault();
-    loginForm.style.display='none';
-    const app=document.getElementById('app');
-    if(app) app.style.display='';
-    startApp();
-  });
-}else{
-  startApp();
-}
+startApp();
 
 function init(){
   topbarAPI=initTopbar();

@@ -11,11 +11,6 @@
 </head>
 <body>
   <div id="bg"></div>
-  <form id="login-form" class="login-form">
-    <input name="username" placeholder="username" required>
-    <input name="password" type="password" placeholder="password" required>
-    <button type="submit">Login</button>
-  </form>
   <div id="app" style="display:none">
     <div id="topbar"></div>
     <div id="layout">
@@ -26,6 +21,13 @@
     <div id="command-palette" class="hidden"></div>
     <div id="toast-container"></div>
   </div>
+  <script>
+    if(!localStorage.getItem('loggedIn')){
+      window.location.href='signin.html';
+    }else{
+      document.getElementById('app').style.display='';
+    }
+  </script>
   <script src="config.js"></script>
   <script type="module" src="app.js"></script>
 </body>

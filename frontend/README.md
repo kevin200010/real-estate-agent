@@ -10,7 +10,7 @@ This directory contains a minimal browser client that displays a floating chat w
    cd frontend
    python -m http.server 8001
    ```
-3. Open [http://localhost:8001](http://localhost:8001) in a browser. Click the blue chat bubble in the bottom-right corner to open the widget and ask about properties.
+3. Open [http://localhost:8001/signin.html](http://localhost:8001/signin.html) to create an account or sign in. After logging in you will be redirected to the main app where you can click the blue chat bubble in the bottom-right corner to open the widget and ask about properties.
 
    The app falls back to [OpenStreetMap](https://www.openstreetmap.org/) via Leaflet when no Google Maps key is provided. To use Google Maps instead, copy `config.sample.js` to `config.js` and replace `YOUR_API_KEY_HERE` with a valid API key.
 
