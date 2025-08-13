@@ -11,15 +11,21 @@
 </head>
 <body>
   <div id="bg"></div>
-  <nav style="padding:8px"><a href="customer.html">Customer Portal</a> | <a href="admin.html">Admin Portal</a></nav>
-  <div id="topbar"></div>
-  <div id="layout">
-    <aside id="left-rail"></aside>
-    <main id="main"></main>
-    <aside id="assistant"></aside>
+  <form id="login-form" class="login-form">
+    <input name="username" placeholder="username" required>
+    <input name="password" type="password" placeholder="password" required>
+    <button type="submit">Login</button>
+  </form>
+  <div id="app" style="display:none">
+    <div id="topbar"></div>
+    <div id="layout">
+      <aside id="left-rail"></aside>
+      <main id="main"></main>
+      <aside id="assistant"></aside>
+    </div>
+    <div id="command-palette" class="hidden"></div>
+    <div id="toast-container"></div>
   </div>
-  <div id="command-palette" class="hidden"></div>
-  <div id="toast-container"></div>
   <script src="config.js"></script>
   <script type="module" src="app.js"></script>
 </body>

@@ -30,10 +30,3 @@ up the credentials without exporting them manually.
 
 This example focuses on illustrating how components fit together. Production applications should implement robust error handling, streaming audio for low latency, and secure storage of user data.
 
-
-## Demo portals
-
-Two simple HTML portals demonstrate how customers and admins can interact with the backend:
-
-- `frontend/customer.html` allows a customer to log in, browse properties, and book appointments.
-- `frontend/admin.html` lets an admin manage availability and view all booked appointments.

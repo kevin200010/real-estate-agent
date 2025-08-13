@@ -36,15 +36,30 @@ let topbarAPI;
 const backgrounds=['property1.jpg','property2.png','property3.jpg'];
 let bgIndex=0;
 
-Promise.all([
-  fetch('data/sample.json').then(r=>r.json()),
-  fetch('data/listings.csv').then(r=>r.text()),
-  mapReady
-]).then(([d,csv])=>{
-  d.properties=parseCSV(csv);
-  state.data=d;
-  init();
-});
+function startApp(){
+  Promise.all([
+    fetch('data/sample.json').then(r=>r.json()),
+    fetch('data/listings.csv').then(r=>r.text()),
+    mapReady
+  ]).then(([d,csv])=>{
+    d.properties=parseCSV(csv);
+    state.data=d;
+    init();
+  });
+}
+
+const loginForm=document.getElementById('login-form');
+if(loginForm){
+  loginForm.addEventListener('submit',e=>{
+    e.preventDefault();
+    loginForm.style.display='none';
+    const app=document.getElementById('app');
+    if(app) app.style.display='';
+    startApp();
+  });
+}else{
+  startApp();
+}
 
 function init(){
   topbarAPI=initTopbar();
