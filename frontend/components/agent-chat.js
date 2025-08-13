@@ -20,6 +20,8 @@ export function createAgentChat() {
   // Render any previous chat history
   history.forEach(m => renderMessage(m));
 
+  const API_BASE = window.API_BASE_URL || 'http://localhost:8000';
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = input.value.trim();
@@ -27,7 +29,7 @@ export function createAgentChat() {
     addMessage('user', text);
     input.value = '';
     try {
-      const resp = await fetch('http://localhost:8000/chat', {
+      const resp = await fetch(`${API_BASE}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text })
