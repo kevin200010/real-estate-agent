@@ -191,7 +191,67 @@ button:hover{
   box-shadow:var(--shadow);
 }
 
-.property-form label, .lead-form label {
+.appointment-form {
+  display:flex;
+  flex-direction:column;
+  gap:var(--gap);
+  width:360px;
+  background:#fff;
+  padding:var(--gap);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow);
+}
+
+.calendar {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.calendar-grid {
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:4px;
+}
+
+.calendar-grid .day-name {
+  font-weight:bold;
+  text-align:center;
+}
+
+.calendar-day {
+  padding:6px;
+  background:var(--card);
+  border:none;
+  border-radius:var(--radius-sm);
+  cursor:pointer;
+}
+
+.calendar-day.available { background:#d1fae5; }
+.calendar-day.available:hover { background:#a7f3d0; }
+.calendar-day.selected { outline:2px solid var(--accent); }
+
+.time-slots {
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+}
+
+.time-slot {
+  padding:4px 8px;
+  border:none;
+  background:var(--card);
+  border-radius:var(--radius-sm);
+  cursor:pointer;
+}
+
+.time-slot:hover,
+.time-slot.selected {
+  background:var(--accent);
+  color:white;
+}
+
+.property-form label, .lead-form label, .appointment-form label {
   display:flex;
   flex-direction:column;
   gap:4px;
