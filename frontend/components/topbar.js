@@ -23,9 +23,17 @@ export function initTopbar() {
         <option value="rent">For Rent</option>
       </select>
       <div class="avatar">⚫</div>
+      <button id="logout-btn">Logout</button>
     </div>
   `;
   bar.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>location.hash=t.dataset.route));
+  const logout = bar.querySelector('#logout-btn');
+  if (logout) {
+    logout.addEventListener('click', () => {
+      localStorage.removeItem('loggedIn');
+      window.location.href = 'signin.html';
+    });
+  }
   return { setActive: (route)=> {
     bar.querySelectorAll('.tab').forEach(t=>{
       if(t.dataset.route===route) t.classList.add('active');
