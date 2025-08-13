@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime, timedelta
+from typing import List
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 
 from langgraph_app import app_graph
 from property_chatbot import SonicClient
+from appointments import GoogleCalendarClient
 
 logging.basicConfig(level=logging.INFO)
 
@@ -27,6 +31,17 @@ templates = Jinja2Templates(directory="templates")
 
 # Instantiate shared clients
 _sonic = SonicClient()
+_calendar = GoogleCalendarClient()
+
+
+class AppointmentRequest(BaseModel):
+    """Payload for booking a calendar slot."""
+
+    name: str
+    phone: str
+    email: str
+    date: str  # YYYY-MM-DD
+    time: str  # e.g. "9:00 AM"
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -75,3 +90,29 @@ async def voice(file: UploadFile = File(...)):
     transcript = await asyncio.to_thread(_sonic.transcribe, audio_bytes)
     result = await app_graph.ainvoke({"user_input": transcript})
     return {**result, "transcript": transcript}
+
+
+@app.get("/appointments")
+async def list_appointments():
+    """Return upcoming appointments from the realtor's calendar."""
+    return _calendar.list_events()
+
+
+@app.post("/appointments")
+async def book_appointment(payload: AppointmentRequest):
+    """Book a new appointment on the realtor's Google Calendar."""
+    try:
+        dt = datetime.strptime(
+            f"{payload.date} {payload.time}", "%Y-%m-%d %I:%M %p"
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid date or time format")
+
+    end = dt + timedelta(hours=1)
+    description = f"Phone: {payload.phone}\nEmail: {payload.email}"
+    summary = f"Appointment with {payload.name}"
+    try:
+        event = _calendar.create_event(summary, dt, end, description)
+    except RuntimeError as exc:  # calendar not configured
+        raise HTTPException(status_code=500, detail=str(exc))
+    return {"event": event}

@@ -1,5 +1,5 @@
 // Modal form for booking appointments with calendar and time slots
-export function openAppointmentForm(property){
+export async function openAppointmentForm(property){
   const overlay = document.createElement('div');
   overlay.className = 'modal';
 
@@ -25,26 +25,41 @@ export function openAppointmentForm(property){
   const close = () => { overlay.remove(); };
   overlay.addEventListener('click', e => { if(e.target === overlay) close(); });
 
-  // Availability for the current month: day -> time slots
-  const availability = {
-    5: ['9:00 AM', '11:00 AM', '1:00 PM'],
-    12: ['10:00 AM', '2:00 PM', '4:00 PM'],
-    19: ['9:30 AM', '12:30 PM', '3:30 PM'],
-    26: ['11:00 AM', '1:00 PM', '3:00 PM']
-  };
+  // Default daily time slots
+  const defaultTimes = ['9:00 AM', '11:00 AM', '1:00 PM'];
 
-  let selectedDay = null;
-  let selectedTime = null;
+  // Fetch booked events from backend
+  const booked = {};
+  try {
+    const res = await fetch('/appointments');
+    const data = await res.json();
+    data.forEach(ev => {
+      const d = new Date(ev.start);
+      const day = d.getDate();
+      const time = d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+      booked[day] = booked[day] || [];
+      booked[day].push(time);
+    });
+  } catch (err) {
+    console.error('Failed to load appointments', err);
+  }
 
-  const calendarEl = form.querySelector('#apptCalendar');
-  const timesEl = form.querySelector('#apptTimes');
+  // Build availability map based on booked slots
+  const availability = {};
 
-  // Build calendar for current month
   const today = new Date();
   const year = today.getFullYear();
   const month = today.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();
+
+  for(let day=1; day<=daysInMonth; day++){
+    const avail = defaultTimes.filter(t => !(booked[day]||[]).includes(t));
+    if(avail.length) availability[day] = avail;
+  }
+
+  const calendarEl = form.querySelector('#apptCalendar');
+  const timesEl = form.querySelector('#apptTimes');
 
   const grid = document.createElement('div');
   grid.className = 'calendar-grid';
@@ -72,38 +87,71 @@ export function openAppointmentForm(property){
         cell.classList.add('selected');
         renderTimeSlots(day);
       });
+    } else if(booked[day]) {
+      cell.classList.add('booked');
     }
     grid.appendChild(cell);
   }
   calendarEl.appendChild(grid);
 
+  let selectedDay = null;
+  let selectedTime = null;
+
   function renderTimeSlots(day){
-    const times = availability[day] || [];
     timesEl.innerHTML = '';
-    times.forEach(t => {
+    defaultTimes.forEach(t => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = t;
       btn.className = 'time-slot';
-      btn.addEventListener('click', () => {
-        selectedTime = t;
-        form.time.value = t;
-        timesEl.querySelectorAll('.time-slot').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-      });
+      if((booked[day]||[]).includes(t)){
+        btn.classList.add('booked');
+        btn.disabled = true;
+      } else {
+        btn.addEventListener('click', () => {
+          selectedTime = t;
+          form.time.value = t;
+          timesEl.querySelectorAll('.time-slot').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+        });
+      }
       timesEl.appendChild(btn);
     });
   }
 
-  form.addEventListener('submit', e => {
+  form.addEventListener('submit', async e => {
     e.preventDefault();
     if(!form.date.value || !form.time.value){
       alert('Please select a date and time.');
       return;
     }
     const { name, phone, email, date, time } = form;
-    alert(`Appointment booked on ${date.value} at ${time.value} for ${name.value}. We will contact you at ${phone.value}.`);
-    close();
+    try {
+      const res = await fetch('/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.value,
+          phone: phone.value,
+          email: email.value,
+          date: date.value,
+          time: time.value
+        })
+      });
+      if(!res.ok) throw new Error('Failed to book appointment');
+      // Remove slot from UI
+      booked[selectedDay] = booked[selectedDay] || [];
+      booked[selectedDay].push(selectedTime);
+      availability[selectedDay] = availability[selectedDay].filter(t => t!==selectedTime);
+      renderTimeSlots(selectedDay);
+      if(!availability[selectedDay].length){
+        document.querySelectorAll('.calendar-day')[selectedDay+6+firstDay-1]?.classList.remove('available');
+      }
+      alert(`Appointment booked on ${date.value} at ${time.value} for ${name.value}.`);
+      close();
+    } catch(err){
+      alert('Unable to book appointment.');
+    }
   });
 
   form.querySelector('#cancelAppointment').addEventListener('click', close);

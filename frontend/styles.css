@@ -230,6 +230,7 @@ button:hover{
 .calendar-day.available { background:#d1fae5; }
 .calendar-day.available:hover { background:#a7f3d0; }
 .calendar-day.selected { outline:2px solid var(--accent); }
+.calendar-day.booked { background:#f3f4f6; color:#9ca3af; cursor:not-allowed; }
 
 .time-slots {
   display:flex;
@@ -249,6 +250,11 @@ button:hover{
 .time-slot.selected {
   background:var(--accent);
   color:white;
+}
+.time-slot.booked {
+  background:#f3f4f6;
+  color:#9ca3af;
+  cursor:not-allowed;
 }
 
 .property-form label, .lead-form label, .appointment-form label {
