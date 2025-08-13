@@ -22,17 +22,19 @@ export function initTopbar() {
         <option value="sale">For Sale</option>
         <option value="rent">For Rent</option>
       </select>
-      <button id="logout-btn">Logout</button>
+      <button id="logout-btn" type="button" aria-label="Logout">Logout</button>
       <div class="avatar">⚫</div>
     </div>
   `;
   bar.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>location.hash=t.dataset.route));
+  function handleLogout() {
+    localStorage.removeItem('loggedIn');
+    window.location.href = 'signin.html';
+  }
+
   const logoutBtn = bar.querySelector('#logout-btn');
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      localStorage.removeItem('loggedIn');
-      window.location.href = 'signin.html';
-    });
+    logoutBtn.addEventListener('click', handleLogout);
   }
   return { setActive: (route)=> {
     bar.querySelectorAll('.tab').forEach(t=>{
