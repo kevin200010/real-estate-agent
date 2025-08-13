@@ -6,6 +6,7 @@ import { createDataGrid } from './components/datagrid.js';
 import { createKanban } from './components/kanban.js';
 import { initToast } from './components/toast.js';
 import { createAgentChat } from './components/agent-chat.js';
+import { openAppointmentForm } from './components/appointment.js';
 
 const mapReady = new Promise(resolve => {
   if (window.GOOGLE_MAPS_API_KEY) {
@@ -208,10 +209,12 @@ function router(){
             p.saleOrRent||''
           ].filter(Boolean).join(' | ');
           const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
-          state.infoWin.setContent(`<div>${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button id="addLead">Add to Leads</button></div>`);
+          state.infoWin.setContent(`<div>${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button id="addLead">Add to Leads</button> <button id="viewDetails">View Details</button></div>`);
           state.infoWin.addListener('domready',()=>{
             const btn=document.getElementById('addLead');
             if(btn) btn.onclick=()=>{location.hash=`#/leads?prop=${p.id}`;};
+            const view=document.getElementById('viewDetails');
+            if(view) view.onclick=()=>{location.hash=`#/property?prop=${p.id}`;};
           });
           if(google.maps.marker?.AdvancedMarkerElement && marker instanceof google.maps.marker.AdvancedMarkerElement){
             state.infoWin.open({map:state.gmap,anchor:marker});
@@ -232,6 +235,8 @@ function router(){
             if(el){
               const btn=el.querySelector('.add-lead');
               if(btn) btn.onclick=()=>{location.hash=`#/leads?prop=${p.id}`;};
+              const view=el.querySelector('.view-details');
+              if(view) view.onclick=()=>{location.hash=`#/property?prop=${p.id}`;};
             }
           }
         }
@@ -319,19 +324,52 @@ function router(){
             p.saleOrRent||''
           ].filter(Boolean).join(' | ');
           const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
-          const marker=L.marker(position,{icon:state.defaultIcon}).addTo(state.gmap).bindPopup(`<div>${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button></div>`);
+          const marker=L.marker(position,{icon:state.defaultIcon}).addTo(state.gmap).bindPopup(`<div>${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button></div>`);
           state.markers[p.id]=marker;
           bounds.extend(position);
           marker.on('click',()=>selectProperty(p.id));
           marker.on('popupopen',e=>{
-            const btn=e.popup.getElement().querySelector('.add-lead');
+            const el=e.popup.getElement();
+            if(!el) return;
+            const btn=el.querySelector('.add-lead');
             if(btn) btn.addEventListener('click',()=>{location.hash=`#/leads?prop=${p.id}`;});
+            const view=el.querySelector('.view-details');
+            if(view) view.addEventListener('click',()=>{location.hash=`#/property?prop=${p.id}`;});
           });
         }
       });
       if(props.length>1){state.gmap.fitBounds(bounds);}
     }
     if(initialProp){ selectProperty(initialProp); }
+    } else if(route.startsWith('#/property')){
+      topbarAPI.setActive('#/sourcing');
+      const params=new URLSearchParams(query||'');
+      const propId=params.get('prop');
+      const p=(state.data.properties||[]).find(x=>String(x.id)===String(propId));
+      if(p){
+        const wrap=document.createElement('div');
+        wrap.className='property-view';
+        const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
+        wrap.innerHTML=`<h2>${fullAddress}</h2>`+
+          `<p>Price: ${p.price||''}</p>`+
+          `<p>${p.beds?`${p.beds} bd`:''} ${p.baths?`${p.baths} ba`:''}</p>`+
+          `<p>${p.year?`Built ${p.year}`:''}</p>`+
+          `<p>${p.status||''} ${p.type?`| ${p.type}`:''} ${p.saleOrRent?`| ${p.saleOrRent}`:''}</p>`;
+        const actions=document.createElement('div');
+        const leadBtn=document.createElement('button');
+        leadBtn.textContent='Add to Leads';
+        leadBtn.addEventListener('click',()=>{location.hash=`#/leads?prop=${p.id}`;});
+        const apptBtn=document.createElement('button');
+        apptBtn.textContent='Book Appointment';
+        apptBtn.addEventListener('click',()=>openAppointmentForm(p));
+        actions.append(leadBtn,apptBtn);
+        wrap.appendChild(actions);
+        main.appendChild(wrap);
+      } else {
+        const msg=document.createElement('p');
+        msg.textContent='Property not found';
+        main.appendChild(msg);
+      }
     } else if(route.startsWith('#/leads')){
       topbarAPI.setActive('#/leads');
         const board=createKanban(state.data.leads||[],{
