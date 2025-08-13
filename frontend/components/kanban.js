@@ -52,16 +52,8 @@ export function createKanban(leads=[],callbacks={}) {
       card.innerHTML=`<strong>${l.name}</strong>${l.property?`<br/><small>${l.property}</small>`:''}${l.listingNumber?`<br/><small>${l.listingNumber}</small>`:''}${l.address?`<br/><small>${l.address}</small>`:''}`;
       card.addEventListener('dragstart',e=>e.dataTransfer.setData('id',card.id));
       card.addEventListener('dblclick',()=>{
-        const name=prompt('Lead name',l.name);
-        if(!name) return;
-        const stage=prompt('Stage',l.stage)||l.stage;
-        const property=prompt('Property',l.property||'')||l.property||'';
-        const email=prompt('Email',l.email||'')||l.email||'';
-        const phone=prompt('Phone',l.phone||'')||l.phone||'';
-        const listing=prompt('Listing Number',l.listingNumber||'')||l.listingNumber||'';
-        const address=prompt('Address',l.address||'')||l.address||'';
-        const notes=prompt('Notes',l.notes||'')||l.notes||'';
-        if(onEdit){ onEdit({id:l.id,name,stage:stages.includes(stage)?stage:l.stage,property,email,phone,listingNumber:listing,address,notes}); }
+        // Route to lead edit form when double-clicked
+        location.hash = `#/leads?edit=${l.id}`;
       });
       columns[l.stage].appendChild(card);
     });
