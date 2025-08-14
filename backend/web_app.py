@@ -11,9 +11,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-from langgraph_app import app_graph
-from property_chatbot import SonicClient
-from appointments import GoogleCalendarClient
+from .langgraph_app import app_graph
+from .property_chatbot import SonicClient
+from .appointments import GoogleCalendarClient
 
 logging.basicConfig(level=logging.INFO)
 

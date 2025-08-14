@@ -15,8 +15,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel
-from property_chatbot import PropertyRetriever
-from appointments import GoogleCalendarClient
+from .property_chatbot import PropertyRetriever
+from .appointments import GoogleCalendarClient
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
