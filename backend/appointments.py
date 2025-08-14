@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List
 from uuid import uuid4
+
+from fastapi import APIRouter, FastAPI, HTTPException
+from pydantic import BaseModel
 
 try:  # Optional dependency; module may be absent in test environments
     from google.oauth2 import service_account
@@ -95,3 +98,52 @@ class GoogleCalendarClient:
             .execute()
         )
         return {"id": event.get("id")}
+
+
+# ---------------------------------------------------------------------------
+# FastAPI router for appointment endpoints
+# ---------------------------------------------------------------------------
+
+
+class AppointmentRequest(BaseModel):
+    """Payload for booking a calendar slot."""
+
+    name: str
+    phone: str
+    email: str
+    date: str  # YYYY-MM-DD
+    time: str  # e.g. "9:00 AM"
+
+
+router = APIRouter()
+_calendar = GoogleCalendarClient()
+
+
+@router.get("/appointments")
+def list_appointments() -> List[Dict[str, Any]]:
+    """Return upcoming appointments from the realtor's calendar."""
+
+    return _calendar.list_events()
+
+
+@router.post("/appointments")
+def book_appointment(payload: AppointmentRequest) -> Dict[str, Any]:
+    """Book a new appointment on the realtor's calendar."""
+
+    try:
+        dt = datetime.strptime(
+            f"{payload.date} {payload.time}", "%Y-%m-%d %I:%M %p"
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid date or time format")
+
+    end = dt + timedelta(hours=1)
+    description = f"Phone: {payload.phone}\nEmail: {payload.email}"
+    summary = f"Appointment with {payload.name}"
+    event = _calendar.create_event(summary, dt, end, description)
+    return {"event": event}
+
+
+app = FastAPI()
+app.include_router(router)
+
