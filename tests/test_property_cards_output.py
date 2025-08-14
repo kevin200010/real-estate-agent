@@ -1,8 +1,10 @@
 import asyncio
+import os
 import sys
 
-sys.path.append('backend')
-from langgraph_app import app_graph
+# Ensure repository root on path so the ``backend`` package can be imported
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from backend.langgraph_app import app_graph
 
 
 def test_chat_response_includes_property_fields():
