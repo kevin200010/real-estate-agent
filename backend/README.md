@@ -17,6 +17,28 @@ export AWS_DEFAULT_REGION=us-east-1
 The application loads sample listings from `rag_data.json` bundled in this
 directory. Customize the file or connect a retrieval service for your own data.
 
+### Optional: Google Calendar integration
+
+The appointment-booking UI can read and write events on a Google Calendar. To
+enable this feature you need a service account with access to the calendar you
+want to use:
+
+1. Create a project in the [Google Cloud console](https://console.cloud.google.com/)
+   and enable the **Google Calendar API** for it.
+2. Under *APIs & Services → Credentials* create a **service account** and
+   download its JSON key file.
+3. In Google Calendar, share the desired calendar with the service account's
+   email address and give it permission to "Make changes to events".
+4. Set the following environment variables so the backend can authenticate:
+
+   ```bash
+   export GOOGLE_CREDENTIALS_FILE=/path/to/service_account.json
+   export GOOGLE_CALENDAR_ID=your_calendar_id
+   ```
+
+If these variables are omitted the server falls back to an in-memory store and
+appointments will not persist across restarts.
+
 ## REST API
 
 Start the server:
