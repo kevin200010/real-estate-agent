@@ -1,12 +1,18 @@
 from __future__ import annotations
+# from __future__ import annotations
 
-import asyncio
+# import asyncio
 import logging
 from pathlib import Path
 from typing import Any, Dict, List
 
 from .base import Agent
-from ..property_chatbot import PropertyRetriever
+# from ..sql_retriever import SQLPropertyRetriever
+from .sql import (
+    SQLQueryExecutorAgent,
+    SQLQueryGeneratorAgent,
+    SQLValidatorAgent,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -33,16 +39,28 @@ class PropertySearchAgent(Agent):
                 / "data"
                 / "listings.csv"
             )
-        self.retriever = PropertyRetriever(data_file)
+        # self.retriever = SQLPropertyRetriever(data_file)
+        self.generator = SQLQueryGeneratorAgent(limit=limit)
+        self.executor = SQLQueryExecutorAgent(data_file)
+        self.validator = SQLValidatorAgent()
         self.limit = limit
 
     async def handle(self, query: str, **_: Any) -> Dict[str, Any]:
         logger.debug("Searching properties for query: %s", query)
         print(f"PropertySearchAgent triggered with query: {query}")
         try:
-            listings: List[Dict[str, Any]] = await asyncio.to_thread(
-                self.retriever.search, query, self.limit
+            # listings: List[Dict[str, Any]] = await asyncio.to_thread(
+            #     self.retriever.search, query, self.limit
+            # )
+            gen_res = await self.generator.handle(query=query)
+            sql_query = gen_res.get("content", "")
+            exec_res = await self.executor.handle(sql_query=sql_query)
+            listings = exec_res.get("content", [])
+            val_res = await self.validator.handle(
+                sql_query=sql_query, results=listings
             )
+            if not val_res.get("content"):
+                listings = []
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("PropertySearchAgent failed")
             return {
@@ -59,8 +77,17 @@ class PropertySearchAgent(Agent):
             }
             for p in listings
         ]
+        summary_parts = [
+            f"{c['address']} for ${c['price']:,}" if isinstance(c.get("price"), (int, float)) else c['address']
+            for c in listings
+        ]
+        message = (
+            "Here are the top properties I found: " + ", ".join(summary_parts)
+            if summary_parts
+            else "No matching properties were found."
+        )
         return {
-            "result_type": "property_cards",
-            "content": cards,
+            "result_type": "property_search",
+            "content": {"message": message, "properties": cards},
             "source_agents": [self.name],
         }
