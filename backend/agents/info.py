@@ -5,7 +5,7 @@ import logging
 from typing import Any, Dict
 
 from .base import Agent
-from ..property_chatbot import LLMClient
+from property_chatbot import LLMClient
 
 
 logger = logging.getLogger(__name__)
