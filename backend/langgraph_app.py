@@ -14,8 +14,13 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel
-from .property_chatbot import PropertyRetriever
+# from .sql_retriever import SQLPropertyRetriever
 from .appointments import router as appointments_router
+from .agents.sql import (
+    SQLQueryExecutorAgent,
+    SQLQueryGeneratorAgent,
+    SQLValidatorAgent,
+)
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -94,9 +99,14 @@ class GraphState(TypedDict, total=False):
     properties: List[Dict[str, Any]]
 
 
-retriever = PropertyRetriever(
+# retriever = SQLPropertyRetriever(
+#     Path(__file__).resolve().parents[1] / "frontend" / "data" / "listings.csv"
+# )
+sql_generator = SQLQueryGeneratorAgent()
+sql_executor = SQLQueryExecutorAgent(
     Path(__file__).resolve().parents[1] / "frontend" / "data" / "listings.csv"
 )
+sql_validator = SQLValidatorAgent()
 llm_client = LLMClient()
 
 
@@ -137,7 +147,14 @@ async def retrieve_agent(state: GraphState) -> GraphState:
     if not state.get("is_property_query"):
         logger.info("retrieve_agent skipping retrieval; not a property query")
         return {"listings": []}
-    listings = retriever.search(state["user_input"])
+    # listings = retriever.search(state["user_input"])
+    gen_res = await sql_generator.handle(query=state["user_input"])
+    sql_query = gen_res.get("content", "")
+    exec_res = await sql_executor.handle(sql_query=sql_query)
+    listings = exec_res.get("content", [])
+    val_res = await sql_validator.handle(sql_query=sql_query, results=listings)
+    if not val_res.get("content"):
+        listings = []
     logger.info("retrieve_agent found %d listings", len(listings))
     return {"listings": [normalize_listing(p) for p in listings]}
 
