@@ -3,8 +3,12 @@ from __future__ import annotations
 import csv
 import json
 import sqlite3
+import logging
 from pathlib import Path
 from typing import Dict, List, Any
+
+
+logger = logging.getLogger(__name__)
 
 
 class SQLPropertyRetriever:
@@ -94,6 +98,7 @@ class SQLPropertyRetriever:
             "SELECT id, address, location, price, description, image FROM properties "
             f"WHERE {' OR '.join(like_clauses)}"
         )
+        logger.info("Executing SQL query: %s; params: %s", sql, params)
         cur = self.conn.execute(sql, params)
         rows = [dict(r) for r in cur.fetchall()]
         # Score rows by number of matching words

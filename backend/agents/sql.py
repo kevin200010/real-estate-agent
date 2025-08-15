@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Dict, List
+import logging
 
 from .base import Agent
 from ..sql_retriever import SQLPropertyRetriever
+
+
+logger = logging.getLogger(__name__)
 
 
 class SQLQueryGeneratorAgent(Agent):
@@ -46,6 +50,7 @@ class SQLQueryExecutorAgent(Agent):
         self.retriever = SQLPropertyRetriever(data_file)
 
     async def handle(self, sql_query: str, **_: Any) -> Dict[str, Any]:
+        logger.info("Executing SQL query: %s", sql_query)
         try:
             cur = self.retriever.conn.execute(sql_query)
             rows = [dict(r) for r in cur.fetchall()]
