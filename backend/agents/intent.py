@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from .base import Agent
-from ..property_chatbot import PropertyRetriever
+from property_chatbot import PropertyRetriever
 
 
 class IntentClassifierAgent(Agent):
