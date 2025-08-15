@@ -8,9 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from .langgraph_app import app_graph
-from .property_chatbot import SonicClient
-from .appointments import router as appointments_router
+from langgraph_app import app_graph
+from property_chatbot import SonicClient
+from appointments import router as appointments_router
 
 logging.basicConfig(level=logging.INFO)
 
