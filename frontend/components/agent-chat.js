@@ -1,5 +1,3 @@
-const history = [];
-
 export function createAgentChat() {
   const wrap = document.createElement('div');
   wrap.className = 'agent-chat';
@@ -17,16 +15,12 @@ export function createAgentChat() {
   const input = wrap.querySelector('#chat-input');
   const messages = wrap.querySelector('#chat-messages');
 
-  // Render any previous chat history
-  history.forEach(m => renderMessage(m));
-
   const API_BASE = window.API_BASE_URL || 'http://localhost:8000';
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = input.value.trim();
     if (!text) return;
-    addMessage('user', text);
     input.value = '';
     try {
       const resp = await fetch(`${API_BASE}/chat`, {
@@ -35,59 +29,27 @@ export function createAgentChat() {
         body: JSON.stringify({ text })
       });
       const data = await resp.json();
-      addMessage('bot', data.reply || data.answer || 'No reply', data.properties);
+      messages.innerHTML = '';
+      const sqlText = data.sql_reply ? JSON.stringify(data.sql_reply, null, 2) : (data.reply || data.answer || 'No reply');
+      addMessage('bot', sqlText);
     } catch (err) {
+      messages.innerHTML = '';
       addMessage('bot', 'Error contacting server');
     }
   });
 
-  function addMessage(role, text, properties = []) {
-    const msg = { role, text, properties };
-    history.push(msg);
+  function addMessage(role, text) {
+    const msg = { role, text };
     renderMessage(msg);
   }
 
-  function renderMessage({ role, text, properties }) {
+  function renderMessage({ role, text }) {
     const div = document.createElement('div');
     div.className = `msg ${role}`;
     const span = document.createElement('span');
     span.textContent = text;
     span.style.whiteSpace = 'pre-wrap';
     div.appendChild(span);
-
-    if (Array.isArray(properties) && properties.length) {
-      const list = document.createElement('div');
-      list.className = 'prop-cards';
-      properties.forEach(p => {
-        const card = document.createElement('div');
-        card.className = 'prop-card';
-
-        const img = document.createElement('img');
-        img.src = p.image || 'https://placehold.co/400x300';
-        img.alt = p.address || 'Property image';
-
-        const info = document.createElement('div');
-        info.className = 'details';
-        const details=[p.beds?`${p.beds} bd`:'',p.baths?`${p.baths} ba`:'',p.year?`Built ${p.year}`:''].filter(Boolean).join(' | ');
-        info.innerHTML = `<strong>${p.address || ''}</strong><br/>${p.price || ''}${details?`<br/>${details}`:''}<br/>${p.description || ''}`;
-
-        if (p.id) {
-          const btn = document.createElement('button');
-          btn.textContent = 'Show Property';
-          btn.addEventListener('click', () => {
-            location.hash = `#/sourcing?prop=${p.id}`;
-          });
-          info.appendChild(document.createElement('br'));
-          info.appendChild(btn);
-        }
-
-        card.appendChild(img);
-        card.appendChild(info);
-        list.appendChild(card);
-      });
-      div.appendChild(list);
-    }
-
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
   }
