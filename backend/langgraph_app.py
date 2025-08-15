@@ -15,8 +15,8 @@ from fastapi import FastAPI
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel
 # from .sql_retriever import SQLPropertyRetriever
-from appointments import router as appointments_router
-from agents.sql import (
+from .appointments import router as appointments_router
+from .agents.sql import (
     SQLQueryExecutorAgent,
     SQLQueryGeneratorAgent,
     SQLValidatorAgent,
@@ -97,6 +97,7 @@ class GraphState(TypedDict, total=False):
     answer: str
     reply: str
     properties: List[Dict[str, Any]]
+    sql_reply: List[Dict[str, Any]]
 
 
 # retriever = SQLPropertyRetriever(
@@ -156,7 +157,10 @@ async def retrieve_agent(state: GraphState) -> GraphState:
     if not val_res.get("content"):
         listings = []
     logger.info("retrieve_agent found %d listings", len(listings))
-    return {"listings": [normalize_listing(p) for p in listings]}
+    return {
+        "listings": [normalize_listing(p) for p in listings],
+        "sql_reply": listings,
+    }
 
 
 async def llm_agent(state: GraphState) -> GraphState:
@@ -187,7 +191,11 @@ async def format_agent(state: GraphState) -> GraphState:
         for p in state.get("listings", [])
     ]
     logger.info("format_agent returning %d cards", len(cards))
-    return {"reply": state.get("answer", ""), "properties": cards}
+    return {
+        "reply": state.get("answer", ""),
+        "properties": cards,
+        "sql_reply": state.get("sql_reply", []),
+    }
 
 
 workflow = StateGraph(GraphState)
