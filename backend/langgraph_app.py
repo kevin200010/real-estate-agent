@@ -15,8 +15,8 @@ from fastapi import FastAPI
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel
 # from .sql_retriever import SQLPropertyRetriever
-from .appointments import router as appointments_router
-from .agents.sql import (
+from appointments import router as appointments_router
+from agents.sql import (
     SQLQueryExecutorAgent,
     SQLQueryGeneratorAgent,
     SQLValidatorAgent,
