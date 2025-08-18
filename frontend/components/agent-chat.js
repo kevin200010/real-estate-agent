@@ -33,10 +33,12 @@ export function createAgentChat() {
         body: JSON.stringify({ text, message: text })
       });
       const data = await resp.json();
-      const hasSql = Array.isArray(data.sql_reply) && data.sql_reply.length > 0;
-      const textReply = hasSql
-        ? JSON.stringify(data.sql_reply, null, 2)
-        : (data.reply || data.answer || 'No reply');
+      const { reply, answer, sql_reply } = data;
+      let textReply = reply || answer;
+      if (!textReply && Array.isArray(sql_reply) && sql_reply.length > 0) {
+        textReply = JSON.stringify(sql_reply, null, 2);
+      }
+      if (!textReply) textReply = 'No reply';
       addMessage('bot', textReply);
     } catch (err) {
       addMessage('bot', 'Error contacting server');
