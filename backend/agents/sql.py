@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 import logging
 
 from .base import Agent
-from ..sql_retriever import SQLPropertyRetriever
+from sql_retriever import SQLPropertyRetriever
 
 
 logger = logging.getLogger(__name__)

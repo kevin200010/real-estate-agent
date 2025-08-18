@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from .base import Agent
-# from ..sql_retriever import SQLPropertyRetriever
+
 from .sql import (
     SQLQueryExecutorAgent,
     SQLQueryGeneratorAgent,
