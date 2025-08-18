@@ -15,12 +15,20 @@ from fastapi import FastAPI
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel
 # from .sql_retriever import SQLPropertyRetriever
-from appointments import router as appointments_router
-from agents.sql import (
-    SQLQueryExecutorAgent,
-    SQLQueryGeneratorAgent,
-    SQLValidatorAgent,
-)
+try:  # pragma: no cover - support running as package or script
+    from .appointments import router as appointments_router
+    from .agents.sql import (
+        SQLQueryExecutorAgent,
+        SQLQueryGeneratorAgent,
+        SQLValidatorAgent,
+    )
+except ImportError:  # fallback for running from the backend directory directly
+    from appointments import router as appointments_router
+    from agents.sql import (
+        SQLQueryExecutorAgent,
+        SQLQueryGeneratorAgent,
+        SQLValidatorAgent,
+    )
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 

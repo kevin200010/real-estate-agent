@@ -5,7 +5,11 @@ import logging
 from typing import Any, Dict
 
 from .base import Agent
-from property_chatbot import LLMClient
+
+try:  # pragma: no cover - handle both package and script imports
+    from ..property_chatbot import LLMClient
+except ImportError:  # fallback when running inside backend directory
+    from property_chatbot import LLMClient
 
 
 logger = logging.getLogger(__name__)
