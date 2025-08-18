@@ -5,7 +5,10 @@ from typing import Any, Dict, List
 import logging
 
 from .base import Agent
-from sql_retriever import SQLPropertyRetriever
+try:  # pragma: no cover - allow use as package or script
+    from ..sql_retriever import SQLPropertyRetriever
+except ImportError:  # fallback for running inside backend directory
+    from sql_retriever import SQLPropertyRetriever
 
 
 logger = logging.getLogger(__name__)

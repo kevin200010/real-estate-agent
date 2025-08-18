@@ -5,7 +5,11 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from .base import Agent
-from ..property_chatbot import PropertyRetriever
+
+try:  # pragma: no cover - import flexibility for different entry points
+    from ..property_chatbot import PropertyRetriever
+except ImportError:  # fallback when running as a top-level script
+    from property_chatbot import PropertyRetriever
 
 
 class IntentClassifierAgent(Agent):
