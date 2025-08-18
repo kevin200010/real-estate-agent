@@ -10,7 +10,11 @@ from fastapi.templating import Jinja2Templates
 
 from langgraph_app import app_graph
 from property_chatbot import SonicClient
-from .appointments import router as appointments_router
+# Import the appointments router using an absolute import so the module can be
+# executed directly without relying on package-relative imports. This avoids
+# "attempted relative import" errors when `web_app` is run as a top-level
+# module (e.g., via ``uvicorn web_app:app``).
+from appointments import router as appointments_router
 
 logging.basicConfig(level=logging.INFO)
 
