@@ -27,7 +27,10 @@ export function createAgentChat() {
       const resp = await fetch(`${API_BASE}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
+        // Send both "text" and "message" keys so the request works with
+        // either chat API implementation.  Older versions of the backend
+        // expect a ``message`` field while newer ones look for ``text``.
+        body: JSON.stringify({ text, message: text })
       });
       const data = await resp.json();
       const sqlText = data.sql_reply ? JSON.stringify(data.sql_reply, null, 2) : (data.reply || data.answer || 'No reply');
