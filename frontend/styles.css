@@ -353,12 +353,13 @@ button:hover{
   animation:slide-up 0.2s ease;
   backdrop-filter: blur(12px);
 }
-.msg.bot { 
-  align-items:flex-start; 
-flex-direction: column;}
-.msg.bot span { background:var(--muted); color:var(--text); }
+.msg.bot {
+  align-items:flex-start;
+  flex-direction:column;
+}
+.msg.bot span { background:var(--muted, #f3f4f6); color:var(--text, #111827); }
 .msg.user { align-items:flex-end; }
-.msg.user span { background:var(--accent); color:white; }
+.msg.user span { background:var(--accent, #3b82f6); color:#fff; }
 
 .prop-cards {
   margin-top:var(--gap);
