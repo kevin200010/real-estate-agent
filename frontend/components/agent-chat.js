@@ -21,6 +21,7 @@ export function createAgentChat() {
     e.preventDefault();
     const text = input.value.trim();
     if (!text) return;
+    addMessage('user', text);
     input.value = '';
     try {
       const resp = await fetch(`${API_BASE}/chat`, {
@@ -29,11 +30,9 @@ export function createAgentChat() {
         body: JSON.stringify({ text })
       });
       const data = await resp.json();
-      messages.innerHTML = '';
       const sqlText = data.sql_reply ? JSON.stringify(data.sql_reply, null, 2) : (data.reply || data.answer || 'No reply');
       addMessage('bot', sqlText);
     } catch (err) {
-      messages.innerHTML = '';
       addMessage('bot', 'Error contacting server');
     }
   });
