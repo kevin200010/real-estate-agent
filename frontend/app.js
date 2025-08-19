@@ -213,7 +213,7 @@ function router(){
             p.saleOrRent||''
           ].filter(Boolean).join(' | ');
           const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
-          state.infoWin.setContent(`<div>${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button id="addLead">Add to Leads</button> <button id="viewDetails">View Details</button></div>`);
+          state.infoWin.setContent(`<div>${p.image?`<img src="${p.image}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button id="addLead">Add to Leads</button> <button id="viewDetails">View Details</button></div>`);
           state.infoWin.addListener('domready',()=>{
             const btn=document.getElementById('addLead');
             if(btn) btn.onclick=()=>{location.hash=`#/leads?prop=${p.id}`;};
@@ -328,7 +328,7 @@ function router(){
             p.saleOrRent||''
           ].filter(Boolean).join(' | ');
           const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
-          const marker=L.marker(position,{icon:state.defaultIcon}).addTo(state.gmap).bindPopup(`<div>${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button></div>`);
+          const marker=L.marker(position,{icon:state.defaultIcon}).addTo(state.gmap).bindPopup(`<div>${p.image?`<img src="${p.image}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button></div>`);
           state.markers[p.id]=marker;
           bounds.extend(position);
           marker.on('click',()=>selectProperty(p.id));
