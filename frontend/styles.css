@@ -391,6 +391,14 @@ button:hover{
   flex:1;
 }
 .prop-card button { margin-top:var(--gap); }
+.prop-card .view-icon {
+  margin-top:0;
+  background:none;
+  border:none;
+  cursor:pointer;
+  align-self:flex-end;
+  color:var(--accent);
+}
 .prop-card:hover { background:var(--card); }
 
 @keyframes slide-up {
