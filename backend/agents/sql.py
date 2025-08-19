@@ -3,38 +3,48 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List
 import logging
+import asyncio
 
 from .base import Agent
 try:  # pragma: no cover - allow use as package or script
     from ..sql_retriever import SQLPropertyRetriever
+    from ..property_chatbot import LLMClient
 except ImportError:  # fallback for running inside backend directory
     from sql_retriever import SQLPropertyRetriever
+    from property_chatbot import LLMClient
 
 
 logger = logging.getLogger(__name__)
 
 
 class SQLQueryGeneratorAgent(Agent):
-    """Generate a simple SQL query without relying on an LLM."""
+    """Generate a SQL query using an LLM with fallback heuristics."""
 
-    def __init__(self, registry=None) -> None:
+    def __init__(self, registry=None, llm: LLMClient | None = None) -> None:
         super().__init__("SQLQueryGeneratorAgent", registry)
+        self.llm = llm or LLMClient()
 
     async def handle(self, query: str, **_: Any) -> Dict[str, Any]:
-        q = query.strip().lower()
+        q = query.strip()
+        sql_query = ""
         if q:
-            esc = q.replace("'", "''")
+            try:
+                sql_query = await asyncio.to_thread(
+                    self.llm.generate_sql_query, q
+                )
+            except Exception:
+                sql_query = ""
+        if not sql_query:
+            esc = q.lower().replace("'", "''")
             conditions = (
                 f"LOWER(address) LIKE '%{esc}%' "
                 f"OR LOWER(location) LIKE '%{esc}%' "
                 f"OR LOWER(description) LIKE '%{esc}%'"
+            ) if q else "1=1"
+            sql_query = (
+                "SELECT id, address, location, price, description, image, lat, lng FROM properties "
+                f"WHERE {conditions}"
             )
-        else:
-            conditions = "1=1"
-        sql_query = (
-            "SELECT id, address, location, price, description, image, lat, lng FROM properties "
-            f"WHERE {conditions}"
-        )
         return {
             "result_type": "sql_query",
             "content": sql_query,

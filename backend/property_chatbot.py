@@ -299,6 +299,39 @@ class LLMClient:
             print("LLM invocation failed:", exc)
             return "Failed to generate an answer."
 
+    def generate_sql_query(self, request: str) -> str:
+        """Generate a SQL query for the properties table using an LLM."""
+        prompt = (
+            "You are an assistant that writes SQL for a SQLite database of real estate listings. "
+            "The table is named properties with columns id, address, location, price, description, image, lat, lng. "
+            "Generate a SELECT statement that returns these columns and matches the user's request: "
+            f"{request}. Return only the SQL query."
+        )
+
+        body = json.dumps(
+            {
+                "messages": [{"role": "user", "content": [{"text": prompt}]}],
+                "inferenceConfig": {"maxTokens": 256, "temperature": 0.0},
+            }
+        )
+
+        try:
+            response = self.client.invoke_model(
+                modelId=self.model_id,
+                body=body,
+                contentType="application/json",
+                accept="application/json",
+            )
+            payload = json.loads(response["body"].read())
+            try:
+                return payload["output"]["message"]["content"][0]["text"]
+            except (KeyError, IndexError):
+                return ""
+        except NoCredentialsError:
+            return ""
+        except ClientError:
+            return ""
+
 
 class SonicClient:
     """Minimal Nova Sonic client for non-streaming STT/TTS."""
