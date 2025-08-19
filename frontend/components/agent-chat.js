@@ -2,7 +2,7 @@ export function createAgentChat() {
   const wrap = document.createElement('div');
   wrap.className = 'agent-chat';
   wrap.innerHTML = `
-    <div id="agent-map" style="min-height:380px;width:100%;border-radius:12px;margin-bottom:var(--gap);"></div>
+    <div id="agent-map"></div>
     <div class="chat-box">
       <div id="chat-messages" class="chat-messages"></div>
       <form id="chat-form" class="chat-form">
