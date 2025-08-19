@@ -195,6 +195,8 @@ async def format_agent(state: GraphState) -> GraphState:
                 else p.get("price", "N/A")
             ),
             "description": p.get("description", ""),
+            "lat": p.get("lat"),
+            "lng": p.get("lng"),
         }
         for p in state.get("listings", [])
     ]

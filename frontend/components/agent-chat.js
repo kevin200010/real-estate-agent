@@ -2,6 +2,7 @@ export function createAgentChat() {
   const wrap = document.createElement('div');
   wrap.className = 'agent-chat';
   wrap.innerHTML = `
+    <div id="agent-map" style="min-height:380px;width:100%;border-radius:12px;margin-bottom:var(--gap);"></div>
     <div class="chat-box">
       <div id="chat-messages" class="chat-messages"></div>
       <form id="chat-form" class="chat-form">
@@ -14,6 +15,58 @@ export function createAgentChat() {
   const form = wrap.querySelector('#chat-form');
   const input = wrap.querySelector('#chat-input');
   const messages = wrap.querySelector('#chat-messages');
+  const mapEl = wrap.querySelector('#agent-map');
+  let map;
+  let markers = [];
+  let leafletIcon;
+
+  function initMap() {
+    if (window.google?.maps) {
+      map = new google.maps.Map(mapEl, { center: { lat: 39.5, lng: -98.35 }, zoom: 5 });
+    } else if (window.L) {
+      map = L.map(mapEl).setView([39.5, -98.35], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+      leafletIcon = L.icon({ iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x-red.png', iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png' });
+    } else {
+      mapEl.textContent = 'Loading map…';
+      setTimeout(initMap, 300);
+    }
+  }
+  initMap();
+
+  function updateMap(props) {
+    if (!map) return;
+    if (window.google?.maps) {
+      markers.forEach(m => m.setMap(null));
+    } else if (window.L) {
+      markers.forEach(m => m.remove());
+    }
+    markers = [];
+    if (!props.length) return;
+    let bounds;
+    if (window.google?.maps) bounds = new google.maps.LatLngBounds();
+    else if (window.L) bounds = L.latLngBounds();
+    props.forEach(p => {
+      const lat = Number(p.lat), lng = Number(p.lng);
+      if (isNaN(lat) || isNaN(lng)) return;
+      if (window.google?.maps) {
+        const marker = new google.maps.Marker({ position: { lat, lng }, map, icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' });
+        markers.push(marker);
+        bounds.extend({ lat, lng });
+      } else if (window.L) {
+        const marker = L.marker([lat, lng], { icon: leafletIcon }).addTo(map);
+        markers.push(marker);
+        bounds.extend([lat, lng]);
+      }
+    });
+    if (bounds) {
+      if (window.google?.maps) {
+        if (props.length > 1) map.fitBounds(bounds); else { map.setCenter(bounds.getCenter()); map.setZoom(14); }
+      } else if (window.L) {
+        if (props.length > 1) map.fitBounds(bounds); else map.setView(bounds.getCenter(), 14);
+      }
+    }
+  }
   const API_BASE = window.API_BASE_URL || 'http://localhost:8000';
 
   form.addEventListener('submit', async (e) => {
@@ -51,6 +104,8 @@ export function createAgentChat() {
     div.appendChild(span);
 
     if (props.length) {
+      messages.querySelectorAll('.prop-cards').forEach(el => el.remove());
+      updateMap(props);
       const cardsWrap = document.createElement('div');
       cardsWrap.className = 'prop-cards';
       props.forEach(p => {
@@ -71,6 +126,8 @@ export function createAgentChat() {
         cardsWrap.appendChild(card);
       });
       div.appendChild(cardsWrap);
+    } else {
+      updateMap([]);
     }
 
     messages.appendChild(div);
