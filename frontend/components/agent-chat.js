@@ -18,6 +18,7 @@ export function createAgentChat() {
   const mapEl = wrap.querySelector('#agent-map');
   let map;
   let markers = [];
+  let markerMap = {};
   let leafletIcon;
 
   function initMap() {
@@ -42,6 +43,7 @@ export function createAgentChat() {
       markers.forEach(m => m.remove());
     }
     markers = [];
+    markerMap = {};
     if (!props.length) return;
     let bounds;
     if (window.google?.maps) bounds = new google.maps.LatLngBounds();
@@ -51,11 +53,18 @@ export function createAgentChat() {
       if (isNaN(lat) || isNaN(lng)) return;
       if (window.google?.maps) {
         const marker = new google.maps.Marker({ position: { lat, lng }, map, icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' });
+        if (p.image) {
+          const info = new google.maps.InfoWindow({ content: `<img src="${p.image}" alt="Property image" style="max-width:200px"/>` });
+          marker.addListener('click', () => info.open(map, marker));
+        }
         markers.push(marker);
+        markerMap[p.id] = marker;
         bounds.extend({ lat, lng });
       } else if (window.L) {
         const marker = L.marker([lat, lng], { icon: leafletIcon }).addTo(map);
+        if (p.image) marker.bindPopup(`<img src="${p.image}" alt="Property image" style="max-width:200px"/>`);
         markers.push(marker);
+        markerMap[p.id] = marker;
         bounds.extend([lat, lng]);
       }
     });
@@ -65,6 +74,21 @@ export function createAgentChat() {
       } else if (window.L) {
         if (props.length > 1) map.fitBounds(bounds); else map.setView(bounds.getCenter(), 14);
       }
+    }
+  }
+  function focusProperty(p) {
+    if (!map) return;
+    const lat = Number(p.lat), lng = Number(p.lng);
+    if (isNaN(lat) || isNaN(lng)) return;
+    if (window.google?.maps) {
+      map.setCenter({ lat, lng });
+      map.setZoom(14);
+      const m = markerMap[p.id];
+      if (m) google.maps.event.trigger(m, 'click');
+    } else if (window.L) {
+      map.setView([lat, lng], 14);
+      const m = markerMap[p.id];
+      if (m && m.openPopup) m.openPopup();
     }
   }
   const API_BASE = window.API_BASE_URL || 'http://localhost:8000';
@@ -119,6 +143,8 @@ export function createAgentChat() {
           </div>
           <button class="view-icon" title="View property">🔍</button>
         `;
+        const imgEl = card.querySelector('img');
+        if (imgEl) imgEl.addEventListener('click', () => focusProperty(p));
         const btn = card.querySelector('.view-icon');
         btn.addEventListener('click', () => {
           location.hash = `#/property?prop=${p.id}`;
