@@ -42,7 +42,7 @@ class SQLQueryGeneratorAgent(Agent):
                 f"OR LOWER(description) LIKE '%{esc}%'"
             ) if q else "1=1"
             sql_query = (
-                "SELECT id, address, location, price, description, image, lat, lng FROM properties "
+                "SELECT * FROM properties "
                 f"WHERE {conditions}"
             )
         return {
