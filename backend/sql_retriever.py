@@ -30,7 +30,9 @@ class SQLPropertyRetriever:
                 location TEXT,
                 price INTEGER,
                 description TEXT,
-                image TEXT
+                image TEXT,
+                lat REAL,
+                lng REAL
             )
             """
         )
@@ -42,7 +44,7 @@ class SQLPropertyRetriever:
                 for row in reader:
                     cleaned = {k.strip(): (v.strip() if isinstance(v, str) else v) for k, v in row.items()}
                     self.conn.execute(
-                        "INSERT INTO properties (id, address, location, price, description, image) VALUES (?, ?, ?, ?, ?, ?)",
+                        "INSERT INTO properties (id, address, location, price, description, image, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                         (
                             cleaned.get("Listing Number"),
                             cleaned.get("Address"),
@@ -50,6 +52,8 @@ class SQLPropertyRetriever:
                             self._parse_price(cleaned.get("List Price")),
                             cleaned.get("Property Subtype"),
                             cleaned.get("Image"),
+                            self._parse_float(cleaned.get("Latitude")),
+                            self._parse_float(cleaned.get("Longitude")),
                         ),
                     )
         else:
@@ -57,7 +61,7 @@ class SQLPropertyRetriever:
                 data = json.load(f)
                 for item in data:
                     self.conn.execute(
-                        "INSERT INTO properties (id, address, location, price, description, image) VALUES (?, ?, ?, ?, ?, ?)",
+                        "INSERT INTO properties (id, address, location, price, description, image, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                         (
                             item.get("id"),
                             item.get("address"),
@@ -65,6 +69,8 @@ class SQLPropertyRetriever:
                             item.get("price"),
                             item.get("description"),
                             item.get("image"),
+                            self._parse_float(item.get("lat") or item.get("latitude")),
+                            self._parse_float(item.get("lng") or item.get("longitude")),
                         ),
                     )
         self.conn.commit()
@@ -80,7 +86,14 @@ class SQLPropertyRetriever:
         except ValueError:
             return None
 
-    def search(self, query: str, limit: int = 3) -> List[Dict[str, Any]]:
+    @staticmethod
+    def _parse_float(value: Any) -> float | None:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    def search(self, query: str) -> List[Dict[str, Any]]:
         words = [w.lower() for w in query.split() if w]
         if not words:
             return []
@@ -95,7 +108,7 @@ class SQLPropertyRetriever:
             like_clauses.append("LOWER(description) LIKE ?")
             params.append(like)
         sql = (
-            "SELECT id, address, location, price, description, image FROM properties "
+            "SELECT id, address, location, price, description, image, lat, lng FROM properties "
             f"WHERE {' OR '.join(like_clauses)}"
         )
         logger.info("Executing SQL query: %s; params: %s", sql, params)
@@ -111,4 +124,4 @@ class SQLPropertyRetriever:
             if score:
                 scored.append((score, row))
         scored.sort(key=lambda x: x[0], reverse=True)
-        return [r for _, r in scored[:limit]]
+        return [r for _, r in scored]

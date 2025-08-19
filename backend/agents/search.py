@@ -22,7 +22,7 @@ class PropertySearchAgent(Agent):
     """Retrieve property listings and format them as cards."""
 
     def __init__(
-        self, data_file: Path | str | None = None, limit: int = 3, registry=None
+        self, data_file: Path | str | None = None, registry=None
     ) -> None:
         """Create a search agent backed by the CSV listings dataset.
 
@@ -40,17 +40,16 @@ class PropertySearchAgent(Agent):
                 / "listings.csv"
             )
         # self.retriever = SQLPropertyRetriever(data_file)
-        self.generator = SQLQueryGeneratorAgent(limit=limit)
+        self.generator = SQLQueryGeneratorAgent()
         self.executor = SQLQueryExecutorAgent(data_file)
         self.validator = SQLValidatorAgent()
-        self.limit = limit
 
     async def handle(self, query: str, **_: Any) -> Dict[str, Any]:
         logger.debug("Searching properties for query: %s", query)
         print(f"PropertySearchAgent triggered with query: {query}")
         try:
             # listings: List[Dict[str, Any]] = await asyncio.to_thread(
-            #     self.retriever.search, query, self.limit
+            #     self.retriever.search, query
             # )
             gen_res = await self.generator.handle(query=query)
             sql_query = gen_res.get("content", "")

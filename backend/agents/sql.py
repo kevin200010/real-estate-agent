@@ -24,13 +24,11 @@ class SQLQueryGeneratorAgent(Agent):
 
     def __init__(
         self,
-        limit: int = 5,
         registry=None,
         model_id: str = "amazon.nova-lite-v1:0",
         region: str = "us-east-1",
     ) -> None:
         super().__init__("SQLQueryGeneratorAgent", registry)
-        self.limit = limit
         # Attempt to create a Bedrock client for LLM-powered SQL generation.
         # If client creation fails we fall back to keyword search.
         try:
@@ -49,9 +47,8 @@ class SQLQueryGeneratorAgent(Agent):
             prompt = (
                 "You are an assistant that writes SQLite SQL queries for a table "
                 "'properties' with columns id, address, location, price, "
-                "description, image. "
+                "description, image, lat, lng. "
                 f"Generate a SQL query that answers the user's request: {query}. "
-                f"Limit the results to {self.limit} rows. "
                 "Return only the SQL query."
             )
             body = json.dumps(
@@ -100,8 +97,8 @@ class SQLQueryGeneratorAgent(Agent):
             else:
                 conditions = "1=1"
             sql_query = (
-                "SELECT id, address, location, price, description, image FROM properties "
-                f"WHERE {conditions} LIMIT {self.limit}"
+                "SELECT id, address, location, price, description, image, lat, lng FROM properties "
+                f"WHERE {conditions}"
             )
 
         return {
