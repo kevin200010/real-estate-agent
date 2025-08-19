@@ -36,11 +36,14 @@ class SQLQueryGeneratorAgent(Agent):
                 sql_query = ""
         if not sql_query:
             esc = q.lower().replace("'", "''")
-            conditions = (
-                f"LOWER(address) LIKE '%{esc}%' "
-                f"OR LOWER(location) LIKE '%{esc}%' "
-                f"OR LOWER(description) LIKE '%{esc}%'"
-            ) if q else "1=1"
+            if "all" in esc and "propert" in esc:
+                conditions = "1=1"
+            else:
+                conditions = (
+                    f"LOWER(address) LIKE '%{esc}%' "
+                    f"OR LOWER(location) LIKE '%{esc}%' "
+                    f"OR LOWER(description) LIKE '%{esc}%'"
+                ) if q else "1=1"
             sql_query = (
                 "SELECT * FROM properties "
                 f"WHERE {conditions} LIMIT 10"
@@ -57,7 +60,22 @@ class SQLQueryExecutorAgent(Agent):
 
     def __init__(self, data_file: Path | str, registry=None) -> None:
         super().__init__("SQLQueryExecutorAgent", registry)
-        self.retriever = SQLPropertyRetriever(data_file)
+
+        path = Path(data_file)
+        if path.is_dir():
+            for name in ("listings.csv", "listing.csv"):
+                candidate = path / name
+                if candidate.exists():
+                    path = candidate
+                    break
+        elif not path.exists():
+            alt = path.with_name(
+                "listing.csv" if path.name == "listings.csv" else "listings.csv"
+            )
+            if alt.exists():
+                path = alt
+
+        self.retriever = SQLPropertyRetriever(path)
 
     async def handle(self, sql_query: str, **_: Any) -> Dict[str, Any]:
         logger.info("Executing SQL query: %s", sql_query)
