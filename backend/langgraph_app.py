@@ -21,7 +21,6 @@ try:  # pragma: no cover - support running as package or script
         SQLQueryGeneratorAgent,
         SQLValidatorAgent,
     )
-    from .sql_retriever import SQLPropertyRetriever
 except ImportError:  # fallback for running from the backend directory directly
     from appointments import router as appointments_router
     from agents.sql import (
@@ -29,7 +28,6 @@ except ImportError:  # fallback for running from the backend directory directly
         SQLQueryGeneratorAgent,
         SQLValidatorAgent,
     )
-    from sql_retriever import SQLPropertyRetriever
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -109,9 +107,6 @@ class GraphState(TypedDict, total=False):
     sql_reply: List[Dict[str, Any]]
 
 
-retriever = SQLPropertyRetriever(
-    Path(__file__).resolve().parents[1] / "frontend" / "data" / "listings.csv"
-)
 sql_generator = SQLQueryGeneratorAgent()
 sql_executor = SQLQueryExecutorAgent(
     Path(__file__).resolve().parents[1] / "frontend" / "data" / "listings.csv"
@@ -157,11 +152,23 @@ async def retrieve_agent(state: GraphState) -> GraphState:
     if not state.get("is_property_query"):
         logger.info("retrieve_agent skipping retrieval; not a property query")
         return {"listings": []}
-    listings = retriever.search(state["user_input"])
-    logger.info("retrieve_agent found %d listings", len(listings))
+
+    # Use the SQL agents to generate, execute and validate a query
+    gen_resp = await sql_generator.handle(state["user_input"])
+    sql_query = gen_resp.get("content", "")
+
+    exec_resp = await sql_executor.handle(sql_query)
+    rows = exec_resp.get("content", [])
+
+    valid_resp = await sql_validator.handle(sql_query, rows)
+    if not valid_resp.get("content", False):
+        logger.info("retrieve_agent validation failed or no results")
+        rows = []
+
+    logger.info("retrieve_agent found %d listings", len(rows))
     return {
-        "listings": [normalize_listing(p) for p in listings],
-        "sql_reply": listings,
+        "listings": [normalize_listing(p) for p in rows],
+        "sql_reply": rows,
     }
 
 
