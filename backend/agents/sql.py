@@ -43,7 +43,7 @@ class SQLQueryGeneratorAgent(Agent):
             ) if q else "1=1"
             sql_query = (
                 "SELECT * FROM properties "
-                f"WHERE {conditions}"
+                f"WHERE {conditions} LIMIT 10"
             )
         return {
             "result_type": "sql_query",
