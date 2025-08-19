@@ -14,7 +14,6 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel
-# from .sql_retriever import SQLPropertyRetriever
 try:  # pragma: no cover - support running as package or script
     from .appointments import router as appointments_router
     from .agents.sql import (
@@ -22,6 +21,7 @@ try:  # pragma: no cover - support running as package or script
         SQLQueryGeneratorAgent,
         SQLValidatorAgent,
     )
+    from .sql_retriever import SQLPropertyRetriever
 except ImportError:  # fallback for running from the backend directory directly
     from appointments import router as appointments_router
     from agents.sql import (
@@ -29,6 +29,7 @@ except ImportError:  # fallback for running from the backend directory directly
         SQLQueryGeneratorAgent,
         SQLValidatorAgent,
     )
+    from sql_retriever import SQLPropertyRetriever
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -108,9 +109,9 @@ class GraphState(TypedDict, total=False):
     sql_reply: List[Dict[str, Any]]
 
 
-# retriever = SQLPropertyRetriever(
-#     Path(__file__).resolve().parents[1] / "frontend" / "data" / "listings.csv"
-# )
+retriever = SQLPropertyRetriever(
+    Path(__file__).resolve().parents[1] / "frontend" / "data" / "listings.csv"
+)
 sql_generator = SQLQueryGeneratorAgent()
 sql_executor = SQLQueryExecutorAgent(
     Path(__file__).resolve().parents[1] / "frontend" / "data" / "listings.csv"
@@ -156,14 +157,7 @@ async def retrieve_agent(state: GraphState) -> GraphState:
     if not state.get("is_property_query"):
         logger.info("retrieve_agent skipping retrieval; not a property query")
         return {"listings": []}
-    # listings = retriever.search(state["user_input"])
-    gen_res = await sql_generator.handle(query=state["user_input"])
-    sql_query = gen_res.get("content", "")
-    exec_res = await sql_executor.handle(sql_query=sql_query)
-    listings = exec_res.get("content", [])
-    val_res = await sql_validator.handle(sql_query=sql_query, results=listings)
-    if not val_res.get("content"):
-        listings = []
+    listings = retriever.search(state["user_input"])
     logger.info("retrieve_agent found %d listings", len(listings))
     return {
         "listings": [normalize_listing(p) for p in listings],
