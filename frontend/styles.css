@@ -1,15 +1,16 @@
 :root {
   --bg: transparent;
-  --card: rgba(255,255,255,0.2);
-  --muted: rgb(255, 255, 255);
+  --card: rgba(255,255,255,0.25);
+  --muted: rgba(255,255,255,0.55);
   --text: #111827;
   --text-dim: #6b7280;
-  --accent: #3b82f6;
+  --accent: #0ea5e9;
   --radius-lg: 16px;
   --radius-sm: 8px;
-  --shadow: 0 2px 12px rgba(0,0,0,0.1);
+  --shadow: 0 4px 30px rgba(0,0,0,0.1);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.2);
   --gap: 12px;
-  --list-item: rgb(255, 255, 255);
+  --list-item: rgba(255,255,255,0.55);
 }
 
 * { box-sizing: border-box; }
@@ -30,18 +31,16 @@ body {
   background-size:cover;
   background-position:center;
   z-index:-1;
-  opacity:1;
-  filter:blur(2px);
+  opacity:0.6;
+  filter:blur(10px) brightness(0.8);
   transition:opacity 1s ease-in-out;
 }
 
-#bg.changing {
-  animation:bg-change 1s ease-in-out;
-}
-
-@keyframes bg-change {
-  from {transform:scale(1.1);}
-  to {transform:scale(1);}
+.glass {
+  background: var(--card);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.3);
+  box-shadow: var(--shadow);
 }
 
 #topbar {
@@ -52,9 +51,6 @@ body {
   align-items:center;
   justify-content:space-between;
   padding:0 var(--gap);
-  background:var(--card);
-  backdrop-filter:blur(10px);
-  box-shadow:var(--shadow);
   z-index:10;
 }
 #topbar .tabs {display:flex; gap:var(--gap);}
@@ -74,8 +70,6 @@ body {
 
 #left-rail {
   width:240px;
-  background:var(--card);
-  backdrop-filter:blur(20px);
   /* border-right:0.1px solid var(--muted); */
   padding:var(--gap);
   overflow-y:auto;
@@ -105,7 +99,6 @@ main {
   flex:1;
   overflow:auto;
   padding:var(--gap);
-  background:var(--card);
   border-radius:var(--radius-lg);
   transition:box-shadow 0.3s;
 }
@@ -278,6 +271,7 @@ button:hover{
   border-radius: 12px;
   overflow: hidden;
 }
+#agent-map.glass { background: transparent; }
 .sourcing-view #grid { width:100%; margin-top:2%;  backdrop-filter:blur(5px); flex:1; overflow-y:auto;}
 
 
@@ -405,13 +399,13 @@ button:hover{
   display:flex;
   flex-direction:column;
   gap:var(--gap);
-  background:var(--muted);
   padding:var(--gap);
   border-radius:var(--radius-sm);
   box-shadow:var(--shadow);
   align-items:flex-start;
   flex:0 0 200px;
   cursor:pointer;
+  transition:background 0.2s, transform 0.2s, box-shadow 0.2s;
 }
 .prop-card img {
   width:100%;
@@ -431,7 +425,10 @@ button:hover{
   align-self:flex-end;
   color:var(--accent);
 }
-.prop-card:hover { background:var(--card); }
+.prop-card:hover {
+  transform:translateY(-4px);
+  box-shadow:var(--shadow-lg);
+}
 
 @keyframes slide-up {
   from { opacity:0; transform:translateY(4px); }

@@ -2,8 +2,8 @@ export function createAgentChat() {
   const wrap = document.createElement('div');
   wrap.className = 'agent-chat';
   wrap.innerHTML = `
-    <div id="agent-map"></div>
-    <div class="chat-box">
+    <div id="agent-map" class="glass"></div>
+    <div class="chat-box glass">
       <div id="chat-messages" class="chat-messages"></div>
       <form id="chat-form" class="chat-form">
         <input id="chat-input" placeholder="Type your message..." autocomplete="off" />
@@ -21,8 +21,21 @@ export function createAgentChat() {
   let map;
   let markers = [];
   let markerMap = {};
-  let leafletIcon;
+  let defaultIcon;
+  let activeIcon;
+  let activeMarkerId;
+  let pendingProps = [];
   let history = JSON.parse(sessionStorage.getItem('agentChatMessages') || '[]');
+
+  function normalizeProp(p) {
+    const id = p.id || p.ID || p['Listing Number'] || p.listingNumber || Math.random().toString(36).slice(2);
+    const address = p.address || p.Address || '';
+    const price = p.price || p.Price || p['List Price'] || p[' List Price '] || '';
+    const lat = parseFloat(p.lat ?? p.latitude ?? p.Latitude);
+    const lng = parseFloat(p.lng ?? p.longitude ?? p.Longitude);
+    const image = p.image || p.Image || '';
+    return { id, address, price, lat, lng, image };
+  }
 
   function initMap() {
     if (window.google?.maps) {
@@ -30,16 +43,32 @@ export function createAgentChat() {
     } else if (window.L) {
       map = L.map(mapEl).setView([39.5, -98.35], 5);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-      leafletIcon = L.icon({ iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x-red.png', iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png' });
+      defaultIcon = L.icon({
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+      });
+      activeIcon = L.icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+      });
     } else {
       mapEl.textContent = 'Loading map…';
       setTimeout(initMap, 300);
+      return;
     }
+    if (pendingProps.length) updateMap(pendingProps);
   }
   // Initialize the map after the element is in the DOM to ensure proper sizing
   setTimeout(initMap, 0);
 
   function updateMap(props) {
+    pendingProps = props;
     if (!map) return;
     if (window.google?.maps) {
       markers.forEach(m => m.setMap(null));
@@ -49,6 +78,7 @@ export function createAgentChat() {
     markers = [];
     markerMap = {};
     if (!props.length) return;
+    activeMarkerId = null;
     let bounds;
     if (window.google?.maps) bounds = new google.maps.LatLngBounds();
     else if (window.L) bounds = L.latLngBounds();
@@ -56,7 +86,7 @@ export function createAgentChat() {
       const lat = Number(p.lat), lng = Number(p.lng);
       if (isNaN(lat) || isNaN(lng)) return;
       if (window.google?.maps) {
-        const marker = new google.maps.Marker({ position: { lat, lng }, map, icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' });
+        const marker = new google.maps.Marker({ position: { lat, lng }, map, icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' });
         let content = '';
         if (p.image) {
           content += `<img src="${p.image}" alt="Property image" style="max-width:200px"/>`;
@@ -73,7 +103,7 @@ export function createAgentChat() {
           content += `<img src="${p.image}" alt="Property image" style="max-width:200px"/>`;
         }
         content += `<div><a href="#/property?prop=${p.id}">View details</a></div>`;
-        const marker = L.marker([lat, lng], { icon: leafletIcon }).addTo(map);
+        const marker = L.marker([lat, lng], { icon: defaultIcon }).addTo(map);
         marker.bindPopup(content);
         markers.push(marker);
         markerMap[p.id] = marker;
@@ -96,11 +126,21 @@ export function createAgentChat() {
       map.setCenter({ lat, lng });
       map.setZoom(14);
       const m = markerMap[p.id];
-      if (m) google.maps.event.trigger(m, 'click');
+      if (m) {
+        markers.forEach(marker => marker.setIcon('http://maps.google.com/mapfiles/ms/icons/blue-dot.png'));
+        m.setIcon('http://maps.google.com/mapfiles/ms/icons/red-dot.png');
+        google.maps.event.trigger(m, 'click');
+        activeMarkerId = p.id;
+      }
     } else if (window.L) {
       map.setView([lat, lng], 14);
       const m = markerMap[p.id];
-      if (m && m.openPopup) m.openPopup();
+      if (m) {
+        markers.forEach(marker => marker.setIcon(defaultIcon));
+        m.setIcon(activeIcon);
+        if (m.openPopup) m.openPopup();
+        activeMarkerId = p.id;
+      }
     }
   }
   const API_BASE = window.API_BASE_URL || 'http://localhost:8000';
@@ -125,8 +165,9 @@ export function createAgentChat() {
         textReply = JSON.stringify(sql_reply, null, 2);
       }
       if (!textReply) textReply = 'No reply';
-      const propList = Array.isArray(sql_reply) && sql_reply.length ? sql_reply : (properties || []);
-      addMessage('bot', textReply, propList);
+      const rawProps = Array.isArray(sql_reply) && sql_reply.length ? sql_reply : (properties || []);
+      const normProps = rawProps.map(normalizeProp);
+      addMessage('bot', textReply, normProps);
     } catch (err) {
       addMessage('bot', 'Error contacting server');
     }
@@ -146,7 +187,7 @@ export function createAgentChat() {
       cardsWrap.className = 'prop-cards';
       props.forEach(p => {
         const card = document.createElement('div');
-        card.className = 'prop-card';
+        card.className = 'prop-card glass';
         card.innerHTML = `
           <img src="${p.image}" alt="Property image" />
           <div class="details">
@@ -177,7 +218,7 @@ export function createAgentChat() {
     }
   }
 
-  history.forEach(m => addMessage(m.role, m.text, m.props, false));
+  history.forEach(m => addMessage(m.role, m.text, (m.props || []).map(normalizeProp), false));
 
   clearBtn.addEventListener('click', () => {
     messages.innerHTML = '';
