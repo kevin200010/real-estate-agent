@@ -8,6 +8,7 @@
   --radius-lg: 16px;
   --radius-sm: 8px;
   --shadow: 0 4px 30px rgba(0,0,0,0.1);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.2);
   --gap: 12px;
   --list-item: rgba(255,255,255,0.55);
 }
@@ -404,6 +405,7 @@ button:hover{
   align-items:flex-start;
   flex:0 0 200px;
   cursor:pointer;
+  transition:background 0.2s, transform 0.2s, box-shadow 0.2s;
 }
 .prop-card img {
   width:100%;
@@ -423,7 +425,11 @@ button:hover{
   align-self:flex-end;
   color:var(--accent);
 }
-.prop-card:hover { background:var(--card); }
+.prop-card:hover {
+  background:var(--card);
+  transform:translateY(-2px);
+  box-shadow:var(--shadow-lg);
+}
 
 @keyframes slide-up {
   from { opacity:0; transform:translateY(4px); }
