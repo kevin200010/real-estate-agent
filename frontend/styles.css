@@ -410,6 +410,7 @@ button:hover{
   box-shadow:var(--shadow);
   align-items:flex-start;
   flex:0 0 200px;
+  cursor:pointer;
 }
 .prop-card img {
   width:100%;
