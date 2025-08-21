@@ -473,6 +473,8 @@ function router(){
     topbarAPI.setActive('#/agent');
     if(!agentChatEl) agentChatEl=createAgentChat();
     main.appendChild(agentChatEl);
+    const msgs = agentChatEl.querySelector('#chat-messages');
+    if (msgs) msgs.scrollTop = msgs.scrollHeight;
   }
 }
 

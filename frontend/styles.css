@@ -52,15 +52,33 @@ body {
   justify-content:space-between;
   padding:0 var(--gap);
   z-index:10;
+  background:#111;
+  color:white;
 }
 #topbar .tabs {display:flex; gap:var(--gap);}
 #topbar .right {display:flex; align-items:center; gap:var(--gap);}
-#topbar input, #topbar select {height:36px;}
-#topbar button {height:36px; background:var(--accent); color:white; border:none; cursor:pointer; border-radius:var(--radius-sm); padding:0 12px;}
-#topbar button:hover {filter:brightness(0.9);}
+#topbar input, #topbar select {
+  height:36px;
+  background:#333;
+  color:white;
+  border:1px solid #555;
+}
+#topbar input::placeholder { color:#ccc; }
+#topbar button {
+  height:36px;
+  background:var(--accent);
+  color:white;
+  border:none;
+  cursor:pointer;
+  border-radius:var(--radius-sm);
+  padding:0 12px;
+}
+#topbar button:hover {filter:brightness(1.1);}
 #topbar .avatar {width:32px;height:32px;border-radius:50%;background:var(--muted);}
-#topbar .logo {font-weight:bold; cursor:pointer; transition:transform 0.3s, text-shadow 0.3s; color: aliceblue; font-size: large;}
+#topbar .logo {font-weight:bold; cursor:pointer; transition:transform 0.3s, text-shadow 0.3s; color:white; font-size: large;}
 #topbar .logo:hover {transform:scale(1.1); text-shadow:0 0 12px var(--accent);}
+#topbar .tab {color:white;}
+#topbar .tab.active, #topbar .tab:hover {background:rgba(255,255,255,0.2); color:var(--accent);}
 
 #layout {
   display:flex;
@@ -429,6 +447,11 @@ button:hover{
   transform:translateY(-4px);
   box-shadow:var(--shadow-lg);
 }
+.prop-card.active {
+  background:var(--accent);
+  color:white;
+}
+.prop-card.active .view-icon { color:white; }
 
 @keyframes slide-up {
   from { opacity:0; transform:translateY(4px); }

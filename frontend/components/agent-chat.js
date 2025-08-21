@@ -142,6 +142,10 @@ export function createAgentChat() {
         activeMarkerId = p.id;
       }
     }
+    document.querySelectorAll('.prop-card').forEach(card => {
+      if (card.dataset.id === String(p.id)) card.classList.add('active');
+      else card.classList.remove('active');
+    });
   }
   const API_BASE = window.API_BASE_URL || 'http://localhost:8000';
 
@@ -188,6 +192,7 @@ export function createAgentChat() {
       props.forEach(p => {
         const card = document.createElement('div');
         card.className = 'prop-card glass';
+        card.dataset.id = p.id;
         card.innerHTML = `
           <img src="${p.image}" alt="Property image" />
           <div class="details">
