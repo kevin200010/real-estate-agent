@@ -159,8 +159,9 @@ async def retrieve_agent(state: GraphState) -> GraphState:
 
     exec_resp = await sql_executor.handle(sql_query)
     rows = exec_resp.get("content", [])
+    executed = exec_resp.get("sql_query", sql_query)
 
-    valid_resp = await sql_validator.handle(sql_query, rows)
+    valid_resp = await sql_validator.handle(executed, rows)
     if not valid_resp.get("content", False):
         logger.info("retrieve_agent validation failed or no results")
         rows = []

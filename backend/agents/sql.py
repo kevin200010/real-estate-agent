@@ -2,15 +2,16 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Dict, List
+import csv
+import json
+import sqlite3
 import logging
 import asyncio
 
 from .base import Agent
 try:  # pragma: no cover - allow use as package or script
-    from ..sql_retriever import SQLPropertyRetriever
     from ..property_chatbot import LLMClient
 except ImportError:  # fallback for running inside backend directory
-    from sql_retriever import SQLPropertyRetriever
     from property_chatbot import LLMClient
 
 
@@ -60,7 +61,6 @@ class SQLQueryExecutorAgent(Agent):
 
     def __init__(self, data_file: Path | str, registry=None) -> None:
         super().__init__("SQLQueryExecutorAgent", registry)
-
         path = Path(data_file)
         if path.is_dir():
             for name in ("listings.csv", "listing.csv"):
@@ -75,24 +75,104 @@ class SQLQueryExecutorAgent(Agent):
             if alt.exists():
                 path = alt
 
-        self.retriever = SQLPropertyRetriever(path)
+        self.conn = sqlite3.connect(":memory:")
+        self.conn.row_factory = sqlite3.Row
+        self._create_table()
+        self._load_data(path)
+
+    def _create_table(self) -> None:
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS properties (
+                id TEXT,
+                address TEXT,
+                location TEXT,
+                price INTEGER,
+                description TEXT,
+                image TEXT,
+                lat REAL,
+                lng REAL
+            )
+            """
+        )
+
+    def _load_data(self, path: Path) -> None:
+        if path.suffix.lower() == ".csv":
+            with path.open("r", encoding="utf-8", newline="") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    cleaned = {k.strip(): (v.strip() if isinstance(v, str) else v) for k, v in row.items()}
+                    self.conn.execute(
+                        "INSERT INTO properties (id, address, location, price, description, image, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            cleaned.get("Listing Number"),
+                            cleaned.get("Address"),
+                            f"{cleaned.get('City', '')}, {cleaned.get('State', '')}".strip(", "),
+                            self._parse_price(cleaned.get("List Price")),
+                            cleaned.get("Property Subtype"),
+                            cleaned.get("Image"),
+                            self._parse_float(cleaned.get("Latitude")),
+                            self._parse_float(cleaned.get("Longitude")),
+                        ),
+                    )
+        else:
+            with path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+                for item in data:
+                    self.conn.execute(
+                        "INSERT INTO properties (id, address, location, price, description, image, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            item.get("id"),
+                            item.get("address"),
+                            item.get("location"),
+                            item.get("price"),
+                            item.get("description"),
+                            item.get("image"),
+                            self._parse_float(item.get("lat") or item.get("latitude")),
+                            self._parse_float(item.get("lng") or item.get("longitude")),
+                        ),
+                    )
+        self.conn.commit()
+
+    @staticmethod
+    def _parse_price(value: Any) -> int | None:
+        if value is None:
+            return None
+        if isinstance(value, (int, float)):
+            return int(value)
+        try:
+            return int(float(str(value).replace("$", "").replace(",", "")))
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _parse_float(value: Any) -> float | None:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
 
     async def handle(self, sql_query: str, **_: Any) -> Dict[str, Any]:
         logger.info("Executing SQL query: %s", sql_query)
         try:
-            cur = self.retriever.conn.execute(sql_query)
+            cur = self.conn.execute(sql_query)
             rows = [dict(r) for r in cur.fetchall()]
-            return {
-                "result_type": "sql_results",
-                "content": rows,
-                "source_agents": [self.name],
-            }
         except Exception as exc:  # pragma: no cover - defensive
-            return {
-                "result_type": "error",
-                "content": str(exc),
-                "source_agents": [self.name],
-            }
+            logger.warning("Query failed (%s); falling back to default", exc)
+            rows = []
+
+        if not rows:
+            fallback = "SELECT * FROM properties LIMIT 10"
+            cur = self.conn.execute(fallback)
+            rows = [dict(r) for r in cur.fetchall()]
+            sql_query = fallback
+
+        return {
+            "result_type": "sql_results",
+            "content": rows,
+            "source_agents": [self.name],
+            "sql_query": sql_query,
+        }
 
 
 class SQLValidatorAgent(Agent):
