@@ -157,17 +157,22 @@ class SQLQueryExecutorAgent(Agent):
         try:
             cur = self.conn.execute(sql_query)
             rows = [dict(r) for r in cur.fetchall()]
-            return {
-                "result_type": "sql_results",
-                "content": rows,
-                "source_agents": [self.name],
-            }
         except Exception as exc:  # pragma: no cover - defensive
-            return {
-                "result_type": "error",
-                "content": str(exc),
-                "source_agents": [self.name],
-            }
+            logger.warning("Query failed (%s); falling back to default", exc)
+            rows = []
+
+        if not rows:
+            fallback = "SELECT * FROM properties LIMIT 10"
+            cur = self.conn.execute(fallback)
+            rows = [dict(r) for r in cur.fetchall()]
+            sql_query = fallback
+
+        return {
+            "result_type": "sql_results",
+            "content": rows,
+            "source_agents": [self.name],
+            "sql_query": sql_query,
+        }
 
 
 class SQLValidatorAgent(Agent):

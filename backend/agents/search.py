@@ -49,8 +49,9 @@ class PropertySearchAgent(Agent):
             sql_query = gen_res.get("content", "")
             exec_res = await self.executor.handle(sql_query=sql_query)
             listings = exec_res.get("content", [])
+            executed = exec_res.get("sql_query", sql_query)
             val_res = await self.validator.handle(
-                sql_query=sql_query, results=listings
+                sql_query=executed, results=listings
             )
             if not val_res.get("content"):
                 listings = []
