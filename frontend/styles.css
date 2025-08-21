@@ -272,8 +272,9 @@ button:hover{
 #map { min-height: 380px; width: 100%; border-radius: 12px; overflow: hidden; margin-right:0; margin-bottom:var(--gap); }
 #agent-map {
   min-height: 380px;
-/*   height: 700px; */
   flex: 1;
+  height: 100%;
+  width: 100%;
   border-radius: 12px;
   overflow: hidden;
 }
