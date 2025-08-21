@@ -20,6 +20,7 @@ export function createAgentChat() {
   let markers = [];
   let markerMap = {};
   let leafletIcon;
+  let history = JSON.parse(sessionStorage.getItem('agentChatMessages') || '[]');
 
   function initMap() {
     if (window.google?.maps) {
@@ -128,7 +129,7 @@ export function createAgentChat() {
     }
   });
 
-  function addMessage(role, text, props = []) {
+  function addMessage(role, text, props = [], save = true) {
     const div = document.createElement('div');
     div.className = `msg ${role}`;
     const span = document.createElement('span');
@@ -166,7 +167,14 @@ export function createAgentChat() {
 
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
+
+    if (save) {
+      history.push({ role, text, props });
+      sessionStorage.setItem('agentChatMessages', JSON.stringify(history));
+    }
   }
+
+  history.forEach(m => addMessage(m.role, m.text, m.props, false));
 
   return wrap;
 }
