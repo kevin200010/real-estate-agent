@@ -36,7 +36,8 @@ export function createAgentChat() {
       setTimeout(initMap, 300);
     }
   }
-  initMap();
+  // Initialize the map after the element is in the DOM to ensure proper sizing
+  setTimeout(initMap, 0);
 
   function updateMap(props) {
     if (!map) return;
