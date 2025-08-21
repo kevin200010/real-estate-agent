@@ -154,10 +154,10 @@ export function createAgentChat() {
           </div>
           <button class="view-icon" title="View property">🔍</button>
         `;
-        const imgEl = card.querySelector('img');
-        if (imgEl) imgEl.addEventListener('click', () => focusProperty(p));
+        card.addEventListener('click', () => focusProperty(p));
         const btn = card.querySelector('.view-icon');
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
           location.hash = `#/property?prop=${p.id}`;
         });
         cardsWrap.appendChild(card);
