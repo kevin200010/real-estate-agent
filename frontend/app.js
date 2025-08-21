@@ -33,9 +33,8 @@ const state={ data:{}, gmap:null, markers:{}, infoWin:null, activeMarkerId:null 
 let topbarAPI;
 let agentChatEl;
 
-// cycle through simple real-estate themed backgrounds
-const backgrounds=['property1.jpg','property2.png','property3.jpg'];
-let bgIndex=0;
+// set a static real-estate themed background
+const background='global-bg.svg';
 
 function startApp(){
   Promise.all([
@@ -500,17 +499,7 @@ function setupShortcuts(){
 function setupBackground(){
   const bg=document.getElementById('bg');
   if(!bg) return;
-  bg.style.backgroundImage=`url('${backgrounds[0]}')`;
-  setInterval(()=>{
-    bg.style.opacity=0;
-    bg.classList.add('changing');
-    setTimeout(()=>{
-      bgIndex=(bgIndex+1)%backgrounds.length;
-      bg.style.backgroundImage=`url('${backgrounds[bgIndex]}')`;
-      bg.style.opacity=1;
-      bg.classList.remove('changing');
-    },1000);
-  },10000);
+  bg.style.backgroundImage=`url('${background}')`;
 }
 
 function parseCSV(text){
