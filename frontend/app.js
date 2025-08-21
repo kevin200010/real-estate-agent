@@ -31,6 +31,7 @@ const mapReady = new Promise(resolve => {
 
 const state={ data:{}, gmap:null, markers:{}, infoWin:null, activeMarkerId:null };
 let topbarAPI;
+let agentChatEl;
 
 // cycle through simple real-estate themed backgrounds
 const backgrounds=['property1.jpg','property2.png','property3.jpg'];
@@ -471,7 +472,8 @@ function router(){
     main.appendChild(createOutreach());
   } else if(route.startsWith('#/agent')){
     topbarAPI.setActive('#/agent');
-    main.appendChild(createAgentChat());
+    if(!agentChatEl) agentChatEl=createAgentChat();
+    main.appendChild(agentChatEl);
   }
 }
 
