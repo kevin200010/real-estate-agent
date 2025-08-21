@@ -24,6 +24,16 @@ export function createAgentChat() {
   let leafletIcon;
   let history = JSON.parse(sessionStorage.getItem('agentChatMessages') || '[]');
 
+  function normalizeProp(p) {
+    const id = p.id || p.ID || p['Listing Number'] || p.listingNumber || Math.random().toString(36).slice(2);
+    const address = p.address || p.Address || '';
+    const price = p.price || p.Price || p['List Price'] || p[' List Price '] || '';
+    const lat = parseFloat(p.lat ?? p.latitude ?? p.Latitude);
+    const lng = parseFloat(p.lng ?? p.longitude ?? p.Longitude);
+    const image = p.image || p.Image || '';
+    return { id, address, price, lat, lng, image };
+  }
+
   function initMap() {
     if (window.google?.maps) {
       map = new google.maps.Map(mapEl, { center: { lat: 39.5, lng: -98.35 }, zoom: 5 });
@@ -125,8 +135,9 @@ export function createAgentChat() {
         textReply = JSON.stringify(sql_reply, null, 2);
       }
       if (!textReply) textReply = 'No reply';
-      const propList = Array.isArray(sql_reply) && sql_reply.length ? sql_reply : (properties || []);
-      addMessage('bot', textReply, propList);
+      const rawProps = Array.isArray(sql_reply) && sql_reply.length ? sql_reply : (properties || []);
+      const normProps = rawProps.map(normalizeProp);
+      addMessage('bot', textReply, normProps);
     } catch (err) {
       addMessage('bot', 'Error contacting server');
     }
@@ -177,7 +188,7 @@ export function createAgentChat() {
     }
   }
 
-  history.forEach(m => addMessage(m.role, m.text, m.props, false));
+  history.forEach(m => addMessage(m.role, m.text, (m.props || []).map(normalizeProp), false));
 
   clearBtn.addEventListener('click', () => {
     messages.innerHTML = '';
