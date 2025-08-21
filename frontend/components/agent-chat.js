@@ -53,16 +53,24 @@ export function createAgentChat() {
       if (isNaN(lat) || isNaN(lng)) return;
       if (window.google?.maps) {
         const marker = new google.maps.Marker({ position: { lat, lng }, map, icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' });
+        let content = '';
         if (p.image) {
-          const info = new google.maps.InfoWindow({ content: `<img src="${p.image}" alt="Property image" style="max-width:200px"/>` });
-          marker.addListener('click', () => info.open(map, marker));
+          content += `<img src="${p.image}" alt="Property image" style="max-width:200px"/>`;
         }
+        content += `<div><a href="#/property?prop=${p.id}">View details</a></div>`;
+        const info = new google.maps.InfoWindow({ content });
+        marker.addListener('click', () => info.open(map, marker));
         markers.push(marker);
         markerMap[p.id] = marker;
         bounds.extend({ lat, lng });
       } else if (window.L) {
+        let content = '';
+        if (p.image) {
+          content += `<img src="${p.image}" alt="Property image" style="max-width:200px"/>`;
+        }
+        content += `<div><a href="#/property?prop=${p.id}">View details</a></div>`;
         const marker = L.marker([lat, lng], { icon: leafletIcon }).addTo(map);
-        if (p.image) marker.bindPopup(`<img src="${p.image}" alt="Property image" style="max-width:200px"/>`);
+        marker.bindPopup(content);
         markers.push(marker);
         markerMap[p.id] = marker;
         bounds.extend([lat, lng]);
@@ -128,7 +136,6 @@ export function createAgentChat() {
     div.appendChild(span);
 
     if (props.length) {
-      messages.querySelectorAll('.prop-cards').forEach(el => el.remove());
       updateMap(props);
       const cardsWrap = document.createElement('div');
       cardsWrap.className = 'prop-cards';
