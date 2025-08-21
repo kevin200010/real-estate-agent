@@ -121,7 +121,8 @@ export function createAgentChat() {
         textReply = JSON.stringify(sql_reply, null, 2);
       }
       if (!textReply) textReply = 'No reply';
-      addMessage('bot', textReply, properties || []);
+      const propList = Array.isArray(sql_reply) && sql_reply.length ? sql_reply : (properties || []);
+      addMessage('bot', textReply, propList);
     } catch (err) {
       addMessage('bot', 'Error contacting server');
     }
