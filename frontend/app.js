@@ -194,7 +194,7 @@ function router(){
       if(state.activeMarkerId && state.markers[state.activeMarkerId]){
         const prev=state.markers[state.activeMarkerId];
         if(window.google?.maps){
-          if(prev.setIcon) prev.setIcon(null);
+          if(prev.setIcon) prev.setIcon('http://maps.google.com/mapfiles/ms/icons/blue-dot.png');
         } else if(window.L){
           if(state.defaultIcon && prev.setIcon) prev.setIcon(state.defaultIcon);
         }
@@ -224,7 +224,7 @@ function router(){
             state.infoWin.open({map:state.gmap,anchor:marker});
           } else {
             state.infoWin.open(state.gmap,marker);
-            if(marker.setIcon) marker.setIcon('http://maps.google.com/mapfiles/ms/icons/blue-dot.png');
+            if(marker.setIcon) marker.setIcon('http://maps.google.com/mapfiles/ms/icons/red-dot.png');
             if(marker.getAnimation){
               marker.setAnimation(google.maps.Animation.BOUNCE);
               setTimeout(()=>marker.setAnimation(null),700);
@@ -300,7 +300,7 @@ function router(){
             if(google.maps.marker?.AdvancedMarkerElement){
               marker=new google.maps.marker.AdvancedMarkerElement({position,map:state.gmap,title});
             } else {
-              marker=new google.maps.Marker({position,map:state.gmap,title});
+              marker=new google.maps.Marker({position,map:state.gmap,title,icon:'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'});
             }
             state.markers[p.id]=marker;
           bounds.extend(position);
@@ -312,7 +312,7 @@ function router(){
       state.gmap=L.map(map).setView([center.lat,center.lng],zoom);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors'}).addTo(state.gmap);
       state.defaultIcon=state.defaultIcon||L.icon({iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
-      state.activeIcon=state.activeIcon||L.icon({iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x-green.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
+      state.activeIcon=state.activeIcon||L.icon({iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x-red.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
       const bounds=L.latLngBounds();
       props.forEach(p=>{
         const lat=Number(p.lat), lng=Number(p.lng);

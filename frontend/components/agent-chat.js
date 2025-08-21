@@ -21,7 +21,9 @@ export function createAgentChat() {
   let map;
   let markers = [];
   let markerMap = {};
-  let leafletIcon;
+  let defaultIcon;
+  let activeIcon;
+  let activeMarkerId;
   let pendingProps = [];
   let history = JSON.parse(sessionStorage.getItem('agentChatMessages') || '[]');
 
@@ -41,7 +43,20 @@ export function createAgentChat() {
     } else if (window.L) {
       map = L.map(mapEl).setView([39.5, -98.35], 5);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-      leafletIcon = L.icon({ iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x-red.png', iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png' });
+      defaultIcon = L.icon({
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+      });
+      activeIcon = L.icon({
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x-red.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+      });
     } else {
       mapEl.textContent = 'Loading map…';
       setTimeout(initMap, 300);
@@ -63,6 +78,7 @@ export function createAgentChat() {
     markers = [];
     markerMap = {};
     if (!props.length) return;
+    activeMarkerId = null;
     let bounds;
     if (window.google?.maps) bounds = new google.maps.LatLngBounds();
     else if (window.L) bounds = L.latLngBounds();
@@ -70,7 +86,7 @@ export function createAgentChat() {
       const lat = Number(p.lat), lng = Number(p.lng);
       if (isNaN(lat) || isNaN(lng)) return;
       if (window.google?.maps) {
-        const marker = new google.maps.Marker({ position: { lat, lng }, map, icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' });
+        const marker = new google.maps.Marker({ position: { lat, lng }, map, icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' });
         let content = '';
         if (p.image) {
           content += `<img src="${p.image}" alt="Property image" style="max-width:200px"/>`;
@@ -87,7 +103,7 @@ export function createAgentChat() {
           content += `<img src="${p.image}" alt="Property image" style="max-width:200px"/>`;
         }
         content += `<div><a href="#/property?prop=${p.id}">View details</a></div>`;
-        const marker = L.marker([lat, lng], { icon: leafletIcon }).addTo(map);
+        const marker = L.marker([lat, lng], { icon: defaultIcon }).addTo(map);
         marker.bindPopup(content);
         markers.push(marker);
         markerMap[p.id] = marker;
@@ -110,11 +126,21 @@ export function createAgentChat() {
       map.setCenter({ lat, lng });
       map.setZoom(14);
       const m = markerMap[p.id];
-      if (m) google.maps.event.trigger(m, 'click');
+      if (m) {
+        markers.forEach(marker => marker.setIcon('http://maps.google.com/mapfiles/ms/icons/blue-dot.png'));
+        m.setIcon('http://maps.google.com/mapfiles/ms/icons/red-dot.png');
+        google.maps.event.trigger(m, 'click');
+        activeMarkerId = p.id;
+      }
     } else if (window.L) {
       map.setView([lat, lng], 14);
       const m = markerMap[p.id];
-      if (m && m.openPopup) m.openPopup();
+      if (m) {
+        markers.forEach(marker => marker.setIcon(defaultIcon));
+        m.setIcon(activeIcon);
+        if (m.openPopup) m.openPopup();
+        activeMarkerId = p.id;
+      }
     }
   }
   const API_BASE = window.API_BASE_URL || 'http://localhost:8000';
