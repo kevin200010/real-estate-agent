@@ -1,10 +1,8 @@
 from __future__ import annotations
-# from __future__ import annotations
 
-# import asyncio
 import logging
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from .base import Agent
 
@@ -39,7 +37,6 @@ class PropertySearchAgent(Agent):
                 / "data"
                 / "listings.csv"
             )
-        # self.retriever = SQLPropertyRetriever(data_file)
         self.generator = SQLQueryGeneratorAgent()
         self.executor = SQLQueryExecutorAgent(data_file)
         self.validator = SQLValidatorAgent()
@@ -48,9 +45,6 @@ class PropertySearchAgent(Agent):
         logger.debug("Searching properties for query: %s", query)
         print(f"PropertySearchAgent triggered with query: {query}")
         try:
-            # listings: List[Dict[str, Any]] = await asyncio.to_thread(
-            #     self.retriever.search, query
-            # )
             gen_res = await self.generator.handle(query=query)
             sql_query = gen_res.get("content", "")
             exec_res = await self.executor.handle(sql_query=sql_query)
