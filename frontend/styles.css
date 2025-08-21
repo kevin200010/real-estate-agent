@@ -271,6 +271,7 @@ button:hover{
   border-radius: 12px;
   overflow: hidden;
 }
+#agent-map.glass { background: transparent; }
 .sourcing-view #grid { width:100%; margin-top:2%;  backdrop-filter:blur(5px); flex:1; overflow-y:auto;}
 
 
@@ -398,7 +399,6 @@ button:hover{
   display:flex;
   flex-direction:column;
   gap:var(--gap);
-  background:var(--muted);
   padding:var(--gap);
   border-radius:var(--radius-sm);
   box-shadow:var(--shadow);
@@ -426,8 +426,7 @@ button:hover{
   color:var(--accent);
 }
 .prop-card:hover {
-  background:var(--card);
-  transform:translateY(-2px);
+  transform:translateY(-4px);
   box-shadow:var(--shadow-lg);
 }
 

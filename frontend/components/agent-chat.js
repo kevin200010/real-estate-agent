@@ -2,8 +2,8 @@ export function createAgentChat() {
   const wrap = document.createElement('div');
   wrap.className = 'agent-chat';
   wrap.innerHTML = `
-    <div id="agent-map"></div>
-    <div class="chat-box">
+    <div id="agent-map" class="glass"></div>
+    <div class="chat-box glass">
       <div id="chat-messages" class="chat-messages"></div>
       <form id="chat-form" class="chat-form">
         <input id="chat-input" placeholder="Type your message..." autocomplete="off" />
@@ -22,6 +22,7 @@ export function createAgentChat() {
   let markers = [];
   let markerMap = {};
   let leafletIcon;
+  let pendingProps = [];
   let history = JSON.parse(sessionStorage.getItem('agentChatMessages') || '[]');
 
   function normalizeProp(p) {
@@ -44,12 +45,15 @@ export function createAgentChat() {
     } else {
       mapEl.textContent = 'Loading map…';
       setTimeout(initMap, 300);
+      return;
     }
+    if (pendingProps.length) updateMap(pendingProps);
   }
   // Initialize the map after the element is in the DOM to ensure proper sizing
   setTimeout(initMap, 0);
 
   function updateMap(props) {
+    pendingProps = props;
     if (!map) return;
     if (window.google?.maps) {
       markers.forEach(m => m.setMap(null));
@@ -157,7 +161,7 @@ export function createAgentChat() {
       cardsWrap.className = 'prop-cards';
       props.forEach(p => {
         const card = document.createElement('div');
-        card.className = 'prop-card';
+        card.className = 'prop-card glass';
         card.innerHTML = `
           <img src="${p.image}" alt="Property image" />
           <div class="details">
