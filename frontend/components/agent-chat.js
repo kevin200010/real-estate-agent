@@ -23,6 +23,7 @@ export function createAgentChat() {
   let markerMap = {};
   let leafletIcon;
   let history = JSON.parse(sessionStorage.getItem('agentChatMessages') || '[]');
+  let typingEl;
 
   function initMap() {
     if (window.google?.maps) {
@@ -110,6 +111,7 @@ export function createAgentChat() {
     if (!text) return;
     addMessage('user', text);
     input.value = '';
+    showTyping();
     try {
       const resp = await fetch(`${API_BASE}/chat`, {
         method: 'POST',
@@ -125,8 +127,10 @@ export function createAgentChat() {
       }
       if (!textReply) textReply = 'No reply';
       const propList = Array.isArray(sql_reply) && sql_reply.length ? sql_reply : (properties || []);
+      hideTyping();
       addMessage('bot', textReply, propList);
     } catch (err) {
+      hideTyping();
       addMessage('bot', 'Error contacting server');
     }
   });
@@ -173,6 +177,24 @@ export function createAgentChat() {
     if (save) {
       history.push({ role, text, props });
       sessionStorage.setItem('agentChatMessages', JSON.stringify(history));
+    }
+  }
+
+  function showTyping() {
+    typingEl = document.createElement('div');
+    typingEl.className = 'msg bot';
+    const bubble = document.createElement('span');
+    bubble.className = 'typing-indicator';
+    bubble.innerHTML = '<span></span><span></span><span></span>';
+    typingEl.appendChild(bubble);
+    messages.appendChild(typingEl);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function hideTyping() {
+    if (typingEl) {
+      typingEl.remove();
+      typingEl = null;
     }
   }
 

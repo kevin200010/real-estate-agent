@@ -32,16 +32,6 @@ body {
   z-index:-1;
   opacity:1;
   filter:blur(2px);
-  transition:opacity 1s ease-in-out;
-}
-
-#bg.changing {
-  animation:bg-change 1s ease-in-out;
-}
-
-@keyframes bg-change {
-  from {transform:scale(1.1);}
-  to {transform:scale(1);}
 }
 
 #topbar {
@@ -88,18 +78,6 @@ body {
 #left-rail #collapse-rail {background:none;border:none;color:white;margin-bottom:var(--gap);cursor:pointer; font-weight: bold; font-size: x-large;}
 .saved-item {cursor:pointer;padding:4px 0; transition:background 0.3s, box-shadow 0.3s;}
 .saved-item:hover {background:var(--muted); box-shadow:0 0 8px var(--accent); }
-
-#assistant {
-  width:320px;
-  background:var(--card);
-  backdrop-filter:blur(20px);
-  /* border-left:1px solid var(--muted); */
-  padding:var(--gap);
-  overflow-y:auto;
-  transition:transform 0.18s, box-shadow 0.3s;
-}
-#assistant:hover { box-shadow:0 0 15px var(--accent); border-left:1px solid var(--muted);}
-#assistant.hidden { transform:translateX(100%); }
 
 main {
   flex:1;
@@ -390,6 +368,25 @@ button:hover{
 .msg.bot span { background:var(--muted, #f3f4f6); color:var(--text, #111827); }
 .msg.user { align-items:flex-end; }
 .msg.user span { background:var(--accent, #3b82f6); color:#fff; }
+
+.typing-indicator {
+  display:flex;
+  gap:4px;
+}
+.typing-indicator span {
+  width:6px;
+  height:6px;
+  background:var(--text-dim, #6b7280);
+  border-radius:50%;
+  animation:typing 1s infinite;
+}
+.typing-indicator span:nth-child(2){animation-delay:0.2s;}
+.typing-indicator span:nth-child(3){animation-delay:0.4s;}
+
+@keyframes typing {
+  0%,80%,100% {opacity:0;}
+  40% {opacity:1;}
+}
 
 .prop-cards {
   margin-top:var(--gap);

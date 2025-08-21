@@ -1,6 +1,5 @@
 import { initTopbar } from './components/topbar.js';
 import { initLeftRail } from './components/left-rail.js';
-import { initAssistantDrawer } from './components/assistant-drawer.js';
 import { initCommandPalette, togglePalette } from './components/command-palette.js';
 import { createDataGrid } from './components/datagrid.js';
 import { createKanban } from './components/kanban.js';
@@ -33,9 +32,8 @@ const state={ data:{}, gmap:null, markers:{}, infoWin:null, activeMarkerId:null 
 let topbarAPI;
 let agentChatEl;
 
-// cycle through simple real-estate themed backgrounds
-const backgrounds=['property1.jpg','property2.png','property3.jpg'];
-let bgIndex=0;
+// static real-estate themed background
+const background='property1.jpg';
 
 function startApp(){
   Promise.all([
@@ -54,7 +52,6 @@ startApp();
 function init(){
   topbarAPI=initTopbar();
   initLeftRail(state.data);
-  initAssistantDrawer();
   initCommandPalette(state.data);
   initToast();
   if(!location.hash) location.hash = '#/sourcing';
@@ -500,17 +497,7 @@ function setupShortcuts(){
 function setupBackground(){
   const bg=document.getElementById('bg');
   if(!bg) return;
-  bg.style.backgroundImage=`url('${backgrounds[0]}')`;
-  setInterval(()=>{
-    bg.style.opacity=0;
-    bg.classList.add('changing');
-    setTimeout(()=>{
-      bgIndex=(bgIndex+1)%backgrounds.length;
-      bg.style.backgroundImage=`url('${backgrounds[bgIndex]}')`;
-      bg.style.opacity=1;
-      bg.classList.remove('changing');
-    },1000);
-  },10000);
+  bg.style.backgroundImage=`url('${background}')`;
 }
 
 function parseCSV(text){
