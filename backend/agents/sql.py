@@ -152,26 +152,46 @@ class SQLQueryExecutorAgent(Agent):
         except (TypeError, ValueError):
             return None
 
+    @staticmethod
+    def _sanitize_query(sql_query: str) -> str:
+        """Remove common formatting artifacts like code fences or leading labels."""
+        q = sql_query.strip()
+        if q.startswith("```"):
+            q = q.strip("`")
+            # remove optional language identifier
+            if q.lower().startswith("sql"):
+                q = q[3:]
+            q = q.strip()
+        if q.lower().startswith("sql\n"):
+            q = q.split("\n", 1)[1]
+        elif q.lower().startswith("sql "):
+            q = q[3:]
+        return q.strip()
+
     async def handle(self, sql_query: str, **_: Any) -> Dict[str, Any]:
         logger.info("Executing SQL query: %s", sql_query)
+        cleaned = self._sanitize_query(sql_query)
+        logger.debug("Sanitized SQL query: %s", cleaned)
+        error = False
         try:
-            cur = self.conn.execute(sql_query)
+            cur = self.conn.execute(cleaned)
             rows = [dict(r) for r in cur.fetchall()]
         except Exception as exc:  # pragma: no cover - defensive
-            logger.warning("Query failed (%s); falling back to default", exc)
+            logger.warning("Query failed (%s); returning no results", exc)
             rows = []
+            error = True
 
-        if not rows:
+        if not rows and not error:
             fallback = "SELECT * FROM properties LIMIT 10"
             cur = self.conn.execute(fallback)
             rows = [dict(r) for r in cur.fetchall()]
-            sql_query = fallback
+            cleaned = fallback
 
         return {
             "result_type": "sql_results",
             "content": rows,
             "source_agents": [self.name],
-            "sql_query": sql_query,
+            "sql_query": cleaned,
         }
 
 
