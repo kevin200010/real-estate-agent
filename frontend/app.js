@@ -1,6 +1,6 @@
 import { initTopbar } from './components/topbar.js';
 import { initLeftRail } from './components/left-rail.js';
-import { initAssistantDrawer } from './components/assistant-drawer.js';
+// import { initAssistantDrawer } from './components/assistant-drawer.js';
 import { initCommandPalette, togglePalette } from './components/command-palette.js';
 import { createDataGrid } from './components/datagrid.js';
 import { createKanban } from './components/kanban.js';
@@ -54,7 +54,7 @@ startApp();
 function init(){
   topbarAPI=initTopbar();
   initLeftRail(state.data);
-  initAssistantDrawer();
+  // initAssistantDrawer();
   initCommandPalette(state.data);
   initToast();
   if(!location.hash) location.hash = '#/sourcing';

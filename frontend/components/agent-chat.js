@@ -4,11 +4,11 @@ export function createAgentChat() {
   wrap.innerHTML = `
     <div id="agent-map"></div>
     <div class="chat-box">
-      <div class="chat-actions"><button id="clear-chat" type="button">Clear</button></div>
       <div id="chat-messages" class="chat-messages"></div>
       <form id="chat-form" class="chat-form">
         <input id="chat-input" placeholder="Type your message..." autocomplete="off" />
         <button type="submit">Send</button>
+        <button id="clear-chat" type="button">Clear</button>
       </form>
     </div>
   `;
