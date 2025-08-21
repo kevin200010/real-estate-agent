@@ -333,6 +333,20 @@ button:hover{
   backdrop-filter: blur(5px);
 }
 .chat-box:hover { box-shadow:0 0 15px var(--accent); }
+.chat-actions {
+  display:flex;
+  justify-content:flex-end;
+  padding:var(--gap);
+  background:var(--card);
+}
+.chat-actions button {
+  background:var(--accent);
+  color:white;
+  border:none;
+  cursor:pointer;
+  transition:filter 0.2s;
+}
+.chat-actions button:hover { filter:brightness(0.9); }
 .chat-messages {
   flex:1;
   padding:var(--gap);
