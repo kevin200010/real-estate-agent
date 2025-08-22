@@ -30,10 +30,19 @@ export async function openAppointmentForm(property){
 
   const API_BASE = window.API_BASE_URL || 'http://localhost:8000';
 
+  async function authHeader(){
+    try{
+      const token = (await window.aws_amplify.Auth.currentSession()).getIdToken().getJwtToken();
+      return { Authorization: token };
+    }catch{
+      return {};
+    }
+  }
+
   // Fetch booked events from backend
   const booked = {};
   try {
-    const res = await fetch(`${API_BASE}/appointments`);
+    const res = await fetch(`${API_BASE}/appointments`, { headers: await authHeader() });
     const data = await res.json();
     data.forEach(ev => {
       const d = new Date(ev.start);
@@ -131,7 +140,7 @@ export async function openAppointmentForm(property){
     try {
       const res = await fetch(`${API_BASE}/appointments`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
         body: JSON.stringify({
           name: name.value,
           phone: phone.value,

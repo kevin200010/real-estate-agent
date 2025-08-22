@@ -11,11 +11,12 @@ from urllib.parse import unquote
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel
 try:  # pragma: no cover - support running as package or script
     from .appointments import router as appointments_router
+    from .auth import get_current_user
     from .agents.sql import (
         SQLQueryExecutorAgent,
         SQLQueryGeneratorAgent,
@@ -23,6 +24,7 @@ try:  # pragma: no cover - support running as package or script
     )
 except ImportError:  # fallback for running from the backend directory directly
     from appointments import router as appointments_router
+    from auth import get_current_user
     from agents.sql import (
         SQLQueryExecutorAgent,
         SQLQueryGeneratorAgent,
@@ -233,7 +235,9 @@ class ChatRequest(BaseModel):
 
 
 @app.post("/chat")
-async def chat(req: ChatRequest) -> Dict[str, Any]:
+async def chat(
+    req: ChatRequest, user: Dict[str, Any] | None = Depends(get_current_user)
+) -> Dict[str, Any]:
     logger.info("/chat request: %s", req.message)
     initial_state: GraphState = {"user_input": req.message}
     result = await app_graph.ainvoke(initial_state)

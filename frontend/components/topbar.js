@@ -27,8 +27,10 @@ export function initTopbar() {
     </div>
   `;
   bar.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>location.hash=t.dataset.route));
-  function handleLogout() {
-    localStorage.removeItem('loggedIn');
+  async function handleLogout() {
+    try {
+      await window.aws_amplify.Auth.signOut();
+    } catch (_) {}
     window.location.href = 'signin.html';
   }
 

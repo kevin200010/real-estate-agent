@@ -27,6 +27,15 @@ export function createAgentChat() {
   let pendingProps = [];
   let history = JSON.parse(sessionStorage.getItem('agentChatMessages') || '[]');
 
+  async function authHeader() {
+    try {
+      const token = (await window.aws_amplify.Auth.currentSession()).getIdToken().getJwtToken();
+      return { Authorization: token };
+    } catch {
+      return {};
+    }
+  }
+
   function normalizeProp(p) {
     const id = p.id || p.ID || p['Listing Number'] || p.listingNumber || Math.random().toString(36).slice(2);
     const address = p.address || p.Address || '';
@@ -158,7 +167,7 @@ export function createAgentChat() {
     try {
       const resp = await fetch(`${API_BASE}/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
         // Send both "text" and "message" keys for compatibility
         body: JSON.stringify({ text, message: text })
       });

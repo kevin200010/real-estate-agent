@@ -5,8 +5,12 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List
 from uuid import uuid4
 
-from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi import APIRouter, Depends, FastAPI, HTTPException
 from pydantic import BaseModel
+try:  # pragma: no cover
+    from .auth import get_current_user
+except ImportError:  # fallback when run as script
+    from auth import get_current_user
 
 try:  # Optional dependency; module may be absent in test environments
     from google.oauth2 import service_account
@@ -120,14 +124,19 @@ _calendar = GoogleCalendarClient()
 
 
 @router.get("/appointments")
-def list_appointments() -> List[Dict[str, Any]]:
+def list_appointments(
+    user: Dict[str, Any] | None = Depends(get_current_user),
+) -> List[Dict[str, Any]]:
     """Return upcoming appointments from the realtor's calendar."""
 
     return _calendar.list_events()
 
 
 @router.post("/appointments")
-def book_appointment(payload: AppointmentRequest) -> Dict[str, Any]:
+def book_appointment(
+    payload: AppointmentRequest,
+    user: Dict[str, Any] | None = Depends(get_current_user),
+) -> Dict[str, Any]:
     """Book a new appointment on the realtor's calendar."""
 
     try:
