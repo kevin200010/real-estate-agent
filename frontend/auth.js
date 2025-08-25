@@ -29,9 +29,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!username) return;
         try {
           await Auth.forgotPassword(username);
-          alert('Password reset initiated. Check your email.');
+          const code = prompt('Enter the verification code sent to your email');
+          const newPassword = prompt('Enter your new password');
+          if (!code || !newPassword) return;
+          await Auth.forgotPasswordSubmit(username, code, newPassword);
+          alert('Password has been reset. You can now sign in with your new password.');
         } catch {
-          alert('Unable to start password reset.');
+          alert('Unable to reset password.');
         }
       });
     }
@@ -39,6 +43,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const signupForm = document.getElementById('signup-form');
   if (signupForm) {
+    const passwordInput = signupForm.password;
+    const hint = document.getElementById('password-hint');
+    if (passwordInput && hint) {
+      passwordInput.addEventListener('input', () => {
+        const pwd = passwordInput.value;
+        const valid = /^(?=.*\d).{8,}$/.test(pwd);
+        hint.textContent = valid
+          ? 'Password looks good'
+          : 'Password must be at least 8 characters and include a number';
+        hint.style.color = valid ? 'green' : 'red';
+      });
+    }
     signupForm.addEventListener('submit', async e => {
       e.preventDefault();
       const { username, password } = signupForm;
