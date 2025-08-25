@@ -49,11 +49,25 @@ class SQLQueryGeneratorAgent(Agent):
                 "SELECT * FROM properties "
                 f"WHERE {conditions} LIMIT 10"
             )
+        sql_query = self._strip_code_fences(sql_query)
         return {
             "result_type": "sql_query",
             "content": sql_query,
             "source_agents": [self.name],
         }
+
+    @staticmethod
+    def _strip_code_fences(query: str) -> str:
+        query = query.strip()
+        if query.startswith("```"):
+            query = query[3:]
+            if query.lower().startswith("sql"):
+                query = query[3:]
+            if query.startswith("\n"):
+                query = query[1:]
+            if query.endswith("```"):
+                query = query[:-3]
+        return query.strip()
 
 
 class SQLQueryExecutorAgent(Agent):
