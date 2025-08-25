@@ -58,3 +58,7 @@ body {
   color: #0ea5e9;
   text-decoration: none;
 }
+
+.password-hint {
+  font-size: 14px;
+}
