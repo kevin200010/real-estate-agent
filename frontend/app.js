@@ -9,27 +9,17 @@ import { createAgentChat } from './components/agent-chat.js';
 import { openAppointmentForm } from './components/appointment.js';
 
 const mapReady = new Promise(resolve => {
-  if (window.GOOGLE_MAPS_API_KEY) {
-    const script = document.createElement('script');
-    // use only the marker lib; weekly channel
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${window.GOOGLE_MAPS_API_KEY}&libraries=marker&v=weekly`;
-    script.async = true;
-    script.defer = true;
-    script.onload = resolve;
-    document.head.appendChild(script);
-  } else {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(link);
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    script.onload = resolve;
-    document.head.appendChild(script);
-  }
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+  document.head.appendChild(link);
+  const script = document.createElement('script');
+  script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  script.onload = resolve;
+  document.head.appendChild(script);
 });
 
-const state={ data:{}, gmap:null, markers:{}, infoWin:null, activeMarkerId:null };
+const state={ data:{}, gmap:null, markers:{}, activeMarkerId:null };
 let topbarAPI;
 let agentChatEl;
 
@@ -183,65 +173,26 @@ function router(){
       if(isNaN(lat)||isNaN(lng)) return;
 
       // Center map on selection
-      if(window.google?.maps){
-        state.gmap.panTo({lat,lng});
-        state.gmap.setZoom(16);
-      } else if(window.L){
-        state.gmap.setView([lat,lng],16);
-      }
+      state.gmap.setView([lat,lng],16);
 
       // Reset previous marker highlight
       if(state.activeMarkerId && state.markers[state.activeMarkerId]){
         const prev=state.markers[state.activeMarkerId];
-        if(window.google?.maps){
-          if(prev.setIcon) prev.setIcon('http://maps.google.com/mapfiles/ms/icons/blue-dot.png');
-        } else if(window.L){
-          if(state.defaultIcon && prev.setIcon) prev.setIcon(state.defaultIcon);
-        }
+        if(state.defaultIcon && prev.setIcon) prev.setIcon(state.defaultIcon);
       }
 
       const marker=state.markers[p.id];
       if(marker){
-        if(window.google?.maps){
-          const details=[
-            p.listingNumber?`Listing #${p.listingNumber}`:'',
-            p.beds?`${p.beds} bd`:'',
-            p.baths?`${p.baths} ba`:'',
-            p.year?`Built ${p.year}`:'',
-            p.status||'',
-            p.type||'',
-            p.saleOrRent||''
-          ].filter(Boolean).join(' | ');
-          const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
-          state.infoWin.setContent(`<div>${p.image?`<img src="${p.image}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button id="addLead">Add to Leads</button> <button id="viewDetails">View Details</button></div>`);
-          state.infoWin.addListener('domready',()=>{
-            const btn=document.getElementById('addLead');
+        marker.openPopup();
+        if(state.activeIcon && marker.setIcon) marker.setIcon(state.activeIcon);
+        const popup=marker.getPopup();
+        if(popup){
+          const el=popup.getElement();
+          if(el){
+            const btn=el.querySelector('.add-lead');
             if(btn) btn.onclick=()=>{location.hash=`#/leads?prop=${p.id}`;};
-            const view=document.getElementById('viewDetails');
+            const view=el.querySelector('.view-details');
             if(view) view.onclick=()=>{location.hash=`#/property?prop=${p.id}`;};
-          });
-          if(google.maps.marker?.AdvancedMarkerElement && marker instanceof google.maps.marker.AdvancedMarkerElement){
-            state.infoWin.open({map:state.gmap,anchor:marker});
-          } else {
-            state.infoWin.open(state.gmap,marker);
-            if(marker.setIcon) marker.setIcon('http://maps.google.com/mapfiles/ms/icons/red-dot.png');
-            if(marker.getAnimation){
-              marker.setAnimation(google.maps.Animation.BOUNCE);
-              setTimeout(()=>marker.setAnimation(null),700);
-            }
-          }
-        } else if(window.L){
-          marker.openPopup();
-          if(state.activeIcon && marker.setIcon) marker.setIcon(state.activeIcon);
-          const popup=marker.getPopup();
-          if(popup){
-            const el=popup.getElement();
-            if(el){
-              const btn=el.querySelector('.add-lead');
-              if(btn) btn.onclick=()=>{location.hash=`#/leads?prop=${p.id}`;};
-              const view=el.querySelector('.view-details');
-              if(view) view.onclick=()=>{location.hash=`#/property?prop=${p.id}`;};
-            }
           }
         }
         state.activeMarkerId=p.id;
@@ -280,70 +231,47 @@ function router(){
       apply();
     }
     main.appendChild(wrap);
-    if(!window.google?.maps && !window.L){
+    if(!window.L){
       map.textContent='Loading map…';
       return;
     }
     state.markers={};
     const center=props.length?{lat:Number(props[0].lat),lng:Number(props[0].lng)}:{lat:39.5,lng:-98.35};
     const zoom=props.length?10:5;
-    if(window.google?.maps){
-      state.gmap=new google.maps.Map(map,{center,zoom});
-      state.infoWin=state.infoWin||new google.maps.InfoWindow();
-      const bounds=new google.maps.LatLngBounds();
-        props.forEach(p=>{
-          const lat=Number(p.lat), lng=Number(p.lng);
-          if(!isNaN(lat)&&!isNaN(lng)){
-            const position={lat,lng};
-            const title=p.city?`${p.address}, ${p.city}`:p.address;
-            let marker;
-            if(google.maps.marker?.AdvancedMarkerElement){
-              marker=new google.maps.marker.AdvancedMarkerElement({position,map:state.gmap,title});
-            } else {
-              marker=new google.maps.Marker({position,map:state.gmap,title,icon:'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'});
-            }
-            state.markers[p.id]=marker;
-          bounds.extend(position);
-          marker.addListener('click',()=>selectProperty(p.id));
-        }
-      });
-      if(props.length>1){state.gmap.fitBounds(bounds);}
-    } else if(window.L){
-      state.gmap=L.map(map).setView([center.lat,center.lng],zoom);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors'}).addTo(state.gmap);
-      state.defaultIcon=state.defaultIcon||L.icon({iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
-      state.activeIcon=state.activeIcon||L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
-      const bounds=L.latLngBounds();
-      props.forEach(p=>{
-        const lat=Number(p.lat), lng=Number(p.lng);
-        if(!isNaN(lat)&&!isNaN(lng)){
-          const position=[lat,lng];
-          const details=[
-            p.listingNumber?`Listing #${p.listingNumber}`:'',
-            p.beds?`${p.beds} bd`:'',
-            p.baths?`${p.baths} ba`:'',
-            p.year?`Built ${p.year}`:'',
-            p.status||'',
-            p.type||'',
-            p.saleOrRent||''
-          ].filter(Boolean).join(' | ');
-          const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
-          const marker=L.marker(position,{icon:state.defaultIcon}).addTo(state.gmap).bindPopup(`<div>${p.image?`<img src="${p.image}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button></div>`);
-          state.markers[p.id]=marker;
-          bounds.extend(position);
-          marker.on('click',()=>selectProperty(p.id));
-          marker.on('popupopen',e=>{
-            const el=e.popup.getElement();
-            if(!el) return;
-            const btn=el.querySelector('.add-lead');
-            if(btn) btn.addEventListener('click',()=>{location.hash=`#/leads?prop=${p.id}`;});
-            const view=el.querySelector('.view-details');
-            if(view) view.addEventListener('click',()=>{location.hash=`#/property?prop=${p.id}`;});
-          });
-        }
-      });
-      if(props.length>1){state.gmap.fitBounds(bounds);}
-    }
+    state.gmap=L.map(map).setView([center.lat,center.lng],zoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors'}).addTo(state.gmap);
+    state.defaultIcon=state.defaultIcon||L.icon({iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
+    state.activeIcon=state.activeIcon||L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
+    const bounds=L.latLngBounds();
+    props.forEach(p=>{
+      const lat=Number(p.lat), lng=Number(p.lng);
+      if(!isNaN(lat)&&!isNaN(lng)){
+        const position=[lat,lng];
+        const details=[
+          p.listingNumber?`Listing #${p.listingNumber}`:'',
+          p.beds?`${p.beds} bd`:'',
+          p.baths?`${p.baths} ba`:'',
+          p.year?`Built ${p.year}`:'',
+          p.status||'',
+          p.type||'',
+          p.saleOrRent||''
+        ].filter(Boolean).join(' | ');
+        const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
+        const marker=L.marker(position,{icon:state.defaultIcon}).addTo(state.gmap).bindPopup(`<div>${p.image?`<img src="${p.image}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button></div>`);
+        state.markers[p.id]=marker;
+        bounds.extend(position);
+        marker.on('click',()=>selectProperty(p.id));
+        marker.on('popupopen',e=>{
+          const el=e.popup.getElement();
+          if(!el) return;
+          const btn=el.querySelector('.add-lead');
+          if(btn) btn.addEventListener('click',()=>{location.hash=`#/leads?prop=${p.id}`;});
+          const view=el.querySelector('.view-details');
+          if(view) view.addEventListener('click',()=>{location.hash=`#/property?prop=${p.id}`;});
+        });
+      }
+    });
+    if(props.length>1){state.gmap.fitBounds(bounds);}
     if(initialProp){ selectProperty(initialProp); }
     } else if(route.startsWith('#/property')){
       topbarAPI.setActive('#/sourcing');
