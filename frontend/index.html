@@ -21,14 +21,21 @@
     <div id="command-palette" class="hidden"></div>
     <div id="toast-container"></div>
   </div>
-  <script>
-    if(!localStorage.getItem('loggedIn')){
-      window.location.href='signin.html';
-    }else{
-      document.getElementById('app').style.display='';
-    }
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/aws-amplify@latest/dist/aws-amplify.min.js"></script>
   <script src="config.js"></script>
+  <script>
+    const { Amplify, Auth } = aws_amplify;
+    Amplify.configure({
+      Auth: {
+        region: window.COGNITO_REGION,
+        userPoolId: window.COGNITO_USER_POOL_ID,
+        userPoolWebClientId: window.COGNITO_APP_CLIENT_ID,
+      }
+    });
+    Auth.currentAuthenticatedUser()
+      .then(() => { document.getElementById('app').style.display=''; })
+      .catch(() => { window.location.href = 'signin.html'; });
+  </script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

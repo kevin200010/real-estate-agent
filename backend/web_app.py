@@ -3,13 +3,14 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from langgraph_app import app_graph
 from property_chatbot import SonicClient
+from auth import get_current_user
 # Import the appointments router using an absolute import so the module can be
 # executed directly without relying on package-relative imports. This avoids
 # "attempted relative import" errors when `web_app` is run as a top-level
@@ -41,7 +42,7 @@ async def read_root(request: Request) -> HTMLResponse:
 
 
 @app.post("/chat")
-async def chat(request: Request):
+async def chat(request: Request, user: dict | None = Depends(get_current_user)):
     """Handle text chat requests.
 
     The frontend may send either JSON or form-encoded data. FastAPI's
@@ -76,7 +77,10 @@ async def chat(request: Request):
 
 
 @app.post("/voice")
-async def voice(file: UploadFile = File(...)):
+async def voice(
+    file: UploadFile = File(...),
+    user: dict | None = Depends(get_current_user),
+):
     audio_bytes = await file.read()
     transcript = await asyncio.to_thread(_sonic.transcribe, audio_bytes)
     result = await app_graph.ainvoke({"user_input": transcript})

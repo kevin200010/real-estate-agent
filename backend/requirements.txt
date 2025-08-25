@@ -6,3 +6,4 @@ langgraph
 scikit-learn
 google-api-python-client
 google-auth
+python-jose[cryptography]

@@ -1,27 +1,60 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const { Amplify, Auth } = aws_amplify;
+  Amplify.configure({
+    Auth: {
+      region: window.COGNITO_REGION,
+      userPoolId: window.COGNITO_USER_POOL_ID,
+      userPoolWebClientId: window.COGNITO_APP_CLIENT_ID,
+    }
+  });
+
   const signinForm = document.getElementById('signin-form');
   if (signinForm) {
-    signinForm.addEventListener('submit', e => {
+    signinForm.addEventListener('submit', async e => {
       e.preventDefault();
-      const stored = JSON.parse(localStorage.getItem('user') || '{}');
       const { username, password } = signinForm;
-      if (username.value === stored.username && password.value === stored.password) {
-        localStorage.setItem('loggedIn', 'true');
+      try {
+        await Auth.signIn(username.value, password.value);
         window.location.href = 'index.html';
-      } else {
+      } catch (err) {
         alert('Invalid credentials');
       }
     });
+
+    const forgotLink = document.getElementById('forgot-password-link');
+    if (forgotLink) {
+      forgotLink.addEventListener('click', async e => {
+        e.preventDefault();
+        const username = prompt('Enter your username');
+        if (!username) return;
+        try {
+          await Auth.forgotPassword(username);
+          alert('Password reset initiated. Check your email.');
+        } catch {
+          alert('Unable to start password reset.');
+        }
+      });
+    }
   }
 
   const signupForm = document.getElementById('signup-form');
   if (signupForm) {
-    signupForm.addEventListener('submit', e => {
+    signupForm.addEventListener('submit', async e => {
       e.preventDefault();
       const { username, password } = signupForm;
-      localStorage.setItem('user', JSON.stringify({ username: username.value, password: password.value }));
-      localStorage.removeItem('loggedIn');
-      window.location.href = 'signin.html';
+      try {
+        await Auth.signUp({ username: username.value, password: password.value });
+        window.location.href = 'signin.html';
+      } catch (err) {
+        alert('Sign up failed');
+      }
     });
   }
+
+  window.signOut = async () => {
+    try {
+      await Auth.signOut();
+    } catch (_) {}
+    window.location.href = 'signin.html';
+  };
 });
