@@ -493,9 +493,12 @@ function router(){
       });
       const syncBtn=document.createElement('button');
       syncBtn.textContent='Sync Google Calendar';
+      let calendarEl=createEventCalendar();
       function renderCalendar(){
         fetchGoogleCalendarEvents().then(events=>{
-          calendarWrap.appendChild(createEventCalendar(events));
+          const newEl=createEventCalendar(events);
+          calendarEl.replaceWith(newEl);
+          calendarEl=newEl;
         });
         syncBtn.style.display='none';
       }
@@ -503,7 +506,7 @@ function router(){
         onGoogleToken(renderCalendar);
         requestGoogleAccessToken();
       });
-      calendarWrap.append(openCalBtn,syncBtn);
+      calendarWrap.append(openCalBtn,syncBtn,calendarEl);
       layout.appendChild(calendarWrap);
       main.appendChild(layout);
 
