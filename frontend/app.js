@@ -69,9 +69,11 @@ function initGoogleAuth() {
     setTimeout(initGoogleAuth, 500);
     return;
   }
+  const redirectUri = window.GOOGLE_REDIRECT_URI || window.location.origin;
   googleTokenClient = window.google.accounts.oauth2.initTokenClient({
     client_id: window.GOOGLE_CLIENT_ID,
     scope: 'https://www.googleapis.com/auth/calendar.readonly',
+    redirect_uri: redirectUri,
     callback: async resp => {
       if (resp.access_token) {
         window.GOOGLE_CALENDAR_ACCESS_TOKEN = resp.access_token;
