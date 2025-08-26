@@ -23,9 +23,10 @@ def test_fallback_creates_local_event(monkeypatch):
     start = datetime(2024, 1, 1, 10, 0)
     end = datetime(2024, 1, 1, 11, 0)
 
-    event = client.create_event("Test", start, end, "desc")
+    event = client.create_event("Test", start, end, "desc", attendees=["a@example.com"])
     assert "id" in event
 
     events = client.list_events()
     assert len(events) == 1
     assert events[0]["summary"] == "Test"
+    assert events[0]["attendees"] == ["a@example.com"]

@@ -73,7 +73,12 @@ class GoogleCalendarClient:
         return out
 
     def create_event(
-        self, summary: str, start: datetime, end: datetime, description: str = ""
+        self,
+        summary: str,
+        start: datetime,
+        end: datetime,
+        description: str = "",
+        attendees: List[str] | None = None,
     ) -> Dict[str, Any]:
         """Create a calendar event.
 
@@ -87,6 +92,8 @@ class GoogleCalendarClient:
                 "summary": summary,
                 "description": description,
             }
+            if attendees:
+                event["attendees"] = attendees
             self._local_events.append(event)
             return {"id": event["id"]}
 
@@ -96,9 +103,15 @@ class GoogleCalendarClient:
             "end": {"dateTime": end.isoformat(), "timeZone": "UTC"},
             "description": description,
         }
+        if attendees:
+            event_body["attendees"] = [{"email": email} for email in attendees]
         event = (
             self.service.events()
-            .insert(calendarId=self.calendar_id, body=event_body)
+            .insert(
+                calendarId=self.calendar_id,
+                body=event_body,
+                sendUpdates="all",
+            )
             .execute()
         )
         return {"id": event.get("id")}
@@ -149,7 +162,9 @@ def book_appointment(
     end = dt + timedelta(hours=1)
     description = f"Phone: {payload.phone}\nEmail: {payload.email}"
     summary = f"Appointment with {payload.name}"
-    event = _calendar.create_event(summary, dt, end, description)
+    event = _calendar.create_event(
+        summary, dt, end, description, attendees=[payload.email]
+    )
     return {"event": event}
 
 

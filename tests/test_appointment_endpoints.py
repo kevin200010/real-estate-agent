@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from backend.langgraph_app import app
+from backend.appointments import _calendar
 
 
 def test_appointment_routes():
@@ -27,3 +28,5 @@ def test_appointment_routes():
     resp = client.post("/appointments", json=payload)
     assert resp.status_code == 200
     assert "event" in resp.json()
+    # Attendee email should be recorded on the event
+    assert _calendar._local_events[0]["attendees"] == [payload["email"]]
