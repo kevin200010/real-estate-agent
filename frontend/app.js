@@ -507,11 +507,6 @@ function router(){
       const calendarWrap=document.createElement('div');
       calendarWrap.className='leads-calendar';
       calendarWrap.innerHTML='<h3>Calendar</h3>';
-      const openCalBtn=document.createElement('button');
-      openCalBtn.textContent='Open Google Calendar';
-      openCalBtn.addEventListener('click',()=>{
-        window.open('https://calendar.google.com/calendar/u/0/r','_blank');
-      });
       const syncBtn=document.createElement('button');
       syncBtn.textContent='Sync Google Calendar';
       let calendarEl=createEventCalendar();
@@ -527,7 +522,7 @@ function router(){
         onGoogleToken(renderCalendar);
         requestGoogleAccessToken();
       });
-      calendarWrap.append(openCalBtn,syncBtn,calendarEl);
+      calendarWrap.append(syncBtn,calendarEl);
       layout.appendChild(calendarWrap);
       main.appendChild(layout);
 
