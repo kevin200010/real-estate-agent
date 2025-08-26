@@ -14,7 +14,7 @@ This directory contains a minimal browser client that displays a floating chat w
 
 The app uses [Google Maps](https://developers.google.com/maps) when a `GOOGLE_MAPS_API_KEY` is set in `config.js`. If the key is missing or invalid it falls back to [OpenStreetMap](https://www.openstreetmap.org/) via Leaflet. To enable Google Maps, copy `config.sample.js` to `config.js` and replace `YOUR_API_KEY_HERE` with a valid API key.
 
-The leads page can optionally display events from a Google Calendar. Set `GOOGLE_CALENDAR_API_KEY` and `GOOGLE_CALENDAR_ID` in `config.js` to load appointments from that calendar.
+The leads page can optionally display events from a Google Calendar. Set `GOOGLE_CALENDAR_API_KEY` and `GOOGLE_CALENDAR_ID` in `config.js` to load appointments from that calendar. The calendar shows three upcoming months in a scrollable view and highlights the current day while listing its appointments by default.
 
 The client sends requests to the backend's `/chat` endpoint and renders markdown or property cards included in the response. A sample JSON reply expected from the backend:
 

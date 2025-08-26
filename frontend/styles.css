@@ -203,9 +203,10 @@ button:hover{
   flex-direction:column;
   gap:4px;
 }
+.calendar-months{max-height:280px;overflow-y:auto;}
+.calendar-month{margin-bottom:var(--gap);}
+.calendar-month:last-child{margin-bottom:0;}
 .calendar-header{display:flex;align-items:center;font-weight:bold;}
-.calendar-header span{flex:1;text-align:center;}
-.calendar-nav{background:none;border:none;cursor:pointer;}
 
 .calendar-grid {
   display:grid;
