@@ -12,7 +12,7 @@ This directory contains a minimal browser client that displays a floating chat w
    ```
 3. Open [http://localhost:8001/signin.html](http://localhost:8001/signin.html) to create an account or sign in. After logging in you will be redirected to the main app where you can click the blue chat bubble in the bottom-right corner to open the widget and ask about properties.
 
-   The app falls back to [OpenStreetMap](https://www.openstreetmap.org/) via Leaflet when no Google Maps key is provided. To use Google Maps instead, copy `config.sample.js` to `config.js` and replace `YOUR_API_KEY_HERE` with a valid API key.
+   The app uses [Google Maps](https://developers.google.com/maps) when a `GOOGLE_MAPS_API_KEY` is set in `config.js`. If the key is missing or invalid it falls back to [OpenStreetMap](https://www.openstreetmap.org/) via Leaflet. To enable Google Maps, copy `config.sample.js` to `config.js` and replace `YOUR_API_KEY_HERE` with a valid API key.
 
 The client sends requests to the backend's `/chat` endpoint and renders markdown or property cards included in the response. A sample JSON reply expected from the backend:
 
