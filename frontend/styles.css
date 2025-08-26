@@ -203,9 +203,10 @@ button:hover{
   flex-direction:column;
   gap:4px;
 }
-.calendar-months{max-height:280px;overflow-y:auto;}
-.calendar-month{margin-bottom:var(--gap);}
-.calendar-month:last-child{margin-bottom:0;}
+.calendar-nav{display:flex;justify-content:space-between;}
+.calendar-months{display:flex;overflow-x:auto;max-width:100%;}
+.calendar-month{margin-right:var(--gap);flex:0 0 auto;}
+.calendar-month:last-child{margin-right:0;}
 .calendar-header{display:flex;align-items:center;font-weight:bold;}
 
 .calendar-grid {
@@ -226,7 +227,8 @@ button:hover{
   border-radius:var(--radius-sm);
   cursor:pointer;
 }
-.calendar-day.has-event { background:var(--accent); color:#fff; border-radius:50%; }
+.calendar-day.today { background:yellow; }
+.calendar-day.has-event { background:#ef4444; color:#fff; border-radius:50%; }
 
 .calendar-day.available { background:#d1fae5; }
 .calendar-day.available:hover { background:#a7f3d0; }

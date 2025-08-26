@@ -1,7 +1,7 @@
 export function createEventCalendar(events = []) {
   const now = new Date();
-  const startYear = now.getFullYear();
-  const startMonth = now.getMonth();
+  let currentYear = now.getFullYear();
+  let currentMonth = now.getMonth();
   const todayStr = now.toISOString().split('T')[0];
   let selected = todayStr;
 
@@ -14,6 +14,15 @@ export function createEventCalendar(events = []) {
 
   const cal = document.createElement('div');
   cal.className = 'calendar';
+  cal.tabIndex = 0;
+
+  const nav = document.createElement('div');
+  nav.className = 'calendar-nav';
+  const prevBtn = document.createElement('button');
+  prevBtn.textContent = '<';
+  const nextBtn = document.createElement('button');
+  nextBtn.textContent = '>';
+  nav.append(prevBtn, nextBtn);
 
   const monthsWrap = document.createElement('div');
   monthsWrap.className = 'calendar-months';
@@ -50,6 +59,7 @@ export function createEventCalendar(events = []) {
       const btn = document.createElement('button');
       btn.className = 'calendar-day';
       btn.textContent = String(day);
+      if (dateStr === todayStr) btn.classList.add('today');
       if (eventsByDate[dateStr]) btn.classList.add('has-event');
       if (dateStr === selected) btn.classList.add('selected');
       btn.addEventListener('click', () => {
@@ -65,12 +75,31 @@ export function createEventCalendar(events = []) {
     return monthEl;
   }
 
-  for (let i = 0; i < 3; i++) {
-    const d = new Date(startYear, startMonth + i, 1);
-    monthsWrap.appendChild(buildMonth(d.getFullYear(), d.getMonth()));
+  function buildMonths() {
+    monthsWrap.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+      const d = new Date(currentYear, currentMonth + i, 1);
+      monthsWrap.appendChild(buildMonth(d.getFullYear(), d.getMonth()));
+    }
   }
 
-  cal.append(monthsWrap, list);
+  function shiftMonth(delta) {
+    const d = new Date(currentYear, currentMonth + delta, 1);
+    currentYear = d.getFullYear();
+    currentMonth = d.getMonth();
+    buildMonths();
+  }
+
+  prevBtn.addEventListener('click', () => shiftMonth(-1));
+  nextBtn.addEventListener('click', () => shiftMonth(1));
+  cal.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft') shiftMonth(-1);
+    if (e.key === 'ArrowRight') shiftMonth(1);
+  });
+
+  buildMonths();
+
+  cal.append(nav, monthsWrap, list);
 
   function renderEvents() {
     list.innerHTML = '';
