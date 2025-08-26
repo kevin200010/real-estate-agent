@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 
 from langgraph_app import app_graph
 from property_chatbot import SonicClient
-from auth import get_current_user
+from auth import AUTH_ENABLED, get_current_user
 from appointments import router as appointments_router
 import json
 from pathlib import Path
@@ -103,13 +103,18 @@ except Exception:
 async def save_google_token(
     payload: dict, user: dict | None = Depends(get_current_user)
 ):
-    """Save an OAuth access token for the authenticated user."""
-    if not user:
+    """Save an OAuth access token for the authenticated user.
+
+    When authentication is disabled (e.g. local development) the token is
+    stored under a shared key instead of being associated with a user.
+    """
+    if AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     token = payload.get("access_token")
     if not token:
         raise HTTPException(status_code=400, detail="access_token required")
-    _google_tokens[user["sub"]] = token
+    key = user["sub"] if user else "default"
+    _google_tokens[key] = token
     try:
         _TOKENS_FILE.write_text(json.dumps(_google_tokens))
     except Exception:
@@ -119,10 +124,14 @@ async def save_google_token(
 
 @app.get("/google-token")
 async def get_google_token(user: dict | None = Depends(get_current_user)):
-    """Return the stored Google OAuth token for the authenticated user."""
-    if not user:
+    """Return the stored Google OAuth token for the authenticated user.
+
+    If no token has been saved yet, ``access_token`` will be ``null`` instead of
+    returning a 404. This avoids noisy errors in the frontend when a user has not
+    granted access to their Google Calendar.
+    """
+    if AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    token = _google_tokens.get(user["sub"])
-    if not token:
-        raise HTTPException(status_code=404, detail="Not found")
+    key = user["sub"] if user else "default"
+    token = _google_tokens.get(key)
     return {"access_token": token}

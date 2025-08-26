@@ -45,6 +45,11 @@ const state={ data:{}, gmap:null, markers:{}, activeMarkerId:null };
 let topbarAPI;
 let agentChatEl;
 let googleTokenClient;
+const googleTokenListeners=[];
+
+function onGoogleToken(fn){
+  googleTokenListeners.push(fn);
+}
 
 async function authFetch(url, options = {}) {
   try {
@@ -78,7 +83,12 @@ function initGoogleAuth() {
             body: JSON.stringify({ access_token: resp.access_token })
           });
         } catch {}
-        router();
+        const fns=googleTokenListeners.splice(0);
+        if(fns.length){
+          fns.forEach(fn=>fn());
+        } else {
+          router();
+        }
       }
     }
   });
@@ -91,11 +101,6 @@ async function ensureGoogleAccessToken() {
   if (stored) {
     window.GOOGLE_CALENDAR_ACCESS_TOKEN = stored;
     return stored;
-  }
-  try {
-    await window.aws_amplify.Auth.currentSession();
-  } catch {
-    return null;
   }
   try {
     const resp = await authFetch(`${window.API_BASE_URL}/google-token`);
@@ -112,7 +117,8 @@ async function ensureGoogleAccessToken() {
 }
 
 function requestGoogleAccessToken() {
-  if (googleTokenClient) googleTokenClient.requestAccessToken();
+  if (googleTokenClient)
+    googleTokenClient.requestAccessToken({ prompt: 'consent' });
 }
 
 function fetchGoogleCalendarEvents() {
@@ -482,17 +488,23 @@ function router(){
       calendarWrap.innerHTML='<h3>Calendar</h3>';
       const syncBtn=document.createElement('button');
       syncBtn.textContent='Sync Google Calendar';
-      syncBtn.addEventListener('click',requestGoogleAccessToken);
+      function renderCalendar(){
+        fetchGoogleCalendarEvents().then(events=>{
+          calendarWrap.appendChild(createEventCalendar(events));
+        });
+        syncBtn.style.display='none';
+      }
+      syncBtn.addEventListener('click',()=>{
+        onGoogleToken(renderCalendar);
+        requestGoogleAccessToken();
+      });
       calendarWrap.appendChild(syncBtn);
       layout.appendChild(calendarWrap);
       main.appendChild(layout);
 
       ensureGoogleAccessToken().then(token=>{
         if(token){
-          fetchGoogleCalendarEvents().then(events=>{
-            calendarWrap.appendChild(createEventCalendar(events));
-          });
-          syncBtn.style.display='none';
+          renderCalendar();
         }
       });
 
