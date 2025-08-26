@@ -9,12 +9,9 @@ import { createAgentChat } from './components/agent-chat.js';
 import { openAppointmentForm } from './components/appointment.js';
 
 const mapReady = new Promise(resolve => {
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-  document.head.appendChild(link);
   const script = document.createElement('script');
-  script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  const key = window.GMAPS_API_KEY || '';
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${key}`;
   script.onload = resolve;
   document.head.appendChild(script);
 });
@@ -165,46 +162,49 @@ function router(){
     const props=state.data.properties||[];
     const params=new URLSearchParams(query||'');
     const initialProp=params.get('prop');
-    function selectProperty(id){
-      if(!state.gmap) return;
-      const p=(state.data.properties||[]).find(x=>String(x.id)===String(id));
-      if(!p) return;
-      const lat=Number(p.lat), lng=Number(p.lng);
-      if(isNaN(lat)||isNaN(lng)) return;
+      function selectProperty(id){
+        if(!state.gmap) return;
+        const p=(state.data.properties||[]).find(x=>String(x.id)===String(id));
+        if(!p) return;
+        const lat=Number(p.lat), lng=Number(p.lng);
+        if(isNaN(lat)||isNaN(lng)) return;
 
-      // Center map on selection
-      state.gmap.setView([lat,lng],16);
+        // Center map on selection
+        state.gmap.setCenter({lat,lng});
+        state.gmap.setZoom(16);
 
-      // Reset previous marker highlight
-      if(state.activeMarkerId && state.markers[state.activeMarkerId]){
-        const prev=state.markers[state.activeMarkerId];
-        if(state.defaultIcon && prev.setIcon) prev.setIcon(state.defaultIcon);
-      }
-
-      const marker=state.markers[p.id];
-      if(marker){
-        marker.openPopup();
-        if(state.activeIcon && marker.setIcon) marker.setIcon(state.activeIcon);
-        const popup=marker.getPopup();
-        if(popup){
-          const el=popup.getElement();
-          if(el){
-            const btn=el.querySelector('.add-lead');
-            if(btn) btn.onclick=()=>{location.hash=`#/leads?prop=${p.id}`;};
-            const view=el.querySelector('.view-details');
-            if(view) view.onclick=()=>{location.hash=`#/property?prop=${p.id}`;};
-          }
+        // Reset previous marker highlight
+        if(state.activeMarkerId && state.markers[state.activeMarkerId]){
+          const prev=state.markers[state.activeMarkerId];
+          if(state.defaultIcon && prev.setIcon) prev.setIcon(state.defaultIcon);
+          if(prev.infoWindow) prev.infoWindow.close();
         }
-        state.activeMarkerId=p.id;
-      }
 
-      document.querySelectorAll('#grid tr.active').forEach(r=>r.classList.remove('active'));
-      const row=document.querySelector(`#grid tr[data-prop-id='${p.id}']`);
-      if(row){
-        row.classList.add('active');
-        row.scrollIntoView({behavior:'smooth',block:'center'});
+        const marker=state.markers[p.id];
+        if(marker){
+          if(state.activeIcon && marker.setIcon) marker.setIcon(state.activeIcon);
+          if(marker.infoWindow){
+            marker.infoWindow.open(state.gmap, marker);
+            google.maps.event.addListenerOnce(marker.infoWindow,'domready',()=>{
+              const iw=document.querySelector('.gm-style-iw');
+              if(iw){
+                const btn=iw.querySelector('.add-lead');
+                if(btn) btn.onclick=()=>{location.hash=`#/leads?prop=${p.id}`;};
+                const view=iw.querySelector('.view-details');
+                if(view) view.onclick=()=>{location.hash=`#/property?prop=${p.id}`;};
+              }
+            });
+          }
+          state.activeMarkerId=p.id;
+        }
+
+        document.querySelectorAll('#grid tr.active').forEach(r=>r.classList.remove('active'));
+        const row=document.querySelector(`#grid tr[data-prop-id='${p.id}']`);
+        if(row){
+          row.classList.add('active');
+          row.scrollIntoView({behavior:'smooth',block:'center'});
+        }
       }
-    }
     const grid=createDataGrid(props,selectProperty);
     wrap.append(map,addBtn,grid.el);
     // Filter and sort listings based on topbar controls
@@ -231,22 +231,21 @@ function router(){
       apply();
     }
     main.appendChild(wrap);
-    if(!window.L){
+    if(!window.google || !window.google.maps){
       map.textContent='Loading map…';
       return;
     }
     state.markers={};
     const center=props.length?{lat:Number(props[0].lat),lng:Number(props[0].lng)}:{lat:39.5,lng:-98.35};
     const zoom=props.length?10:5;
-    state.gmap=L.map(map).setView([center.lat,center.lng],zoom);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors'}).addTo(state.gmap);
-    state.defaultIcon=state.defaultIcon||L.icon({iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
-    state.activeIcon=state.activeIcon||L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
-    const bounds=L.latLngBounds();
+    state.gmap=new google.maps.Map(map,{center,zoom});
+    state.defaultIcon=state.defaultIcon||'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+    state.activeIcon=state.activeIcon||'http://maps.google.com/mapfiles/ms/icons/blue-dot.png';
+    const bounds=new google.maps.LatLngBounds();
     props.forEach(p=>{
       const lat=Number(p.lat), lng=Number(p.lng);
       if(!isNaN(lat)&&!isNaN(lng)){
-        const position=[lat,lng];
+        const position={lat,lng};
         const details=[
           p.listingNumber?`Listing #${p.listingNumber}`:'',
           p.beds?`${p.beds} bd`:'',
@@ -257,18 +256,12 @@ function router(){
           p.saleOrRent||''
         ].filter(Boolean).join(' | ');
         const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
-        const marker=L.marker(position,{icon:state.defaultIcon}).addTo(state.gmap).bindPopup(`<div>${p.image?`<img src="${p.image}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button></div>`);
+        const content=`<div>${p.image?`<img src="${p.image}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button></div>`;
+        const marker=new google.maps.Marker({position,map:state.gmap,icon:state.defaultIcon});
+        marker.infoWindow=new google.maps.InfoWindow({content});
         state.markers[p.id]=marker;
         bounds.extend(position);
-        marker.on('click',()=>selectProperty(p.id));
-        marker.on('popupopen',e=>{
-          const el=e.popup.getElement();
-          if(!el) return;
-          const btn=el.querySelector('.add-lead');
-          if(btn) btn.addEventListener('click',()=>{location.hash=`#/leads?prop=${p.id}`;});
-          const view=el.querySelector('.view-details');
-          if(view) view.addEventListener('click',()=>{location.hash=`#/property?prop=${p.id}`;});
-        });
+        marker.addListener('click',()=>selectProperty(p.id));
       }
     });
     if(props.length>1){state.gmap.fitBounds(bounds);}
@@ -454,6 +447,7 @@ function parseCSV(text){
     const status=obj['Listing Status'];
     const saleOrRent=obj['Sale or Rent'];
     const type=obj['Property Type']||obj['Property Subtype'];
+    if(isNaN(lat)||isNaN(lng)) return null;
     return {id,address,price,lat,lng,beds,baths,year,status,saleOrRent,type};
-  });
+  }).filter(Boolean);
 }
