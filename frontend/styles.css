@@ -301,9 +301,9 @@ button:hover{
 .kanban .col-header {display:flex;justify-content:space-between;align-items:center;}
 .kanban .col-header button{background:none;border:none;color:white;cursor:pointer;}
 
-.leads-page {display:flex;gap:var(--gap);}
-.leads-page .kanban {flex:1;}
-.leads-calendar {width:300px;background:var(--card);border-radius:var(--radius-lg);padding:var(--gap);}
+.leads-page {display:flex;flex-direction:row;gap:var(--gap);}
+.leads-page .kanban {flex:1;order:1;}
+.leads-page .leads-calendar {width:300px;background:var(--card);border-radius:var(--radius-lg);padding:var(--gap);order:2;}
 .lead-card { background:var(--muted); border-radius:var(--radius-sm); padding:var(--gap); margin-bottom:var(--gap); cursor:grab; }
 .lead-card { transition:background 0.3s, box-shadow 0.3s; }
 .lead-card:hover { background:var(--card); box-shadow:0 0 8px var(--accent); }

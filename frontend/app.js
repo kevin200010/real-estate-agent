@@ -45,6 +45,20 @@ const state={ data:{}, gmap:null, markers:{}, activeMarkerId:null };
 let topbarAPI;
 let agentChatEl;
 
+function fetchGoogleCalendarEvents() {
+  const calendarId = window.GOOGLE_CALENDAR_ID;
+  const apiKey = window.GOOGLE_CALENDAR_API_KEY;
+  if (!calendarId || !apiKey) return Promise.resolve([]);
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${apiKey}`;
+  return fetch(url)
+    .then(r => r.json())
+    .then(data => (data.items || []).map(ev => ({
+      start: ev.start.dateTime || ev.start.date,
+      summary: ev.summary
+    })))
+    .catch(() => []);
+}
+
 // set a static real-estate themed background
 const background='global-bg.svg';
 
@@ -386,14 +400,9 @@ function router(){
       layout.appendChild(calendarWrap);
       main.appendChild(layout);
 
-      fetch('/appointments')
-        .then(r=>r.json())
-        .then(events=>{
-          calendarWrap.appendChild(createEventCalendar(events));
-        })
-        .catch(()=>{
-          calendarWrap.appendChild(createEventCalendar([]));
-        });
+      fetchGoogleCalendarEvents().then(events => {
+        calendarWrap.appendChild(createEventCalendar(events));
+      });
 
       const params=new URLSearchParams(query||'');
       const propId=params.get('prop');
