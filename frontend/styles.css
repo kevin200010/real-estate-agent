@@ -203,7 +203,9 @@ button:hover{
   flex-direction:column;
   gap:4px;
 }
-.calendar-header{text-align:center;font-weight:bold;}
+.calendar-header{display:flex;align-items:center;font-weight:bold;}
+.calendar-header span{flex:1;text-align:center;}
+.calendar-nav{background:none;border:none;cursor:pointer;}
 
 .calendar-grid {
   display:grid;

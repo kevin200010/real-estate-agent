@@ -15,44 +15,75 @@ export function createEventCalendar(events = []) {
 
   const header = document.createElement('div');
   header.className = 'calendar-header';
-  header.textContent = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+  const prev = document.createElement('button');
+  prev.className = 'calendar-nav';
+  prev.textContent = '<';
+
+  const title = document.createElement('span');
+
+  const next = document.createElement('button');
+  next.className = 'calendar-nav';
+  next.textContent = '>';
+
+  header.append(prev, title, next);
   cal.appendChild(header);
 
   const grid = document.createElement('div');
   grid.className = 'calendar-grid';
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  dayNames.forEach(d => {
-    const dn = document.createElement('div');
-    dn.className = 'day-name';
-    dn.textContent = d;
-    grid.appendChild(dn);
-  });
 
-  const firstDay = new Date(year, month, 1).getDay();
-  for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
-
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
   const list = document.createElement('div');
   list.className = 'calendar-events';
   let selected = null;
 
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const btn = document.createElement('button');
-    btn.className = 'calendar-day';
-    btn.textContent = String(day);
-    if (eventsByDate[dateStr]) btn.classList.add('has-event');
-    btn.addEventListener('click', () => {
-      selected = dateStr;
-      cal.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
-      btn.classList.add('selected');
-      renderEvents();
-    });
-    grid.appendChild(btn);
-  }
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  cal.appendChild(grid);
-  cal.appendChild(list);
+  prev.addEventListener('click', () => {
+    month--;
+    if (month < 0) { month = 11; year--; }
+    selected = null;
+    renderCalendar();
+  });
+
+  next.addEventListener('click', () => {
+    month++;
+    if (month > 11) { month = 0; year++; }
+    selected = null;
+    renderCalendar();
+  });
+
+  function renderCalendar() {
+    title.textContent = new Date(year, month).toLocaleString('default', { month: 'long', year: 'numeric' });
+    grid.innerHTML = '';
+
+    dayNames.forEach(d => {
+      const dn = document.createElement('div');
+      dn.className = 'day-name';
+      dn.textContent = d;
+      grid.appendChild(dn);
+    });
+
+    const firstDay = new Date(year, month, 1).getDay();
+    for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const btn = document.createElement('button');
+      btn.className = 'calendar-day';
+      btn.textContent = String(day);
+      if (eventsByDate[dateStr]) btn.classList.add('has-event');
+      btn.addEventListener('click', () => {
+        selected = dateStr;
+        cal.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
+        btn.classList.add('selected');
+        renderEvents();
+      });
+      grid.appendChild(btn);
+    }
+
+    renderEvents();
+  }
 
   function renderEvents() {
     list.innerHTML = '';
@@ -70,5 +101,7 @@ export function createEventCalendar(events = []) {
     });
   }
 
+  cal.append(grid, list);
+  renderCalendar();
   return cal;
 }
