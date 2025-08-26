@@ -93,11 +93,6 @@ async function ensureGoogleAccessToken() {
     return stored;
   }
   try {
-    await window.aws_amplify.Auth.currentSession();
-  } catch {
-    return null;
-  }
-  try {
     const resp = await authFetch(`${window.API_BASE_URL}/google-token`);
     if (resp.ok) {
       const data = await resp.json();
@@ -112,7 +107,8 @@ async function ensureGoogleAccessToken() {
 }
 
 function requestGoogleAccessToken() {
-  if (googleTokenClient) googleTokenClient.requestAccessToken();
+  if (googleTokenClient)
+    googleTokenClient.requestAccessToken({ prompt: 'consent' });
 }
 
 function fetchGoogleCalendarEvents() {
