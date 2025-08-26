@@ -21,3 +21,8 @@ window.GOOGLE_CALENDAR_ID = 'YOUR_CALENDAR_ID';
 // Optional OAuth access token for loading a user's private calendar.
 // If set, the app will read events from that user's primary calendar.
 window.GOOGLE_CALENDAR_ACCESS_TOKEN = '';
+
+// Client ID for Google Identity Services, used to authorize access to a user's
+// Google Calendar. Provide this if you want users to sign in and sync their
+// personal calendars.
+window.GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';

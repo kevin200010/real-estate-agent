@@ -85,3 +85,33 @@ async def voice(
     transcript = await asyncio.to_thread(_sonic.transcribe, audio_bytes)
     result = await app_graph.ainvoke({"user_input": transcript})
     return {**result, "transcript": transcript}
+
+
+# In-memory storage for per-user Google Calendar access tokens. In a production
+# deployment this should be replaced with persistent storage.
+_google_tokens: dict[str, str] = {}
+
+
+@app.post("/google-token")
+async def save_google_token(
+    payload: dict, user: dict | None = Depends(get_current_user)
+):
+    """Save an OAuth access token for the authenticated user."""
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = payload.get("access_token")
+    if not token:
+        raise HTTPException(status_code=400, detail="access_token required")
+    _google_tokens[user["sub"]] = token
+    return {"status": "ok"}
+
+
+@app.get("/google-token")
+async def get_google_token(user: dict | None = Depends(get_current_user)):
+    """Return the stored Google OAuth token for the authenticated user."""
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = _google_tokens.get(user["sub"])
+    if not token:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"access_token": token}
