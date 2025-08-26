@@ -21,8 +21,8 @@ export function createAgentChat() {
   let map;
   let markers = [];
   let markerMap = {};
-  let defaultIcon;
-  let activeIcon;
+  const defaultIcon = 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+  const activeIcon = 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png';
   let activeMarkerId;
   let pendingProps = [];
   let history = JSON.parse(sessionStorage.getItem('agentChatMessages') || '[]');
@@ -47,28 +47,12 @@ export function createAgentChat() {
   }
 
   function initMap() {
-    if (window.L) {
-      map = L.map(mapEl).setView([39.5, -98.35], 5);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-      defaultIcon = L.icon({
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
-      });
-      activeIcon = L.icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
-      });
-    } else {
+    if (!window.google || !window.google.maps) {
       mapEl.textContent = 'Loading map…';
       setTimeout(initMap, 300);
       return;
     }
+    map = new google.maps.Map(mapEl, { center: { lat: 39.5, lng: -98.35 }, zoom: 5 });
     if (pendingProps.length) updateMap(pendingProps);
   }
   // Initialize the map after the element is in the DOM to ensure proper sizing
@@ -77,38 +61,46 @@ export function createAgentChat() {
   function updateMap(props) {
     pendingProps = props;
     if (!map) return;
-    markers.forEach(m => m.remove());
+    markers.forEach(m => m.setMap(null));
     markers = [];
     markerMap = {};
     if (!props.length) return;
     activeMarkerId = null;
-    const bounds = L.latLngBounds();
+    const bounds = new google.maps.LatLngBounds();
     props.forEach(p => {
       const lat = Number(p.lat), lng = Number(p.lng);
       if (isNaN(lat) || isNaN(lng)) return;
+      const position = { lat, lng };
       let content = '';
       if (p.image) {
-        content += `<img src="${p.image}" alt="Property image" style="max-width:200px"/>`;
+        content += `<img src="${p.image}" alt="Property image" style="max-width:200px"/><br/>`;
       }
       content += `<div><a href="#/property?prop=${p.id}">View details</a></div>`;
-      const marker = L.marker([lat, lng], { icon: defaultIcon }).addTo(map);
-      marker.bindPopup(content);
+      const marker = new google.maps.Marker({ position, map, icon: defaultIcon });
+      marker.infoWindow = new google.maps.InfoWindow({ content });
+      marker.addListener('click', () => focusProperty(p));
       markers.push(marker);
       markerMap[p.id] = marker;
-      bounds.extend([lat, lng]);
+      bounds.extend(position);
     });
-    if (props.length > 1) map.fitBounds(bounds); else map.setView(bounds.getCenter(), 14);
+    if (props.length > 1) {
+      map.fitBounds(bounds);
+    } else {
+      map.setCenter(bounds.getCenter());
+      map.setZoom(14);
+    }
   }
   function focusProperty(p) {
     if (!map) return;
     const lat = Number(p.lat), lng = Number(p.lng);
     if (isNaN(lat) || isNaN(lng)) return;
-    map.setView([lat, lng], 14);
+    map.setCenter({ lat, lng });
+    map.setZoom(14);
     const m = markerMap[p.id];
     if (m) {
       markers.forEach(marker => marker.setIcon(defaultIcon));
       m.setIcon(activeIcon);
-      if (m.openPopup) m.openPopup();
+      if (m.infoWindow) m.infoWindow.open(map, m);
       activeMarkerId = p.id;
     }
     document.querySelectorAll('.prop-card').forEach(card => {
