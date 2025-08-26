@@ -6,6 +6,7 @@ import { createKanban } from './components/kanban.js';
 import { initToast } from './components/toast.js';
 import { createAgentChat } from './components/agent-chat.js';
 import { openAppointmentForm } from './components/appointment.js';
+import { createEventCalendar } from './components/event-calendar.js';
 
 const mapReady = new Promise(resolve => {
   if (window.GOOGLE_MAPS_API_KEY) {
@@ -376,14 +377,23 @@ function router(){
             router();
           }
         });
-      const calendar=document.createElement('div');
-      calendar.className='leads-calendar';
-      calendar.innerHTML=`<h3>Calendar</h3><input type="date" />`;
       const layout=document.createElement('div');
       layout.className='leads-page';
       layout.appendChild(board);
-      layout.appendChild(calendar);
+      const calendarWrap=document.createElement('div');
+      calendarWrap.className='leads-calendar';
+      calendarWrap.innerHTML='<h3>Calendar</h3>';
+      layout.appendChild(calendarWrap);
       main.appendChild(layout);
+
+      fetch('/appointments')
+        .then(r=>r.json())
+        .then(events=>{
+          calendarWrap.appendChild(createEventCalendar(events));
+        })
+        .catch(()=>{
+          calendarWrap.appendChild(createEventCalendar([]));
+        });
 
       const params=new URLSearchParams(query||'');
       const propId=params.get('prop');

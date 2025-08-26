@@ -203,6 +203,7 @@ button:hover{
   flex-direction:column;
   gap:4px;
 }
+.calendar-header{text-align:center;font-weight:bold;}
 
 .calendar-grid {
   display:grid;
@@ -222,11 +223,14 @@ button:hover{
   border-radius:var(--radius-sm);
   cursor:pointer;
 }
+.calendar-day.has-event { background:var(--accent); color:#fff; border-radius:50%; }
 
 .calendar-day.available { background:#d1fae5; }
 .calendar-day.available:hover { background:#a7f3d0; }
 .calendar-day.selected { outline:2px solid var(--accent); }
 .calendar-day.booked { background:#f3f4f6; color:#9ca3af; cursor:not-allowed; }
+
+.calendar-events { margin-top:var(--gap); font-size:0.9em; }
 
 .time-slots {
   display:flex;
