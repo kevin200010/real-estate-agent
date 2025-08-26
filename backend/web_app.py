@@ -11,11 +11,9 @@ from fastapi.templating import Jinja2Templates
 from langgraph_app import app_graph
 from property_chatbot import SonicClient
 from auth import get_current_user
-# Import the appointments router using an absolute import so the module can be
-# executed directly without relying on package-relative imports. This avoids
-# "attempted relative import" errors when `web_app` is run as a top-level
-# module (e.g., via ``uvicorn web_app:app``).
 from appointments import router as appointments_router
+import json
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 
@@ -85,3 +83,46 @@ async def voice(
     transcript = await asyncio.to_thread(_sonic.transcribe, audio_bytes)
     result = await app_graph.ainvoke({"user_input": transcript})
     return {**result, "transcript": transcript}
+
+
+import json
+from pathlib import Path
+
+# Persistent storage for per-user Google Calendar access tokens. Tokens are
+# stored in ``google_tokens.json`` alongside this module so they survive server
+# restarts. In a production system this would be replaced with a proper
+# database.
+_TOKENS_FILE = Path(__file__).with_name("google_tokens.json")
+try:
+    _google_tokens: dict[str, str] = json.loads(_TOKENS_FILE.read_text())
+except Exception:
+    _google_tokens = {}
+
+
+@app.post("/google-token")
+async def save_google_token(
+    payload: dict, user: dict | None = Depends(get_current_user)
+):
+    """Save an OAuth access token for the authenticated user."""
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = payload.get("access_token")
+    if not token:
+        raise HTTPException(status_code=400, detail="access_token required")
+    _google_tokens[user["sub"]] = token
+    try:
+        _TOKENS_FILE.write_text(json.dumps(_google_tokens))
+    except Exception:
+        logging.exception("Failed to persist Google token")
+    return {"status": "ok"}
+
+
+@app.get("/google-token")
+async def get_google_token(user: dict | None = Depends(get_current_user)):
+    """Return the stored Google OAuth token for the authenticated user."""
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = _google_tokens.get(user["sub"])
+    if not token:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"access_token": token}
