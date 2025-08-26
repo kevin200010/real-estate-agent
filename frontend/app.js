@@ -125,6 +125,9 @@ function requestGoogleAccessToken() {
 
 function fetchGoogleCalendarEvents() {
   const token = window.GOOGLE_CALENDAR_ACCESS_TOKEN;
+  const now = new Date();
+  const timeMin = new Date(now.getFullYear(), 0, 1).toISOString();
+  const timeMax = new Date(now.getFullYear() + 1, 0, 1).toISOString();
   if (token) {
     return fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
       headers: { Authorization: `Bearer ${token}` }
@@ -137,7 +140,9 @@ function fetchGoogleCalendarEvents() {
             fetch(
               `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
                 cal.id
-              )}/events?singleEvents=true&orderBy=startTime`,
+              )}/events?singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(
+                timeMin
+              )}&timeMax=${encodeURIComponent(timeMax)}`,
               { headers: { Authorization: `Bearer ${token}` } }
             )
               .then(r => r.json())
@@ -158,7 +163,9 @@ function fetchGoogleCalendarEvents() {
   if (!calendarId || !apiKey) return Promise.resolve([]);
   const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
     calendarId
-  )}/events?key=${apiKey}&singleEvents=true&orderBy=startTime`;
+  )}/events?key=${apiKey}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(
+    timeMin
+  )}&timeMax=${encodeURIComponent(timeMax)}`;
   return fetch(url)
     .then(r => r.json())
     .then(data => (data.items || []).map(ev => ({
