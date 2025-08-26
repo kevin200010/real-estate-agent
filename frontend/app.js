@@ -489,14 +489,18 @@ function router(){
       const syncBtn=document.createElement('button');
       syncBtn.textContent='Sync Google Calendar';
       function renderCalendar(){
+        calendarWrap.innerHTML='<h3>Calendar</h3>';
         fetchGoogleCalendarEvents().then(events=>{
           calendarWrap.appendChild(createEventCalendar(events));
         });
-        syncBtn.style.display='none';
       }
       syncBtn.addEventListener('click',()=>{
-        onGoogleToken(renderCalendar);
-        requestGoogleAccessToken();
+        if(window.GOOGLE_CALENDAR_ACCESS_TOKEN){
+          renderCalendar();
+        } else {
+          onGoogleToken(renderCalendar);
+          requestGoogleAccessToken();
+        }
       });
       calendarWrap.appendChild(syncBtn);
       layout.appendChild(calendarWrap);
