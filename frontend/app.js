@@ -39,6 +39,7 @@ const mapReady = new Promise(resolve => {
     document.head.appendChild(script);
   }
 });
+window.mapReady = mapReady;
 
 const state={ data:{}, gmap:null, markers:{}, activeMarkerId:null };
 let topbarAPI;

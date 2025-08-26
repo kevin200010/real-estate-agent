@@ -75,8 +75,9 @@ export function createAgentChat() {
     }
     if (pendingProps.length) updateMap(pendingProps);
   }
-  // Initialize the map after the element is in the DOM to ensure proper sizing
-  setTimeout(initMap, 0);
+  // Initialize the map after the element is in the DOM and the map library is ready
+  const init = () => setTimeout(initMap, 0);
+  if (window.mapReady) window.mapReady.then(init); else init();
 
   function updateMap(props) {
     pendingProps = props;
