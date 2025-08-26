@@ -23,6 +23,11 @@ if _region and _user_pool_id:
     except Exception:
         _jwks = None
 
+# Flag indicating whether JWT verification is configured. If Cognito
+# environment variables or dependencies are missing we fall back to a
+# no-auth mode for local development.
+AUTH_ENABLED = bool(_issuer and _jwks and jwk and jwt)
+
 _scheme = HTTPBearer(auto_error=False)
 
 
