@@ -1,5 +1,4 @@
 import { initTopbar } from './components/topbar.js';
-import { initLeftRail } from './components/left-rail.js';
 // import { initAssistantDrawer } from './components/assistant-drawer.js';
 import { initCommandPalette, togglePalette } from './components/command-palette.js';
 import { createDataGrid } from './components/datagrid.js';
@@ -7,6 +6,7 @@ import { createKanban } from './components/kanban.js';
 import { initToast } from './components/toast.js';
 import { createAgentChat } from './components/agent-chat.js';
 import { openAppointmentForm } from './components/appointment.js';
+import { createEventCalendar } from './components/event-calendar.js';
 
 const mapReady = new Promise(resolve => {
   if (window.GOOGLE_MAPS_API_KEY) {
@@ -45,6 +45,32 @@ const state={ data:{}, gmap:null, markers:{}, activeMarkerId:null };
 let topbarAPI;
 let agentChatEl;
 
+function fetchGoogleCalendarEvents() {
+  const token = window.GOOGLE_CALENDAR_ACCESS_TOKEN;
+  if (token) {
+    return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(data => (data.items || []).map(ev => ({
+        start: ev.start.dateTime || ev.start.date,
+        summary: ev.summary
+      })))
+      .catch(() => []);
+  }
+  const calendarId = window.GOOGLE_CALENDAR_ID;
+  const apiKey = window.GOOGLE_CALENDAR_API_KEY;
+  if (!calendarId || !apiKey) return Promise.resolve([]);
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${apiKey}`;
+  return fetch(url)
+    .then(r => r.json())
+    .then(data => (data.items || []).map(ev => ({
+      start: ev.start.dateTime || ev.start.date,
+      summary: ev.summary
+    })))
+    .catch(() => []);
+}
+
 // set a static real-estate themed background
 const background='global-bg.svg';
 
@@ -64,7 +90,6 @@ startApp();
 
 function init(){
   topbarAPI=initTopbar();
-  initLeftRail(state.data);
   // initAssistantDrawer();
   initCommandPalette(state.data);
   initToast();
@@ -378,7 +403,18 @@ function router(){
             router();
           }
         });
-      main.appendChild(board);
+      const layout=document.createElement('div');
+      layout.className='leads-page';
+      layout.appendChild(board);
+      const calendarWrap=document.createElement('div');
+      calendarWrap.className='leads-calendar';
+      calendarWrap.innerHTML='<h3>Calendar</h3>';
+      layout.appendChild(calendarWrap);
+      main.appendChild(layout);
+
+      fetchGoogleCalendarEvents().then(events => {
+        calendarWrap.appendChild(createEventCalendar(events));
+      });
 
       const params=new URLSearchParams(query||'');
       const propId=params.get('prop');

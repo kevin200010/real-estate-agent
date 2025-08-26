@@ -86,21 +86,6 @@ body {
   top:56px; bottom:0; left:0; right:0;
 }
 
-#left-rail {
-  width:240px;
-  /* border-right:0.1px solid var(--muted); */
-  padding:var(--gap);
-  overflow-y:auto;
-  transition:width 0.18s, box-shadow 0.3s;
-}
-#left-rail:hover { box-shadow:0 0 15px var(--accent); border-right:0.1px solid var(--muted); }
-#left-rail.collapsed { width:60px; overflow:hidden; }
-#left-rail.collapsed .filters,
-#left-rail.collapsed .saved { display:none; }
-#left-rail #collapse-rail {background:none;border:none;color:white;margin-bottom:var(--gap);cursor:pointer; font-weight: bold; font-size: x-large;}
-.saved-item {cursor:pointer;padding:4px 0; transition:background 0.3s, box-shadow 0.3s;}
-.saved-item:hover {background:var(--muted); box-shadow:0 0 8px var(--accent); }
-
 #assistant {
   width:320px;
   background:var(--card);
@@ -218,6 +203,10 @@ button:hover{
   flex-direction:column;
   gap:4px;
 }
+.calendar-nav{display:flex;justify-content:space-between;}
+.calendar-months{display:flex;}
+.calendar-month{flex:1 0 auto;}
+.calendar-header{display:flex;align-items:center;font-weight:bold;}
 
 .calendar-grid {
   display:grid;
@@ -237,11 +226,15 @@ button:hover{
   border-radius:var(--radius-sm);
   cursor:pointer;
 }
+.calendar-day.today { background:yellow; }
+.calendar-day.has-event { background:#ef4444; color:#fff; border-radius:50%; }
 
 .calendar-day.available { background:#d1fae5; }
 .calendar-day.available:hover { background:#a7f3d0; }
 .calendar-day.selected { outline:2px solid var(--accent); }
 .calendar-day.booked { background:#f3f4f6; color:#9ca3af; cursor:not-allowed; }
+
+.calendar-events { margin-top:var(--gap); font-size:0.9em; }
 
 .time-slots {
   display:flex;
@@ -309,6 +302,12 @@ button:hover{
 .kanban { display:flex; gap:var(--gap); height:100%; }
 .kanban-column { flex:1; background:var(--card); border-radius:var(--radius-lg); padding:var(--gap); display:flex; flex-direction:column; }
 .kanban-column h3 { margin-top:0; font-size:14px; }
+.kanban .col-header {display:flex;justify-content:space-between;align-items:center;}
+.kanban .col-header button{background:none;border:none;color:white;cursor:pointer;}
+
+.leads-page {display:flex;flex-direction:row;gap:var(--gap);}
+.leads-page .kanban {flex:1;order:1;}
+.leads-page .leads-calendar {width:300px;background:var(--card);border-radius:var(--radius-lg);padding:var(--gap);order:2;}
 .lead-card { background:var(--muted); border-radius:var(--radius-sm); padding:var(--gap); margin-bottom:var(--gap); cursor:grab; }
 .lead-card { transition:background 0.3s, box-shadow 0.3s; }
 .lead-card:hover { background:var(--card); box-shadow:0 0 8px var(--accent); }
@@ -483,5 +482,4 @@ button:hover{
 
 /* Responsive */
 @media (max-width:1024px) {
-  #left-rail { display:none; }
 }

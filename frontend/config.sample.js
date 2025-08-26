@@ -12,3 +12,12 @@ window.COGNITO_APP_CLIENT_ID = 'YOUR_APP_CLIENT_ID';
 // Replace 'YOUR_API_KEY_HERE' with a valid key and copy this file to
 // `config.js`.
 window.GOOGLE_MAPS_API_KEY = 'YOUR_API_KEY_HERE';
+
+// Google Calendar API configuration. The leads page can display events from a
+// public Google Calendar when these values are provided. Copy this file to
+// `config.js` and replace with your own API key and calendar ID.
+window.GOOGLE_CALENDAR_API_KEY = 'YOUR_CALENDAR_API_KEY';
+window.GOOGLE_CALENDAR_ID = 'YOUR_CALENDAR_ID';
+// Optional OAuth access token for loading a user's private calendar.
+// If set, the app will read events from that user's primary calendar.
+window.GOOGLE_CALENDAR_ACCESS_TOKEN = '';
