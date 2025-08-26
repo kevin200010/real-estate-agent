@@ -72,7 +72,7 @@ function initGoogleAuth() {
   const redirectUri = window.GOOGLE_REDIRECT_URI || window.location.origin;
   googleTokenClient = window.google.accounts.oauth2.initTokenClient({
     client_id: window.GOOGLE_CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/calendar.readonly',
+    scope: 'https://www.googleapis.com/auth/calendar',
     redirect_uri: redirectUri,
     callback: async resp => {
       if (resp.access_token) {

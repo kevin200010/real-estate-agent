@@ -14,9 +14,11 @@ except ImportError:  # fallback when run as script
 
 try:  # Optional dependency; module may be absent in test environments
     from google.oauth2 import service_account
+    from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
 except Exception:  # pragma: no cover - handled gracefully when unavailable
     service_account = None  # type: ignore
+    Credentials = None  # type: ignore
     build = None  # type: ignore
 
 
@@ -162,9 +164,34 @@ def book_appointment(
     end = dt + timedelta(hours=1)
     description = f"Phone: {payload.phone}\nEmail: {payload.email}"
     summary = f"Appointment with {payload.name}"
+    event_body = {
+        "summary": summary,
+        "start": {"dateTime": dt.isoformat(), "timeZone": "UTC"},
+        "end": {"dateTime": end.isoformat(), "timeZone": "UTC"},
+        "description": description,
+        "attendees": [{"email": payload.email}],
+    }
     event = _calendar.create_event(
         summary, dt, end, description, attendees=[payload.email]
     )
+
+    # Also create the event on the user's linked Google Calendar if a token is stored
+    try:  # pragma: no cover - graceful degradation when token missing
+        from . import web_app  # type: ignore
+
+        key = user["sub"] if user else "default"
+        token = web_app._google_tokens.get(key)
+        if token and Credentials and build:
+            creds = Credentials(token)
+            service = build("calendar", "v3", credentials=creds)
+            (
+                service.events()
+                .insert(calendarId="primary", body=event_body, sendUpdates="all")
+                .execute()
+            )
+    except Exception:
+        pass
+
     return {"event": event}
 
 
