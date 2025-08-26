@@ -124,11 +124,14 @@ async def save_google_token(
 
 @app.get("/google-token")
 async def get_google_token(user: dict | None = Depends(get_current_user)):
-    """Return the stored Google OAuth token for the authenticated user."""
+    """Return the stored Google OAuth token for the authenticated user.
+
+    If no token has been saved yet, ``access_token`` will be ``null`` instead of
+    returning a 404. This avoids noisy errors in the frontend when a user has not
+    granted access to their Google Calendar.
+    """
     if AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     key = user["sub"] if user else "default"
     token = _google_tokens.get(key)
-    if not token:
-        raise HTTPException(status_code=404, detail="Not found")
     return {"access_token": token}

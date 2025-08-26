@@ -43,6 +43,12 @@ def test_google_token_roundtrip(tmp_path):
     web_app._google_tokens.clear()
     client = TestClient(web_app.app)
 
+    # getting before a token is stored should succeed with null token
+    resp = client.get("/google-token")
+    assert resp.status_code == 200
+    assert resp.json() == {"access_token": None}
+
+    # save and retrieve a token
     resp = client.post("/google-token", json={"access_token": "abc"})
     assert resp.status_code == 200
 
