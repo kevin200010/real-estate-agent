@@ -40,6 +40,10 @@ GOOGLE_CALENDAR_ID=your_calendar_id
 If these values are omitted the backend falls back to an in-memory store, so
 appointments will not persist across restarts.
 
+To work with a user's personal Google Calendar instead of a shared service
+account calendar, implement OAuth 2.0 to obtain an access token for that user
+and pass it to the backend when creating or fetching events.
+
 ## Notes
 
 This example focuses on illustrating how components fit together. Production applications should implement robust error handling, streaming audio for low latency, and secure storage of user data.

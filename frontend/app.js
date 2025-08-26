@@ -46,6 +46,18 @@ let topbarAPI;
 let agentChatEl;
 
 function fetchGoogleCalendarEvents() {
+  const token = window.GOOGLE_CALENDAR_ACCESS_TOKEN;
+  if (token) {
+    return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(data => (data.items || []).map(ev => ({
+        start: ev.start.dateTime || ev.start.date,
+        summary: ev.summary
+      })))
+      .catch(() => []);
+  }
   const calendarId = window.GOOGLE_CALENDAR_ID;
   const apiKey = window.GOOGLE_CALENDAR_API_KEY;
   if (!calendarId || !apiKey) return Promise.resolve([]);

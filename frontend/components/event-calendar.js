@@ -77,10 +77,7 @@ export function createEventCalendar(events = []) {
 
   function buildMonths() {
     monthsWrap.innerHTML = '';
-    for (let i = 0; i < 3; i++) {
-      const d = new Date(currentYear, currentMonth + i, 1);
-      monthsWrap.appendChild(buildMonth(d.getFullYear(), d.getMonth()));
-    }
+    monthsWrap.appendChild(buildMonth(currentYear, currentMonth));
   }
 
   function shiftMonth(delta) {

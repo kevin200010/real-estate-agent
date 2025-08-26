@@ -18,3 +18,6 @@ window.GOOGLE_MAPS_API_KEY = 'YOUR_API_KEY_HERE';
 // `config.js` and replace with your own API key and calendar ID.
 window.GOOGLE_CALENDAR_API_KEY = 'YOUR_CALENDAR_API_KEY';
 window.GOOGLE_CALENDAR_ID = 'YOUR_CALENDAR_ID';
+// Optional OAuth access token for loading a user's private calendar.
+// If set, the app will read events from that user's primary calendar.
+window.GOOGLE_CALENDAR_ACCESS_TOKEN = '';
