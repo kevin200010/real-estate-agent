@@ -48,10 +48,12 @@ export function createAgentChat() {
 
   function initMap() {
     if (window.google && window.google.maps) {
+      mapEl.textContent = '';
       map = new google.maps.Map(mapEl, { center: { lat: 39.5, lng: -98.35 }, zoom: 5 });
       defaultIcon = 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png';
       activeIcon = 'https://maps.google.com/mapfiles/ms/icons/red-dot.png';
     } else if (window.L) {
+      mapEl.textContent = '';
       map = L.map(mapEl).setView([39.5, -98.35], 5);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
       defaultIcon = L.icon({
@@ -95,9 +97,10 @@ export function createAgentChat() {
         const position = { lat, lng };
         const content = document.createElement('div');
         if (p.image) {
-          content.innerHTML += `<img src="${p.image}" alt="Property image" style="max-width:200px"/>`;
+          content.innerHTML += `<img src="${p.image}" alt="Property image" style="max-width:200px"/><br/>`;
         }
-        content.innerHTML += `<div><a href="#/property?prop=${p.id}">View details</a></div>`;
+        content.innerHTML += `${p.address || ''}<br/>${p.price || ''}<br/>`+
+          `<button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button>`;
         const marker = new google.maps.Marker({ position, map, icon: defaultIcon });
         marker.infoWindow = new google.maps.InfoWindow({ content });
         marker.addListener('click', () => {
@@ -105,6 +108,14 @@ export function createAgentChat() {
           marker.setIcon(activeIcon);
           marker.infoWindow.open(map, marker);
           activeMarkerId = p.id;
+          highlightCard(p.id);
+        });
+        google.maps.event.addListener(marker.infoWindow, 'domready', () => {
+          const el = marker.infoWindow.getContent();
+          const addBtn = el.querySelector?.('.add-lead');
+          if (addBtn) addBtn.addEventListener('click', () => { location.hash = `#/leads?prop=${p.id}`; });
+          const viewBtn = el.querySelector?.('.view-details');
+          if (viewBtn) viewBtn.addEventListener('click', () => { location.hash = `#/property?prop=${p.id}`; });
         });
         markers.push(marker);
         markerMap[p.id] = marker;
@@ -123,11 +134,26 @@ export function createAgentChat() {
         if (isNaN(lat) || isNaN(lng)) return;
         let content = '';
         if (p.image) {
-          content += `<img src="${p.image}" alt="Property image" style="max-width:200px"/>`;
+          content += `<img src="${p.image}" alt="Property image" style="max-width:200px"/><br/>`;
         }
-        content += `<div><a href="#/property?prop=${p.id}">View details</a></div>`;
+        content += `${p.address || ''}<br/>${p.price || ''}<br/>`+
+          `<button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button>`;
         const marker = L.marker([lat, lng], { icon: defaultIcon }).addTo(map);
         marker.bindPopup(content);
+        marker.on('click', () => {
+          markers.forEach(m => m.setIcon(defaultIcon));
+          marker.setIcon(activeIcon);
+          activeMarkerId = p.id;
+          highlightCard(p.id);
+        });
+        marker.on('popupopen', e => {
+          const el = e.popup.getElement();
+          if (!el) return;
+          const addBtn = el.querySelector('.add-lead');
+          if (addBtn) addBtn.addEventListener('click', () => { location.hash = `#/leads?prop=${p.id}`; });
+          const viewBtn = el.querySelector('.view-details');
+          if (viewBtn) viewBtn.addEventListener('click', () => { location.hash = `#/property?prop=${p.id}`; });
+        });
         markers.push(marker);
         markerMap[p.id] = marker;
         bounds.extend([lat, lng]);
@@ -135,6 +161,14 @@ export function createAgentChat() {
       if (props.length > 1) map.fitBounds(bounds); else map.setView(bounds.getCenter(), 14);
     }
   }
+
+  function highlightCard(id) {
+    document.querySelectorAll('.prop-card').forEach(card => {
+      if (card.dataset.id === String(id)) card.classList.add('active');
+      else card.classList.remove('active');
+    });
+  }
+
   function focusProperty(p) {
     if (!map) return;
     const lat = Number(p.lat), lng = Number(p.lng);
@@ -159,10 +193,7 @@ export function createAgentChat() {
         activeMarkerId = p.id;
       }
     }
-    document.querySelectorAll('.prop-card').forEach(card => {
-      if (card.dataset.id === String(p.id)) card.classList.add('active');
-      else card.classList.remove('active');
-    });
+    highlightCard(p.id);
   }
   const API_BASE = window.API_BASE_URL || 'http://localhost:8000';
 
