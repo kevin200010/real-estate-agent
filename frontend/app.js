@@ -126,20 +126,39 @@ function requestGoogleAccessToken() {
 function fetchGoogleCalendarEvents() {
   const token = window.GOOGLE_CALENDAR_ACCESS_TOKEN;
   if (token) {
-    return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    return fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(r => r.json())
-      .then(data => (data.items || []).map(ev => ({
-        start: ev.start.dateTime || ev.start.date,
-        summary: ev.summary
-      })))
+      .then(data => {
+        const calendars = data.items || [];
+        return Promise.all(
+          calendars.map(cal =>
+            fetch(
+              `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+                cal.id
+              )}/events?singleEvents=true&orderBy=startTime`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            )
+              .then(r => r.json())
+              .then(d =>
+                (d.items || []).map(ev => ({
+                  start: ev.start?.dateTime || ev.start?.date,
+                  summary: ev.summary
+                }))
+              )
+              .catch(() => [])
+          )
+        ).then(arrays => arrays.flat());
+      })
       .catch(() => []);
   }
   const calendarId = window.GOOGLE_CALENDAR_ID;
   const apiKey = window.GOOGLE_CALENDAR_API_KEY;
   if (!calendarId || !apiKey) return Promise.resolve([]);
-  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${apiKey}`;
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+    calendarId
+  )}/events?key=${apiKey}&singleEvents=true&orderBy=startTime`;
   return fetch(url)
     .then(r => r.json())
     .then(data => (data.items || []).map(ev => ({
