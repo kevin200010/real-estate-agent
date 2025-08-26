@@ -47,7 +47,11 @@ export function createAgentChat() {
   }
 
   function initMap() {
-    if (window.L) {
+    if (window.google && window.google.maps) {
+      map = new google.maps.Map(mapEl, { center: { lat: 39.5, lng: -98.35 }, zoom: 5 });
+      defaultIcon = 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png';
+      activeIcon = 'https://maps.google.com/mapfiles/ms/icons/red-dot.png';
+    } else if (window.L) {
       map = L.map(mapEl).setView([39.5, -98.35], 5);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
       defaultIcon = L.icon({
@@ -77,39 +81,82 @@ export function createAgentChat() {
   function updateMap(props) {
     pendingProps = props;
     if (!map) return;
-    markers.forEach(m => m.remove());
-    markers = [];
-    markerMap = {};
-    if (!props.length) return;
-    activeMarkerId = null;
-    const bounds = L.latLngBounds();
-    props.forEach(p => {
-      const lat = Number(p.lat), lng = Number(p.lng);
-      if (isNaN(lat) || isNaN(lng)) return;
-      let content = '';
-      if (p.image) {
-        content += `<img src="${p.image}" alt="Property image" style="max-width:200px"/>`;
-      }
-      content += `<div><a href="#/property?prop=${p.id}">View details</a></div>`;
-      const marker = L.marker([lat, lng], { icon: defaultIcon }).addTo(map);
-      marker.bindPopup(content);
-      markers.push(marker);
-      markerMap[p.id] = marker;
-      bounds.extend([lat, lng]);
-    });
-    if (props.length > 1) map.fitBounds(bounds); else map.setView(bounds.getCenter(), 14);
+    if (window.google && map instanceof google.maps.Map) {
+      markers.forEach(m => m.setMap(null));
+      markers = [];
+      markerMap = {};
+      if (!props.length) return;
+      activeMarkerId = null;
+      const bounds = new google.maps.LatLngBounds();
+      props.forEach(p => {
+        const lat = Number(p.lat), lng = Number(p.lng);
+        if (isNaN(lat) || isNaN(lng)) return;
+        const position = { lat, lng };
+        const content = document.createElement('div');
+        if (p.image) {
+          content.innerHTML += `<img src="${p.image}" alt="Property image" style="max-width:200px"/>`;
+        }
+        content.innerHTML += `<div><a href="#/property?prop=${p.id}">View details</a></div>`;
+        const marker = new google.maps.Marker({ position, map, icon: defaultIcon });
+        marker.infoWindow = new google.maps.InfoWindow({ content });
+        marker.addListener('click', () => {
+          markers.forEach(m => m.setIcon(defaultIcon));
+          marker.setIcon(activeIcon);
+          marker.infoWindow.open(map, marker);
+          activeMarkerId = p.id;
+        });
+        markers.push(marker);
+        markerMap[p.id] = marker;
+        bounds.extend(position);
+      });
+      if (props.length > 1) map.fitBounds(bounds); else { map.setCenter(bounds.getCenter()); map.setZoom(14); }
+    } else {
+      markers.forEach(m => m.remove());
+      markers = [];
+      markerMap = {};
+      if (!props.length) return;
+      activeMarkerId = null;
+      const bounds = L.latLngBounds();
+      props.forEach(p => {
+        const lat = Number(p.lat), lng = Number(p.lng);
+        if (isNaN(lat) || isNaN(lng)) return;
+        let content = '';
+        if (p.image) {
+          content += `<img src="${p.image}" alt="Property image" style="max-width:200px"/>`;
+        }
+        content += `<div><a href="#/property?prop=${p.id}">View details</a></div>`;
+        const marker = L.marker([lat, lng], { icon: defaultIcon }).addTo(map);
+        marker.bindPopup(content);
+        markers.push(marker);
+        markerMap[p.id] = marker;
+        bounds.extend([lat, lng]);
+      });
+      if (props.length > 1) map.fitBounds(bounds); else map.setView(bounds.getCenter(), 14);
+    }
   }
   function focusProperty(p) {
     if (!map) return;
     const lat = Number(p.lat), lng = Number(p.lng);
     if (isNaN(lat) || isNaN(lng)) return;
-    map.setView([lat, lng], 14);
-    const m = markerMap[p.id];
-    if (m) {
-      markers.forEach(marker => marker.setIcon(defaultIcon));
-      m.setIcon(activeIcon);
-      if (m.openPopup) m.openPopup();
-      activeMarkerId = p.id;
+    if (window.google && map instanceof google.maps.Map) {
+      map.setCenter({ lat, lng });
+      map.setZoom(14);
+      const m = markerMap[p.id];
+      if (m) {
+        markers.forEach(marker => marker.setIcon(defaultIcon));
+        m.setIcon(activeIcon);
+        if (m.infoWindow) m.infoWindow.open(map, m);
+        activeMarkerId = p.id;
+      }
+    } else {
+      map.setView([lat, lng], 14);
+      const m = markerMap[p.id];
+      if (m) {
+        markers.forEach(marker => marker.setIcon(defaultIcon));
+        m.setIcon(activeIcon);
+        if (m.openPopup) m.openPopup();
+        activeMarkerId = p.id;
+      }
     }
     document.querySelectorAll('.prop-card').forEach(card => {
       if (card.dataset.id === String(p.id)) card.classList.add('active');
