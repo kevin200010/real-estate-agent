@@ -509,6 +509,9 @@ function router(){
       calendarWrap.innerHTML='<h3>Calendar</h3>';
       const syncBtn=document.createElement('button');
       syncBtn.textContent='Sync Google Calendar';
+      const unlinkBtn=document.createElement('button');
+      unlinkBtn.textContent='Unlink Google Calendar';
+      unlinkBtn.style.display='none';
       let calendarEl=createEventCalendar();
       function renderCalendar(){
         fetchGoogleCalendarEvents().then(events=>{
@@ -517,12 +520,27 @@ function router(){
           calendarEl=newEl;
         });
         syncBtn.style.display='none';
+        unlinkBtn.style.display='';
       }
       syncBtn.addEventListener('click',()=>{
         onGoogleToken(renderCalendar);
         requestGoogleAccessToken();
       });
-      calendarWrap.append(syncBtn,calendarEl);
+      unlinkBtn.addEventListener('click',()=>{
+        const token=window.GOOGLE_CALENDAR_ACCESS_TOKEN;
+        if(token){
+          fetch(`https://oauth2.googleapis.com/revoke?token=${token}`,{method:'POST'}).catch(()=>{});
+        }
+        authFetch(`${window.API_BASE_URL}/google-token`,{method:'DELETE'}).catch(()=>{});
+        delete window.GOOGLE_CALENDAR_ACCESS_TOKEN;
+        localStorage.removeItem('gcal_token');
+        const newEl=createEventCalendar();
+        calendarEl.replaceWith(newEl);
+        calendarEl=newEl;
+        syncBtn.style.display='';
+        unlinkBtn.style.display='none';
+      });
+      calendarWrap.append(syncBtn,unlinkBtn,calendarEl);
       layout.appendChild(calendarWrap);
       main.appendChild(layout);
 

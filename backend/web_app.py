@@ -135,3 +135,17 @@ async def get_google_token(user: dict | None = Depends(get_current_user)):
     key = user["sub"] if user else "default"
     token = _google_tokens.get(key)
     return {"access_token": token}
+
+
+@app.delete("/google-token")
+async def delete_google_token(user: dict | None = Depends(get_current_user)):
+    """Remove the stored Google OAuth token for the authenticated user."""
+    if AUTH_ENABLED and not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    key = user["sub"] if user else "default"
+    _google_tokens.pop(key, None)
+    try:
+        _TOKENS_FILE.write_text(json.dumps(_google_tokens))
+    except Exception:
+        logging.exception("Failed to persist Google token")
+    return {"status": "deleted"}
