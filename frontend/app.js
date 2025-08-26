@@ -44,6 +44,71 @@ window.mapReady = mapReady;
 const state={ data:{}, gmap:null, markers:{}, activeMarkerId:null };
 let topbarAPI;
 let agentChatEl;
+let googleTokenClient;
+
+async function authFetch(url, options = {}) {
+  try {
+    const token = (await window.aws_amplify.Auth.currentSession())
+      .getIdToken()
+      .getJwtToken();
+    options.headers = {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`
+    };
+  } catch {}
+  return fetch(url, options);
+}
+
+function initGoogleAuth() {
+  if (!window.google || !window.google.accounts || !window.GOOGLE_CLIENT_ID) {
+    setTimeout(initGoogleAuth, 500);
+    return;
+  }
+  googleTokenClient = window.google.accounts.oauth2.initTokenClient({
+    client_id: window.GOOGLE_CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/calendar.readonly',
+    callback: async resp => {
+      if (resp.access_token) {
+        window.GOOGLE_CALENDAR_ACCESS_TOKEN = resp.access_token;
+        localStorage.setItem('gcal_token', resp.access_token);
+        try {
+          await authFetch(`${window.API_BASE_URL}/google-token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: resp.access_token })
+          });
+        } catch {}
+        router();
+      }
+    }
+  });
+}
+
+async function ensureGoogleAccessToken() {
+  if (window.GOOGLE_CALENDAR_ACCESS_TOKEN)
+    return window.GOOGLE_CALENDAR_ACCESS_TOKEN;
+  const stored = localStorage.getItem('gcal_token');
+  if (stored) {
+    window.GOOGLE_CALENDAR_ACCESS_TOKEN = stored;
+    return stored;
+  }
+  try {
+    const resp = await authFetch(`${window.API_BASE_URL}/google-token`);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.access_token) {
+        window.GOOGLE_CALENDAR_ACCESS_TOKEN = data.access_token;
+        localStorage.setItem('gcal_token', data.access_token);
+        return data.access_token;
+      }
+    }
+  } catch {}
+  return null;
+}
+
+function requestGoogleAccessToken() {
+  if (googleTokenClient) googleTokenClient.requestAccessToken();
+}
 
 function fetchGoogleCalendarEvents() {
   const token = window.GOOGLE_CALENDAR_ACCESS_TOKEN;
@@ -84,6 +149,7 @@ function startApp(){
     state.data=d;
     init();
   });
+  initGoogleAuth();
 }
 
 startApp();
@@ -409,11 +475,20 @@ function router(){
       const calendarWrap=document.createElement('div');
       calendarWrap.className='leads-calendar';
       calendarWrap.innerHTML='<h3>Calendar</h3>';
+      const syncBtn=document.createElement('button');
+      syncBtn.textContent='Sync Google Calendar';
+      syncBtn.addEventListener('click',requestGoogleAccessToken);
+      calendarWrap.appendChild(syncBtn);
       layout.appendChild(calendarWrap);
       main.appendChild(layout);
 
-      fetchGoogleCalendarEvents().then(events => {
-        calendarWrap.appendChild(createEventCalendar(events));
+      ensureGoogleAccessToken().then(token=>{
+        if(token){
+          fetchGoogleCalendarEvents().then(events=>{
+            calendarWrap.appendChild(createEventCalendar(events));
+          });
+          syncBtn.style.display='none';
+        }
       });
 
       const params=new URLSearchParams(query||'');
