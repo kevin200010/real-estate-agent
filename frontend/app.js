@@ -454,6 +454,7 @@ function parseCSV(text){
     const status=obj['Listing Status'];
     const saleOrRent=obj['Sale or Rent'];
     const type=obj['Property Type']||obj['Property Subtype'];
+    if(isNaN(lat)||isNaN(lng)) return null;
     return {id,address,price,lat,lng,beds,baths,year,status,saleOrRent,type};
-  });
+  }).filter(Boolean);
 }
