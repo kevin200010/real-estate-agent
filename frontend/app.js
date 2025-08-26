@@ -1,5 +1,4 @@
 import { initTopbar } from './components/topbar.js';
-import { initLeftRail } from './components/left-rail.js';
 // import { initAssistantDrawer } from './components/assistant-drawer.js';
 import { initCommandPalette, togglePalette } from './components/command-palette.js';
 import { createDataGrid } from './components/datagrid.js';
@@ -64,7 +63,6 @@ startApp();
 
 function init(){
   topbarAPI=initTopbar();
-  initLeftRail(state.data);
   // initAssistantDrawer();
   initCommandPalette(state.data);
   initToast();
@@ -378,7 +376,14 @@ function router(){
             router();
           }
         });
-      main.appendChild(board);
+      const calendar=document.createElement('div');
+      calendar.className='leads-calendar';
+      calendar.innerHTML=`<h3>Calendar</h3><input type="date" />`;
+      const layout=document.createElement('div');
+      layout.className='leads-page';
+      layout.appendChild(board);
+      layout.appendChild(calendar);
+      main.appendChild(layout);
 
       const params=new URLSearchParams(query||'');
       const propId=params.get('prop');
