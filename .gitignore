@@ -4,3 +4,4 @@ node_modules/
 .env
 
 frontend/config.js
+backend/.env
