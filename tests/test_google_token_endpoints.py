@@ -55,3 +55,10 @@ def test_google_token_roundtrip(tmp_path):
     resp = client.get("/google-token")
     assert resp.status_code == 200
     assert resp.json()["access_token"] == "abc"
+
+    # delete the token and ensure it is cleared
+    resp = client.delete("/google-token")
+    assert resp.status_code == 200
+    resp = client.get("/google-token")
+    assert resp.status_code == 200
+    assert resp.json() == {"access_token": None}

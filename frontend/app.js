@@ -69,9 +69,11 @@ function initGoogleAuth() {
     setTimeout(initGoogleAuth, 500);
     return;
   }
+  const redirectUri = window.GOOGLE_REDIRECT_URI || window.location.origin;
   googleTokenClient = window.google.accounts.oauth2.initTokenClient({
     client_id: window.GOOGLE_CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/calendar.readonly',
+    scope: 'https://www.googleapis.com/auth/calendar',
+    redirect_uri: redirectUri,
     callback: async resp => {
       if (resp.access_token) {
         window.GOOGLE_CALENDAR_ACCESS_TOKEN = resp.access_token;
@@ -123,21 +125,47 @@ function requestGoogleAccessToken() {
 
 function fetchGoogleCalendarEvents() {
   const token = window.GOOGLE_CALENDAR_ACCESS_TOKEN;
+  const now = new Date();
+  const timeMin = new Date(now.getFullYear(), 0, 1).toISOString();
+  const timeMax = new Date(now.getFullYear() + 1, 0, 1).toISOString();
   if (token) {
-    return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    return fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(r => r.json())
-      .then(data => (data.items || []).map(ev => ({
-        start: ev.start.dateTime || ev.start.date,
-        summary: ev.summary
-      })))
+      .then(data => {
+        const calendars = data.items || [];
+        return Promise.all(
+          calendars.map(cal =>
+            fetch(
+              `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+                cal.id
+              )}/events?singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(
+                timeMin
+              )}&timeMax=${encodeURIComponent(timeMax)}`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            )
+              .then(r => r.json())
+              .then(d =>
+                (d.items || []).map(ev => ({
+                  start: ev.start?.dateTime || ev.start?.date,
+                  summary: ev.summary
+                }))
+              )
+              .catch(() => [])
+          )
+        ).then(arrays => arrays.flat());
+      })
       .catch(() => []);
   }
   const calendarId = window.GOOGLE_CALENDAR_ID;
   const apiKey = window.GOOGLE_CALENDAR_API_KEY;
   if (!calendarId || !apiKey) return Promise.resolve([]);
-  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${apiKey}`;
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+    calendarId
+  )}/events?key=${apiKey}&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(
+    timeMin
+  )}&timeMax=${encodeURIComponent(timeMax)}`;
   return fetch(url)
     .then(r => r.json())
     .then(data => (data.items || []).map(ev => ({
@@ -488,17 +516,38 @@ function router(){
       calendarWrap.innerHTML='<h3>Calendar</h3>';
       const syncBtn=document.createElement('button');
       syncBtn.textContent='Sync Google Calendar';
+      const unlinkBtn=document.createElement('button');
+      unlinkBtn.textContent='Unlink Google Calendar';
+      unlinkBtn.style.display='none';
+      let calendarEl=createEventCalendar();
       function renderCalendar(){
         fetchGoogleCalendarEvents().then(events=>{
-          calendarWrap.appendChild(createEventCalendar(events));
+          const newEl=createEventCalendar(events);
+          calendarEl.replaceWith(newEl);
+          calendarEl=newEl;
         });
         syncBtn.style.display='none';
+        unlinkBtn.style.display='';
       }
       syncBtn.addEventListener('click',()=>{
         onGoogleToken(renderCalendar);
         requestGoogleAccessToken();
       });
-      calendarWrap.appendChild(syncBtn);
+      unlinkBtn.addEventListener('click',()=>{
+        const token=window.GOOGLE_CALENDAR_ACCESS_TOKEN;
+        if(token){
+          fetch(`https://oauth2.googleapis.com/revoke?token=${token}`,{method:'POST'}).catch(()=>{});
+        }
+        authFetch(`${window.API_BASE_URL}/google-token`,{method:'DELETE'}).catch(()=>{});
+        delete window.GOOGLE_CALENDAR_ACCESS_TOKEN;
+        localStorage.removeItem('gcal_token');
+        const newEl=createEventCalendar();
+        calendarEl.replaceWith(newEl);
+        calendarEl=newEl;
+        syncBtn.style.display='';
+        unlinkBtn.style.display='none';
+      });
+      calendarWrap.append(syncBtn,unlinkBtn,calendarEl);
       layout.appendChild(calendarWrap);
       main.appendChild(layout);
 

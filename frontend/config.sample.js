@@ -26,3 +26,8 @@ window.GOOGLE_CALENDAR_ACCESS_TOKEN = '';
 // Google Calendar. Provide this if you want users to sign in and sync their
 // personal calendars.
 window.GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
+
+// Redirect URI registered for the OAuth client. By default the application
+// uses its current origin, but you can override this if your Google Cloud
+// console specifies a different authorized redirect URI.
+window.GOOGLE_REDIRECT_URI = '';
