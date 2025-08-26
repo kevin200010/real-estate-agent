@@ -51,7 +51,10 @@ async function authFetch(url, options = {}) {
     const token = (await window.aws_amplify.Auth.currentSession())
       .getIdToken()
       .getJwtToken();
-    options.headers = { ...(options.headers || {}), Authorization: token };
+    options.headers = {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`
+    };
   } catch {}
   return fetch(url, options);
 }
