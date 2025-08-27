@@ -12,6 +12,7 @@ from langgraph_app import app_graph
 from property_chatbot import SonicClient
 from auth import AUTH_ENABLED, get_current_user
 from appointments import router as appointments_router
+from leads import router as leads_router
 import json
 from pathlib import Path
 
@@ -32,6 +33,7 @@ templates = Jinja2Templates(directory="templates")
 # Instantiate shared clients
 _sonic = SonicClient()
 app.include_router(appointments_router)
+app.include_router(leads_router)
 
 
 @app.get("/", response_class=HTMLResponse)

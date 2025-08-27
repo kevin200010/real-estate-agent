@@ -17,6 +17,7 @@ from pydantic import BaseModel
 try:  # pragma: no cover - support running as package or script
     from .appointments import router as appointments_router
     from .auth import get_current_user
+    from .leads import router as leads_router
     from .agents.sql import (
         SQLQueryExecutorAgent,
         SQLQueryGeneratorAgent,
@@ -25,6 +26,7 @@ try:  # pragma: no cover - support running as package or script
 except ImportError:  # fallback for running from the backend directory directly
     from appointments import router as appointments_router
     from auth import get_current_user
+    from leads import router as leads_router
     from agents.sql import (
         SQLQueryExecutorAgent,
         SQLQueryGeneratorAgent,
@@ -246,4 +248,5 @@ async def chat(
 
 
 app.include_router(appointments_router)
+app.include_router(leads_router)
 
