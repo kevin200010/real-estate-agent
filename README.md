@@ -26,6 +26,28 @@ AWS_DEFAULT_REGION=us-east-1
 The application automatically loads this file on startup, allowing boto3 to pick
 up the credentials without exporting them manually.
 
+### Local PostgreSQL database
+
+By default, leads are stored in a SQLite file. To persist them in PostgreSQL
+instead:
+
+1. Install PostgreSQL and the Python driver: `pip install psycopg2-binary`.
+2. Create a database, for example:
+
+   ```bash
+   psql -U postgres -c "CREATE DATABASE cascade_ai;"
+   ```
+
+3. Set the connection string in your `.env` file so the backend connects to it:
+
+   ```
+   DATABASE_URL=postgresql://username:password@localhost:5432/cascade_ai
+   ```
+
+   Replace the credentials with those for your local setup.
+
+The `leads` table is created automatically on first run.
+
 ### Google Calendar integration
 
 The appointment booking feature can write events directly to a Google
