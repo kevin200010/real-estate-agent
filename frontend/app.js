@@ -205,7 +205,7 @@ function init(){
   setupBackground();
 }
 
-function router(){
+async function router(){
   const hash=location.hash||'#/sourcing';
   const [route,query]=hash.split('?');
   const main=document.getElementById('main');
@@ -500,14 +500,26 @@ function router(){
       }
     } else if(route.startsWith('#/leads')){
       topbarAPI.setActive('#/leads');
-        const board=createKanban(state.data.leads||[],{
-          onAdd:()=>{location.hash='#/leads?new=1';},
-          onEdit:l=>{
+      try{
+        const resp=await authFetch(`${window.API_BASE_URL}/leads`);
+        state.data.leads = resp.ok ? await resp.json() : [];
+      } catch {
+        state.data.leads = [];
+      }
+      const board=createKanban(state.data.leads||[],{
+        onAdd:()=>{location.hash='#/leads?new=1';},
+        onEdit:l=>{
+          authFetch(`${window.API_BASE_URL}/leads/${l.id}`,{
+            method:'PUT',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(l)
+          }).then(()=>{
             const i=state.data.leads.findIndex(x=>x.id===l.id);
             if(i>-1) state.data.leads[i]={...state.data.leads[i],...l}; else state.data.leads.push(l);
             router();
-          }
-        });
+          });
+        }
+      });
       const layout=document.createElement('div');
       layout.className='leads-page';
       layout.appendChild(board);
@@ -591,9 +603,17 @@ function router(){
                 const address=form.address.value.trim();
                 const notes=form.notes.value.trim();
                 if(!name||!listing) return;
-                const i=state.data.leads.findIndex(x=>x.id===lead.id);
-                if(i>-1) state.data.leads[i]={...state.data.leads[i],listingNumber:listing,name,email,phone,address,notes};
-                close();
+                const payload={listingNumber:listing,name,email,phone,address,notes};
+                authFetch(`${window.API_BASE_URL}/leads/${lead.id}`,{
+                  method:'PUT',
+                  headers:{'Content-Type':'application/json'},
+                  body:JSON.stringify(payload)
+                }).then(()=>{
+                  const i=state.data.leads.findIndex(x=>x.id===lead.id);
+                  if(i>-1) state.data.leads[i]={...state.data.leads[i],...payload};
+                  close();
+                  router();
+                });
               });
               form.querySelector('#cancelLead').addEventListener('click',close);
               overlay.appendChild(form);
@@ -628,9 +648,17 @@ function router(){
             const address=form.address.value.trim();
             const notes=form.notes.value.trim();
             if(!name||!listing) return;
-            state.data.leads=state.data.leads||[];
-            state.data.leads.push({id:Date.now(),listingNumber:listing,name,email,phone,address,notes,stage:'New',property:p?fullAddress:''});
-            close();
+            const payload={listingNumber:listing,name,email,phone,address,notes,property:p?fullAddress:''};
+            authFetch(`${window.API_BASE_URL}/leads`,{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify(payload)
+            }).then(r=>r.json()).then(data=>{
+              state.data.leads=state.data.leads||[];
+              state.data.leads.push({id:data.id,stage:'New',...payload});
+              close();
+              router();
+            });
           });
         form.querySelector('#cancelLead').addEventListener('click',close);
         overlay.appendChild(form);

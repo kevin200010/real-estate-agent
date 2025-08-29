@@ -44,20 +44,39 @@ def _get_cursor(conn):
 with _get_conn() as _conn:
     cur = _get_cursor(_conn)
     cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS leads (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT,
-            name TEXT NOT NULL,
-            stage TEXT NOT NULL,
-            property TEXT,
-            email TEXT,
-            phone TEXT,
-            listing_number TEXT,
-            address TEXT,
-            notes TEXT
+        (
+            """
+            CREATE TABLE IF NOT EXISTS leads (
+                id SERIAL PRIMARY KEY,
+                user_id TEXT,
+                name TEXT NOT NULL,
+                stage TEXT NOT NULL,
+                property TEXT,
+                email TEXT,
+                phone TEXT,
+                listing_number TEXT,
+                address TEXT,
+                notes TEXT
+            )
+            """
         )
-        """
+        if _is_postgres()
+        else (
+            """
+            CREATE TABLE IF NOT EXISTS leads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT,
+                name TEXT NOT NULL,
+                stage TEXT NOT NULL,
+                property TEXT,
+                email TEXT,
+                phone TEXT,
+                listing_number TEXT,
+                address TEXT,
+                notes TEXT
+            )
+            """
+        )
     )
     _conn.commit()
 
