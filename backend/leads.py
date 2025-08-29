@@ -14,6 +14,7 @@ except ImportError:  # fallback for running from backend directory
 
 try:  # Optional dependency for PostgreSQL
     import psycopg2  # type: ignore
+    import psycopg2.extras  # type: ignore
 except Exception:  # pragma: no cover
     psycopg2 = None  # type: ignore
 
@@ -33,9 +34,16 @@ def _get_conn():
     return conn
 
 
+def _get_cursor(conn):
+    if _is_postgres():
+        return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    return conn.cursor()
+
+
 # Ensure table exists
 with _get_conn() as _conn:
-    _conn.execute(
+    cur = _get_cursor(_conn)
+    cur.execute(
         """
         CREATE TABLE IF NOT EXISTS leads (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,10 +109,12 @@ def _row_to_dict(row) -> dict:
 def list_leads(user: dict | None = Depends(get_current_user)) -> List[dict]:
     uid = _user_id(user)
     with _get_conn() as conn:
-        rows = conn.execute(
+        cur = _get_cursor(conn)
+        cur.execute(
             "SELECT * FROM leads WHERE user_id = ?" if not _is_postgres() else "SELECT * FROM leads WHERE user_id = %s",
             (uid,),
-        ).fetchall()
+        )
+        rows = cur.fetchall()
     return [_row_to_dict(r) for r in rows]
 
 
@@ -123,7 +133,8 @@ def create_lead(payload: LeadCreate, user: dict | None = Depends(get_current_use
         payload.notes,
     )
     with _get_conn() as conn:
-        cur = conn.execute(
+        cur = _get_cursor(conn)
+        cur.execute(
             (
                 "INSERT INTO leads (user_id, name, stage, property, email, phone, listing_number, address, notes) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -148,7 +159,7 @@ def update_lead(
     lead_id: int, payload: LeadUpdate, user: dict | None = Depends(get_current_user)
 ) -> dict:
     uid = _user_id(user)
-    data = payload.dict(exclude_unset=True)
+    data = payload.model_dump(exclude_unset=True)
     if not data:
         return {"status": "ok"}
     columns = []
@@ -162,7 +173,8 @@ def update_lead(
         f"UPDATE leads SET {', '.join(columns)} WHERE user_id = {'%s' if _is_postgres() else '?'} AND id = {'%s' if _is_postgres() else '?'}"
     )
     with _get_conn() as conn:
-        cur = conn.execute(query, tuple(values))
+        cur = _get_cursor(conn)
+        cur.execute(query, tuple(values))
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Lead not found")
         conn.commit()
