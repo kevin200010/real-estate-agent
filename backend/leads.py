@@ -107,7 +107,9 @@ class LeadUpdate(BaseModel):
 
 
 def _user_id(user: dict | None) -> str:
-    return user.get("sub") if user else "default"
+    if not user or "sub" not in user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user["sub"]
 
 
 def _row_to_dict(row) -> dict:
