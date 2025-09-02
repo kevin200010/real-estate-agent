@@ -52,21 +52,33 @@ function onGoogleToken(fn){
 }
 
 async function authFetch(url, options = {}) {
+  let token;
   try {
-    const token = (await window.aws_amplify.Auth.currentSession())
+    token = (await window.aws_amplify.Auth.currentSession())
       .getIdToken()
       .getJwtToken();
-    options.headers = {
-      ...(options.headers || {}),
-      Authorization: `Bearer ${token}`
-    };
   } catch (err) {
-    console.warn('No authenticated session; request cancelled');
-    return new Response(null, { status: 401 });
+    // In some browsers currentSession may fail immediately after sign-in, so
+    // fall back to the currentAuthenticatedUser API which uses the cached
+    // user session. If this also fails we surface a 401 response to callers so
+    // they can prompt the user to sign in.
+    try {
+      const user = await window.aws_amplify.Auth.currentAuthenticatedUser();
+      token = user.signInUserSession.idToken.jwtToken;
+    } catch (_) {
+      console.warn('No authenticated session; request cancelled');
+      return new Response(null, { status: 401 });
+    }
   }
+  options.headers = {
+    ...(options.headers || {}),
+    Authorization: `Bearer ${token}`
+  };
   const resp = await fetch(url, options);
   if (resp.status === 401) {
-    console.error(`Request to ${url} was unauthorized (401). Ensure you are logged in and the API accepts your token.`);
+    console.error(
+      `Request to ${url} was unauthorized (401). Ensure you are logged in and the API accepts your token.`
+    );
   }
   return resp;
 }
