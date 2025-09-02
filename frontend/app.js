@@ -52,9 +52,8 @@ function onGoogleToken(fn){
 }
 
 async function authFetch(url, options = {}) {
-  let token;
   try {
-    token = (await window.aws_amplify.Auth.currentSession())
+    const token = (await window.aws_amplify.Auth.currentSession())
       .getIdToken()
       .getJwtToken();
     options.headers = {
@@ -62,7 +61,8 @@ async function authFetch(url, options = {}) {
       Authorization: `Bearer ${token}`
     };
   } catch (err) {
-    console.warn('No authenticated session; request will be sent without credentials');
+    console.warn('No authenticated session; request cancelled');
+    return new Response(null, { status: 401 });
   }
   const resp = await fetch(url, options);
   if (resp.status === 401) {
