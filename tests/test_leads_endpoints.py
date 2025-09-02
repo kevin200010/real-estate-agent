@@ -137,3 +137,36 @@ def test_leads_scope_honors_user_when_auth_disabled(tmp_path):
     data = resp.json()
     assert len(data) == 1
     assert data[0]["name"] == "Alice"
+
+
+def test_delete_lead_is_scoped_to_user(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    from backend import auth
+
+    auth.AUTH_ENABLED = True
+    app.dependency_overrides[auth.get_current_user] = override_user(
+        "user1", "user1@example.com"
+    )
+
+    resp = client.post("/leads", json={"name": "Alice", "stage": "New"})
+    assert resp.status_code == 200
+    lead_id = resp.json()["id"]
+
+    # another user cannot delete it
+    app.dependency_overrides[auth.get_current_user] = override_user(
+        "user2", "user2@example.com"
+    )
+    resp = client.delete(f"/leads/{lead_id}")
+    assert resp.status_code == 404
+
+    # original user can delete
+    app.dependency_overrides[auth.get_current_user] = override_user(
+        "user1", "user1@example.com"
+    )
+    resp = client.delete(f"/leads/{lead_id}")
+    assert resp.status_code == 200
+
+    resp = client.get("/leads")
+    assert resp.status_code == 200
+    assert resp.json() == []

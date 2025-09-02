@@ -244,3 +244,28 @@ def update_lead(
             raise HTTPException(status_code=404, detail="Lead not found")
         conn.commit()
     return {"status": "ok"}
+
+
+@router.delete("/leads/{lead_id}")
+def delete_lead(lead_id: int, user: dict | None = Depends(get_current_user)) -> dict:
+    """Remove a lead belonging to the current user.
+
+    The operation is scoped by both user ID and email to ensure one user cannot
+    delete another user's leads.
+    """
+
+    uid, email = _user_identity(user)
+    with _get_conn() as conn:
+        cur = _get_cursor(conn)
+        cur.execute(
+            (
+                "DELETE FROM leads WHERE user_id = ? AND user_email = ? AND id = ?"
+                if not _is_postgres()
+                else "DELETE FROM leads WHERE user_id = %s AND user_email = %s AND id = %s"
+            ),
+            (uid, email, lead_id),
+        )
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Lead not found")
+        conn.commit()
+    return {"status": "ok"}
