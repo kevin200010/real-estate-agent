@@ -64,3 +64,12 @@ def test_leads_are_scoped_to_user(tmp_path):
     resp = client.get("/leads")
     data = resp.json()
     assert data[0]["stage"] == "Contacted"
+
+
+def test_leads_require_authentication(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    from backend import auth
+    app.dependency_overrides[auth.get_current_user] = lambda: None
+    resp = client.get("/leads")
+    assert resp.status_code == 401
