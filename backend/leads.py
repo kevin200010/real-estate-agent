@@ -8,9 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 try:  # pragma: no cover - allow running as package or script
-    from .auth import get_current_user
+    from . import auth
 except ImportError:  # fallback for running from backend directory
-    from auth import get_current_user
+    import auth
+
+get_current_user = auth.get_current_user
 
 try:  # Optional dependency for PostgreSQL
     import psycopg2  # type: ignore
@@ -49,6 +51,7 @@ with _get_conn() as _conn:
             CREATE TABLE IF NOT EXISTS leads (
                 id SERIAL PRIMARY KEY,
                 user_id TEXT,
+                user_email TEXT,
                 name TEXT NOT NULL,
                 stage TEXT NOT NULL,
                 property TEXT,
@@ -66,6 +69,7 @@ with _get_conn() as _conn:
             CREATE TABLE IF NOT EXISTS leads (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id TEXT,
+                user_email TEXT,
                 name TEXT NOT NULL,
                 stage TEXT NOT NULL,
                 property TEXT,
@@ -79,9 +83,22 @@ with _get_conn() as _conn:
         )
     )
     _conn.commit()
+    # Add user_email column if upgrading from an older schema
+    try:
+        cur.execute(
+            "ALTER TABLE leads ADD COLUMN user_email TEXT"
+            if not _is_postgres()
+            else "ALTER TABLE leads ADD COLUMN IF NOT EXISTS user_email TEXT"
+        )
+        _conn.commit()
+    except Exception:
+        pass
 
 
 router = APIRouter()
+
+LOCAL_USER_ID = os.getenv("LOCAL_USER_ID", "local-dev-user")
+LOCAL_USER_EMAIL = os.getenv("LOCAL_USER_EMAIL", "")
 
 
 class LeadCreate(BaseModel):
@@ -106,13 +123,25 @@ class LeadUpdate(BaseModel):
     notes: Optional[str] = None
 
 
-def _user_id(user: dict | None) -> str:
-    if not user or "sub" not in user:
-        raise HTTPException(
-            status_code=401,
-            detail="Not authenticated. Ensure your request includes a valid Authorization header",
-        )
-    return user["sub"]
+def _user_identity(user: dict | None) -> tuple[str, str]:
+    """Return the identifier and email for the current user.
+
+    When authentication is disabled (e.g. in local development) the API falls
+    back to a deterministic user so that leads can still be created and listed.
+    If authentication is enabled and no user is provided, the request is
+    rejected.
+    """
+
+    if not auth.AUTH_ENABLED:
+        return LOCAL_USER_ID, LOCAL_USER_EMAIL
+
+    if user and "sub" in user:
+        return user["sub"], user.get("email", "")
+
+    raise HTTPException(
+        status_code=401,
+        detail="Not authenticated. Ensure your request includes a valid Authorization header",
+    )
 
 
 def _row_to_dict(row) -> dict:
@@ -131,12 +160,16 @@ def _row_to_dict(row) -> dict:
 
 @router.get("/leads")
 def list_leads(user: dict | None = Depends(get_current_user)) -> List[dict]:
-    uid = _user_id(user)
+    uid, email = _user_identity(user)
     with _get_conn() as conn:
         cur = _get_cursor(conn)
         cur.execute(
-            "SELECT * FROM leads WHERE user_id = ?" if not _is_postgres() else "SELECT * FROM leads WHERE user_id = %s",
-            (uid,),
+            (
+                "SELECT * FROM leads WHERE user_id = ? AND user_email = ?"
+                if not _is_postgres()
+                else "SELECT * FROM leads WHERE user_id = %s AND user_email = %s"
+            ),
+            (uid, email),
         )
         rows = cur.fetchall()
     return [_row_to_dict(r) for r in rows]
@@ -144,9 +177,10 @@ def list_leads(user: dict | None = Depends(get_current_user)) -> List[dict]:
 
 @router.post("/leads")
 def create_lead(payload: LeadCreate, user: dict | None = Depends(get_current_user)) -> dict:
-    uid = _user_id(user)
+    uid, email = _user_identity(user)
     values = (
         uid,
+        email,
         payload.name,
         payload.stage,
         payload.property,
@@ -160,13 +194,13 @@ def create_lead(payload: LeadCreate, user: dict | None = Depends(get_current_use
         cur = _get_cursor(conn)
         cur.execute(
             (
-                "INSERT INTO leads (user_id, name, stage, property, email, phone, listing_number, address, notes) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "INSERT INTO leads (user_id, user_email, name, stage, property, email, phone, listing_number, address, notes) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             )
             if not _is_postgres()
             else (
-                "INSERT INTO leads (user_id, name, stage, property, email, phone, listing_number, address, notes) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
+                "INSERT INTO leads (user_id, user_email, name, stage, property, email, phone, listing_number, address, notes) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
             ),
             values,
         )
@@ -182,7 +216,7 @@ def create_lead(payload: LeadCreate, user: dict | None = Depends(get_current_use
 def update_lead(
     lead_id: int, payload: LeadUpdate, user: dict | None = Depends(get_current_user)
 ) -> dict:
-    uid = _user_id(user)
+    uid, email = _user_identity(user)
     data = payload.model_dump(exclude_unset=True)
     if not data:
         return {"status": "ok"}
@@ -192,9 +226,9 @@ def update_lead(
         column = "listing_number" if field == "listingNumber" else field
         columns.append(f"{column} = {'%s' if _is_postgres() else '?'}")
         values.append(value)
-    values.extend([uid, lead_id])
+    values.extend([uid, email, lead_id])
     query = (
-        f"UPDATE leads SET {', '.join(columns)} WHERE user_id = {'%s' if _is_postgres() else '?'} AND id = {'%s' if _is_postgres() else '?'}"
+        f"UPDATE leads SET {', '.join(columns)} WHERE user_id = {'%s' if _is_postgres() else '?'} AND user_email = {'%s' if _is_postgres() else '?'} AND id = {'%s' if _is_postgres() else '?'}"
     )
     with _get_conn() as conn:
         cur = _get_cursor(conn)
