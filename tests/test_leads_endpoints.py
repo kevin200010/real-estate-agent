@@ -1,5 +1,7 @@
 import os
 import sys
+import os
+import sys
 import importlib
 
 from fastapi.testclient import TestClient
@@ -65,15 +67,27 @@ def test_leads_are_scoped_to_user(tmp_path):
     data = resp.json()
     assert data[0]["stage"] == "Contacted"
 
+def test_leads_endpoint_uses_fallback_user_when_unauthenticated(tmp_path):
+    """API should still persist leads when no auth is configured."""
 
-def test_leads_endpoint_requires_auth(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
+
     from backend import auth
     app.dependency_overrides[auth.get_current_user] = lambda: None
 
-    resp = client.post("/leads", json={"name": "Unauth", "stage": "New"})
-    assert resp.status_code == 401
+    resp = client.post("/leads", json={"name": "Guest", "stage": "New"})
+    assert resp.status_code == 200
+    guest_id = resp.json()["id"]
 
     resp = client.get("/leads")
-    assert resp.status_code == 401
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["id"] == guest_id
+
+    # When authenticating as a different user, the guest lead should not appear
+    app.dependency_overrides[auth.get_current_user] = override_user("user99")
+    resp = client.get("/leads")
+    assert resp.status_code == 200
+    assert resp.json() == []

@@ -8,9 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 try:  # pragma: no cover - allow running as package or script
-    from .auth import get_current_user
+    from .auth import AUTH_ENABLED, get_current_user
 except ImportError:  # fallback for running from backend directory
-    from auth import get_current_user
+    from auth import AUTH_ENABLED, get_current_user
 
 try:  # Optional dependency for PostgreSQL
     import psycopg2  # type: ignore
@@ -107,8 +107,22 @@ class LeadUpdate(BaseModel):
 
 
 def _user_id(user: dict | None) -> str:
+    """Return the identifier for the current user.
+
+    When authentication is disabled (e.g. during local development), we fall
+    back to a stable "local" user so that API calls still function and data is
+    persisted. In production, a missing user results in a 401 response.
+    """
+
     if user and "sub" in user:
         return user["sub"]
+
+    if not AUTH_ENABLED:
+        # In development environments without authentication configured we
+        # still want the API to function. Use a deterministic user id so data
+        # remains isolated when auth is later enabled.
+        return os.getenv("LOCAL_DEV_USER", "local-user")
+
     raise HTTPException(
         status_code=401,
         detail="Not authenticated. Ensure your request includes a valid Authorization header",
