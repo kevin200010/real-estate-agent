@@ -64,7 +64,7 @@ body {
   border:1px solid #555;
 }
 #topbar input::placeholder { color:#ccc; }
-#topbar button {
+#topbar button { 
   height:36px;
   background:var(--accent);
   color:white;
@@ -75,6 +75,7 @@ body {
 }
 #topbar button:hover {filter:brightness(1.1);}
 #topbar .avatar {width:32px;height:32px;border-radius:50%;background:var(--muted);}
+#topbar .username {color:white;}
 #topbar .logo {font-weight:bold; cursor:pointer; transition:transform 0.3s, text-shadow 0.3s; color:white; font-size: large;}
 #topbar .logo:hover {transform:scale(1.1); text-shadow:0 0 12px var(--accent);}
 #topbar .tab {color:white;}

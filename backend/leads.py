@@ -132,11 +132,18 @@ def _user_identity(user: dict | None) -> tuple[str, str]:
     rejected.
     """
 
-    if not auth.AUTH_ENABLED:
-        return LOCAL_USER_ID, LOCAL_USER_EMAIL
-
     if user and "sub" in user:
+        # Even when authentication is disabled we may still receive a user
+        # object via dependency overrides (e.g. tests) or from a future auth
+        # provider. Respect it so leads remain scoped per-user rather than
+        # falling back to the shared local user.
         return user["sub"], user.get("email", "")
+
+    if not auth.AUTH_ENABLED:
+        # Authentication is disabled and no explicit user information was
+        # provided. Fall back to a deterministic local user so that the API
+        # continues to function in single-user environments.
+        return LOCAL_USER_ID, LOCAL_USER_EMAIL
 
     raise HTTPException(
         status_code=401,
