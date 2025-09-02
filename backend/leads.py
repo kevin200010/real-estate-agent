@@ -49,6 +49,7 @@ with _get_conn() as _conn:
             CREATE TABLE IF NOT EXISTS leads (
                 id SERIAL PRIMARY KEY,
                 user_id TEXT,
+                user_email TEXT,
                 name TEXT NOT NULL,
                 stage TEXT NOT NULL,
                 property TEXT,
@@ -66,6 +67,7 @@ with _get_conn() as _conn:
             CREATE TABLE IF NOT EXISTS leads (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id TEXT,
+                user_email TEXT,
                 name TEXT NOT NULL,
                 stage TEXT NOT NULL,
                 property TEXT,
@@ -79,6 +81,16 @@ with _get_conn() as _conn:
         )
     )
     _conn.commit()
+    # Add user_email column if upgrading from an older schema
+    try:
+        cur.execute(
+            "ALTER TABLE leads ADD COLUMN user_email TEXT"
+            if not _is_postgres()
+            else "ALTER TABLE leads ADD COLUMN IF NOT EXISTS user_email TEXT"
+        )
+        _conn.commit()
+    except Exception:
+        pass
 
 
 router = APIRouter()
@@ -106,8 +118,8 @@ class LeadUpdate(BaseModel):
     notes: Optional[str] = None
 
 
-def _user_id(user: dict | None) -> str:
-    """Return the identifier for the current user.
+def _user_identity(user: dict | None) -> tuple[str, str]:
+    """Return the identifier and email for the current user.
 
     When authentication is disabled (e.g. during local development), we fall
     back to a stable "local" user so that API calls still function and data is
@@ -115,13 +127,16 @@ def _user_id(user: dict | None) -> str:
     """
 
     if user and "sub" in user:
-        return user["sub"]
+        return user["sub"], user.get("email", "")
 
     if not AUTH_ENABLED:
         # In development environments without authentication configured we
-        # still want the API to function. Use a deterministic user id so data
+        # still want the API to function. Use deterministic identifiers so data
         # remains isolated when auth is later enabled.
-        return os.getenv("LOCAL_DEV_USER", "local-user")
+        return (
+            os.getenv("LOCAL_DEV_USER", "local-user"),
+            os.getenv("LOCAL_DEV_EMAIL", "local@example.com"),
+        )
 
     raise HTTPException(
         status_code=401,
@@ -145,12 +160,16 @@ def _row_to_dict(row) -> dict:
 
 @router.get("/leads")
 def list_leads(user: dict | None = Depends(get_current_user)) -> List[dict]:
-    uid = _user_id(user)
+    uid, email = _user_identity(user)
     with _get_conn() as conn:
         cur = _get_cursor(conn)
         cur.execute(
-            "SELECT * FROM leads WHERE user_id = ?" if not _is_postgres() else "SELECT * FROM leads WHERE user_id = %s",
-            (uid,),
+            (
+                "SELECT * FROM leads WHERE user_id = ? AND user_email = ?"
+                if not _is_postgres()
+                else "SELECT * FROM leads WHERE user_id = %s AND user_email = %s"
+            ),
+            (uid, email),
         )
         rows = cur.fetchall()
     return [_row_to_dict(r) for r in rows]
@@ -158,9 +177,10 @@ def list_leads(user: dict | None = Depends(get_current_user)) -> List[dict]:
 
 @router.post("/leads")
 def create_lead(payload: LeadCreate, user: dict | None = Depends(get_current_user)) -> dict:
-    uid = _user_id(user)
+    uid, email = _user_identity(user)
     values = (
         uid,
+        email,
         payload.name,
         payload.stage,
         payload.property,
@@ -174,13 +194,13 @@ def create_lead(payload: LeadCreate, user: dict | None = Depends(get_current_use
         cur = _get_cursor(conn)
         cur.execute(
             (
-                "INSERT INTO leads (user_id, name, stage, property, email, phone, listing_number, address, notes) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "INSERT INTO leads (user_id, user_email, name, stage, property, email, phone, listing_number, address, notes) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             )
             if not _is_postgres()
             else (
-                "INSERT INTO leads (user_id, name, stage, property, email, phone, listing_number, address, notes) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
+                "INSERT INTO leads (user_id, user_email, name, stage, property, email, phone, listing_number, address, notes) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
             ),
             values,
         )
@@ -196,7 +216,7 @@ def create_lead(payload: LeadCreate, user: dict | None = Depends(get_current_use
 def update_lead(
     lead_id: int, payload: LeadUpdate, user: dict | None = Depends(get_current_user)
 ) -> dict:
-    uid = _user_id(user)
+    uid, email = _user_identity(user)
     data = payload.model_dump(exclude_unset=True)
     if not data:
         return {"status": "ok"}
@@ -206,9 +226,9 @@ def update_lead(
         column = "listing_number" if field == "listingNumber" else field
         columns.append(f"{column} = {'%s' if _is_postgres() else '?'}")
         values.append(value)
-    values.extend([uid, lead_id])
+    values.extend([uid, email, lead_id])
     query = (
-        f"UPDATE leads SET {', '.join(columns)} WHERE user_id = {'%s' if _is_postgres() else '?'} AND id = {'%s' if _is_postgres() else '?'}"
+        f"UPDATE leads SET {', '.join(columns)} WHERE user_id = {'%s' if _is_postgres() else '?'} AND user_email = {'%s' if _is_postgres() else '?'} AND id = {'%s' if _is_postgres() else '?'}"
     )
     with _get_conn() as conn:
         cur = _get_cursor(conn)

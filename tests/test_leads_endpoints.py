@@ -10,9 +10,9 @@ from fastapi.testclient import TestClient
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 
-def override_user(user_id):
+def override_user(user_id, email):
     def _user():
-        return {"sub": user_id}
+        return {"sub": user_id, "email": email}
     return _user
 
 
@@ -26,7 +26,9 @@ def create_app(tmp_path):
     app = FastAPI()
     app.include_router(leads.router)
     from backend import auth
-    app.dependency_overrides[auth.get_current_user] = override_user("user1")
+    app.dependency_overrides[auth.get_current_user] = override_user(
+        "user1", "user1@example.com"
+    )
     return app
 
 
@@ -48,7 +50,9 @@ def test_leads_are_scoped_to_user(tmp_path):
 
     # Switch to user2 and create lead
     from backend import auth
-    app.dependency_overrides[auth.get_current_user] = override_user("user2")
+    app.dependency_overrides[auth.get_current_user] = override_user(
+        "user2", "user2@example.com"
+    )
     resp = client.post("/leads", json={"name": "Bob", "stage": "Qualified"})
     assert resp.status_code == 200
 
@@ -59,7 +63,9 @@ def test_leads_are_scoped_to_user(tmp_path):
     assert data[0]["name"] == "Bob"
 
     # Switch back to user1 and update stage
-    app.dependency_overrides[auth.get_current_user] = override_user("user1")
+    app.dependency_overrides[auth.get_current_user] = override_user(
+        "user1", "user1@example.com"
+    )
     resp = client.put(f"/leads/{lead_id}", json={"stage": "Contacted"})
     assert resp.status_code == 200
 
@@ -87,7 +93,9 @@ def test_leads_endpoint_uses_fallback_user_when_unauthenticated(tmp_path):
     assert data[0]["id"] == guest_id
 
     # When authenticating as a different user, the guest lead should not appear
-    app.dependency_overrides[auth.get_current_user] = override_user("user99")
+    app.dependency_overrides[auth.get_current_user] = override_user(
+        "user99", "user99@example.com"
+    )
     resp = client.get("/leads")
     assert resp.status_code == 200
     assert resp.json() == []
