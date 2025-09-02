@@ -36,11 +36,22 @@ def get_current_user(
 ) -> Optional[Dict[str, Any]]:
     """Validate a Cognito JWT and return its claims.
 
-    When Cognito configuration is missing, authentication is skipped to
-    allow local development and tests.
+    When Cognito configuration is missing, we still make a best effort to
+    extract user information from any supplied bearer token so that the
+    application can continue to scope data per-user in development
+    environments. Tokens are decoded without signature verification in this
+    fallback mode, so they should not be used in production.
     """
     if not _issuer or not _jwks or jwk is None or jwt is None:
-        return None
+        # Auth is effectively disabled, but if a token was supplied try to
+        # decode its claims without verification so callers can still pass a
+        # user id for scoping purposes.
+        if credentials is None or jwt is None:
+            return None
+        try:
+            return jwt.get_unverified_claims(credentials.credentials)
+        except Exception:
+            return None
     if credentials is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
     token = credentials.credentials

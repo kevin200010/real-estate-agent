@@ -82,7 +82,7 @@ def test_leads_require_authentication(tmp_path):
     assert resp.status_code == 401
 
 
-def test_leads_fallback_user_when_auth_disabled(tmp_path):
+def test_leads_require_auth_even_when_auth_disabled(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
     from backend import auth
@@ -91,13 +91,10 @@ def test_leads_fallback_user_when_auth_disabled(tmp_path):
     app.dependency_overrides[auth.get_current_user] = lambda: None
 
     resp = client.post("/leads", json={"name": "Guest", "stage": "New"})
-    assert resp.status_code == 200
+    assert resp.status_code == 401
 
     resp = client.get("/leads")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert len(data) == 1
-    assert data[0]["name"] == "Guest"
+    assert resp.status_code == 401
 
 
 def test_leads_scope_honors_user_when_auth_disabled(tmp_path):
