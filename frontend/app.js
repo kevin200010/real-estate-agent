@@ -52,16 +52,23 @@ function onGoogleToken(fn){
 }
 
 async function authFetch(url, options = {}) {
+  let token;
   try {
-    const token = (await window.aws_amplify.Auth.currentSession())
+    token = (await window.aws_amplify.Auth.currentSession())
       .getIdToken()
       .getJwtToken();
     options.headers = {
       ...(options.headers || {}),
       Authorization: `Bearer ${token}`
     };
-  } catch {}
-  return fetch(url, options);
+  } catch (err) {
+    console.warn('No authenticated session; request will be sent without credentials');
+  }
+  const resp = await fetch(url, options);
+  if (resp.status === 401) {
+    console.error(`Request to ${url} was unauthorized (401). Ensure you are logged in and the API accepts your token.`);
+  }
+  return resp;
 }
 
 function initGoogleAuth() {
@@ -205,7 +212,7 @@ function init(){
   setupBackground();
 }
 
-function router(){
+async function router(){
   const hash=location.hash||'#/sourcing';
   const [route,query]=hash.split('?');
   const main=document.getElementById('main');
@@ -500,14 +507,34 @@ function router(){
       }
     } else if(route.startsWith('#/leads')){
       topbarAPI.setActive('#/leads');
-        const board=createKanban(state.data.leads||[],{
-          onAdd:()=>{location.hash='#/leads?new=1';},
-          onEdit:l=>{
+      let resp;
+      try{
+        resp=await authFetch(`${window.API_BASE_URL}/leads`);
+      } catch(err){
+        console.error('Error fetching leads',err);
+      }
+      if(resp && resp.status===401){
+        const msg=document.createElement('p');
+        msg.className='error';
+        msg.textContent='Unable to load leads: authentication required. Sign in and try again.';
+        main.appendChild(msg);
+        return;
+      }
+      state.data.leads = resp && resp.ok ? await resp.json() : [];
+      const board=createKanban(state.data.leads||[],{
+        onAdd:()=>{location.hash='#/leads?new=1';},
+        onEdit:l=>{
+          authFetch(`${window.API_BASE_URL}/leads/${l.id}`,{
+            method:'PUT',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(l)
+          }).then(()=>{
             const i=state.data.leads.findIndex(x=>x.id===l.id);
             if(i>-1) state.data.leads[i]={...state.data.leads[i],...l}; else state.data.leads.push(l);
             router();
-          }
-        });
+          });
+        }
+      });
       const layout=document.createElement('div');
       layout.className='leads-page';
       layout.appendChild(board);
@@ -591,9 +618,17 @@ function router(){
                 const address=form.address.value.trim();
                 const notes=form.notes.value.trim();
                 if(!name||!listing) return;
-                const i=state.data.leads.findIndex(x=>x.id===lead.id);
-                if(i>-1) state.data.leads[i]={...state.data.leads[i],listingNumber:listing,name,email,phone,address,notes};
-                close();
+                const payload={listingNumber:listing,name,email,phone,address,notes};
+                authFetch(`${window.API_BASE_URL}/leads/${lead.id}`,{
+                  method:'PUT',
+                  headers:{'Content-Type':'application/json'},
+                  body:JSON.stringify(payload)
+                }).then(()=>{
+                  const i=state.data.leads.findIndex(x=>x.id===lead.id);
+                  if(i>-1) state.data.leads[i]={...state.data.leads[i],...payload};
+                  close();
+                  router();
+                });
               });
               form.querySelector('#cancelLead').addEventListener('click',close);
               overlay.appendChild(form);
@@ -628,9 +663,17 @@ function router(){
             const address=form.address.value.trim();
             const notes=form.notes.value.trim();
             if(!name||!listing) return;
-            state.data.leads=state.data.leads||[];
-            state.data.leads.push({id:Date.now(),listingNumber:listing,name,email,phone,address,notes,stage:'New',property:p?fullAddress:''});
-            close();
+            const payload={listingNumber:listing,name,email,phone,address,notes,property:p?fullAddress:''};
+            authFetch(`${window.API_BASE_URL}/leads`,{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify(payload)
+            }).then(r=>r.json()).then(data=>{
+              state.data.leads=state.data.leads||[];
+              state.data.leads.push({id:data.id,stage:'New',...payload});
+              close();
+              router();
+            });
           });
         form.querySelector('#cancelLead').addEventListener('click',close);
         overlay.appendChild(form);
