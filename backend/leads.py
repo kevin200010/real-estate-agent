@@ -52,6 +52,7 @@ with _get_conn() as _conn:
                 id SERIAL PRIMARY KEY,
                 user_id TEXT,
                 user_email TEXT,
+                creator_email TEXT,
                 name TEXT NOT NULL,
                 stage TEXT NOT NULL,
                 property TEXT,
@@ -70,6 +71,7 @@ with _get_conn() as _conn:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id TEXT,
                 user_email TEXT,
+                creator_email TEXT,
                 name TEXT NOT NULL,
                 stage TEXT NOT NULL,
                 property TEXT,
@@ -83,16 +85,17 @@ with _get_conn() as _conn:
         )
     )
     _conn.commit()
-    # Add user_email column if upgrading from an older schema
-    try:
-        cur.execute(
-            "ALTER TABLE leads ADD COLUMN user_email TEXT"
-            if not _is_postgres()
-            else "ALTER TABLE leads ADD COLUMN IF NOT EXISTS user_email TEXT"
-        )
-        _conn.commit()
-    except Exception:
-        pass
+    # Add columns if upgrading from an older schema
+    for col in ("user_email", "creator_email"):
+        try:
+            cur.execute(
+                f"ALTER TABLE leads ADD COLUMN {col} TEXT"
+                if not _is_postgres()
+                else f"ALTER TABLE leads ADD COLUMN IF NOT EXISTS {col} TEXT"
+            )
+            _conn.commit()
+        except Exception:
+            pass
 
 
 router = APIRouter()
@@ -167,16 +170,18 @@ def _row_to_dict(row) -> dict:
 
 @router.get("/leads")
 def list_leads(user: dict | None = Depends(get_current_user)) -> List[dict]:
-    uid, email = _user_identity(user)
+    """Return leads belonging to the current user's email."""
+
+    _, email = _user_identity(user)
     with _get_conn() as conn:
         cur = _get_cursor(conn)
         cur.execute(
             (
-                "SELECT * FROM leads WHERE user_id = ? AND user_email = ?"
+                "SELECT * FROM leads WHERE creator_email = ?"
                 if not _is_postgres()
-                else "SELECT * FROM leads WHERE user_id = %s AND user_email = %s"
+                else "SELECT * FROM leads WHERE creator_email = %s"
             ),
-            (uid, email),
+            (email,),
         )
         rows = cur.fetchall()
     return [_row_to_dict(r) for r in rows]
@@ -187,6 +192,7 @@ def create_lead(payload: LeadCreate, user: dict | None = Depends(get_current_use
     uid, email = _user_identity(user)
     values = (
         uid,
+        email,
         email,
         payload.name,
         payload.stage,
@@ -201,13 +207,13 @@ def create_lead(payload: LeadCreate, user: dict | None = Depends(get_current_use
         cur = _get_cursor(conn)
         cur.execute(
             (
-                "INSERT INTO leads (user_id, user_email, name, stage, property, email, phone, listing_number, address, notes) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "INSERT INTO leads (user_id, user_email, creator_email, name, stage, property, email, phone, listing_number, address, notes) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             )
             if not _is_postgres()
             else (
-                "INSERT INTO leads (user_id, user_email, name, stage, property, email, phone, listing_number, address, notes) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
+                "INSERT INTO leads (user_id, user_email, creator_email, name, stage, property, email, phone, listing_number, address, notes) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
             ),
             values,
         )
@@ -223,7 +229,7 @@ def create_lead(payload: LeadCreate, user: dict | None = Depends(get_current_use
 def update_lead(
     lead_id: int, payload: LeadUpdate, user: dict | None = Depends(get_current_user)
 ) -> dict:
-    uid, email = _user_identity(user)
+    _, email = _user_identity(user)
     data = payload.model_dump(exclude_unset=True)
     if not data:
         return {"status": "ok"}
@@ -233,9 +239,9 @@ def update_lead(
         column = "listing_number" if field == "listingNumber" else field
         columns.append(f"{column} = {'%s' if _is_postgres() else '?'}")
         values.append(value)
-    values.extend([uid, email, lead_id])
+    values.extend([email, lead_id])
     query = (
-        f"UPDATE leads SET {', '.join(columns)} WHERE user_id = {'%s' if _is_postgres() else '?'} AND user_email = {'%s' if _is_postgres() else '?'} AND id = {'%s' if _is_postgres() else '?'}"
+        f"UPDATE leads SET {', '.join(columns)} WHERE creator_email = {'%s' if _is_postgres() else '?'} AND id = {'%s' if _is_postgres() else '?'}"
     )
     with _get_conn() as conn:
         cur = _get_cursor(conn)
@@ -254,16 +260,16 @@ def delete_lead(lead_id: int, user: dict | None = Depends(get_current_user)) -> 
     delete another user's leads.
     """
 
-    uid, email = _user_identity(user)
+    _, email = _user_identity(user)
     with _get_conn() as conn:
         cur = _get_cursor(conn)
         cur.execute(
             (
-                "DELETE FROM leads WHERE user_id = ? AND user_email = ? AND id = ?"
+                "DELETE FROM leads WHERE creator_email = ? AND id = ?"
                 if not _is_postgres()
-                else "DELETE FROM leads WHERE user_id = %s AND user_email = %s AND id = %s"
+                else "DELETE FROM leads WHERE creator_email = %s AND id = %s"
             ),
-            (uid, email, lead_id),
+            (email, lead_id),
         )
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Lead not found")
