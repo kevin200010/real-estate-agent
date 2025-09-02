@@ -23,6 +23,7 @@ export function initTopbar() {
         <option value="rent">For Rent</option>
       </select>
       <button id="logout-btn" type="button" aria-label="Logout">Logout</button>
+      <span id="user-name" class="username"></span>
       <div class="avatar">⚫</div>
     </div>
   `;
@@ -37,6 +38,14 @@ export function initTopbar() {
   const logoutBtn = bar.querySelector('#logout-btn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', handleLogout);
+  }
+  const nameEl = bar.querySelector('#user-name');
+  if (nameEl && window.aws_amplify?.Auth) {
+    window.aws_amplify.Auth.currentAuthenticatedUser()
+      .then(u => {
+        nameEl.textContent = u?.attributes?.name || u?.username || '';
+      })
+      .catch(() => nameEl.remove());
   }
   return { setActive: (route)=> {
     bar.querySelectorAll('.tab').forEach(t=>{
