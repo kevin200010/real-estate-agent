@@ -599,7 +599,14 @@ async function router(){
             board.render();
           });
         },
-        onOpen:lead=>openLeadForm(lead)
+        onOpen:lead=>openLeadForm(lead),
+        onDelete:l=>{
+          authFetch(`${window.API_BASE_URL}/leads/${l.id}`,{method:'DELETE'}).then(()=>{
+            const i=state.data.leads.findIndex(x=>x.id===l.id);
+            if(i>-1) state.data.leads.splice(i,1);
+            board.render();
+          });
+        }
       });
       layout.appendChild(board.el);
       const calendarWrap=document.createElement('div');

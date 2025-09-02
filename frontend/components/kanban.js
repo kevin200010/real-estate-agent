@@ -4,7 +4,7 @@ import { showToast } from './toast.js';
 let stages = ['New', 'Contacted', 'Qualified', 'Proposal', 'Closed'];
 
 export function createKanban(leads = [], callbacks = {}) {
-  const { onAdd, onEdit, onOpen } = callbacks;
+  const { onAdd, onEdit, onOpen, onDelete } = callbacks;
   const board = document.createElement('div');
   board.className = 'kanban';
 
@@ -136,6 +136,14 @@ export function createKanban(leads = [], callbacks = {}) {
       }${l.listingNumber ? `<br/><small>${l.listingNumber}</small>` : ''}${
         l.address ? `<br/><small>${l.address}</small>` : ''
       }`;
+      const del = document.createElement('button');
+      del.textContent = '✕';
+      del.className = 'delete-lead';
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (onDelete) onDelete(l);
+      });
+      card.appendChild(del);
       card.addEventListener('dragstart', (e) =>
         e.dataTransfer.setData('id', card.id)
       );
