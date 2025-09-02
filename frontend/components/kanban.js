@@ -4,7 +4,7 @@ import { showToast } from './toast.js';
 let stages = ['New', 'Contacted', 'Qualified', 'Proposal', 'Closed'];
 
 export function createKanban(leads = [], callbacks = {}) {
-  const { onAdd, onEdit } = callbacks;
+  const { onAdd, onEdit, onOpen } = callbacks;
   const board = document.createElement('div');
   board.className = 'kanban';
 
@@ -140,12 +140,12 @@ export function createKanban(leads = [], callbacks = {}) {
         e.dataTransfer.setData('id', card.id)
       );
       card.addEventListener('dblclick', () => {
-        location.hash = `#/leads?edit=${l.id}`;
+        if (onOpen) onOpen(l);
       });
       columns[stage].appendChild(card);
     });
   }
 
-  return board;
+  return { el: board, render };
 }
 
