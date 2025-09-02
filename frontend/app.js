@@ -192,6 +192,8 @@ function startApp(){
     mapReady
   ]).then(([d,csv])=>{
     d.properties=parseCSV(csv);
+    // Leverages backend API for lead data so remove any bundled sample leads
+    d.leads = [];
     state.data=d;
     init();
   });

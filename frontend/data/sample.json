@@ -9,11 +9,7 @@
     {"id":"F10405069","address":"1680 NE 191st St #202-2, Miami, FL 33179","price":"$265,000","lat":25.94908326,"lng":-80.16891599},
     {"id":"F10415112","address":"2200 N Ocean Blvd #S903, Fort Lauderdale, FL 33305","price":"$4,750,000","lat":26.1569554,"lng":-80.10075357}
   ],
-  "leads": [
-    {"id":1,"name":"Alice","stage":"New"},
-    {"id":2,"name":"Bob","stage":"Contacted"},
-    {"id":3,"name":"Carol","stage":"Qualified"}
-  ],
+  "leads": [],
   "templates": [
     {"id":1,"title":"Welcome","body":"Hello {{name}}, thanks for your interest."}
   ],
