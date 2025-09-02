@@ -8,9 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 try:  # pragma: no cover - allow running as package or script
-    from .auth import get_current_user, AUTH_ENABLED
+    from .auth import get_current_user
 except ImportError:  # fallback for running from backend directory
-    from auth import get_current_user, AUTH_ENABLED
+    from auth import get_current_user
 
 try:  # Optional dependency for PostgreSQL
     import psycopg2  # type: ignore
@@ -106,14 +106,9 @@ class LeadUpdate(BaseModel):
     notes: Optional[str] = None
 
 
-DEFAULT_USER_ID = os.getenv("DEFAULT_USER_ID", "local-user")
-
-
 def _user_id(user: dict | None) -> str:
     if user and "sub" in user:
         return user["sub"]
-    if not AUTH_ENABLED:
-        return DEFAULT_USER_ID
     raise HTTPException(
         status_code=401,
         detail="Not authenticated. Ensure your request includes a valid Authorization header",
