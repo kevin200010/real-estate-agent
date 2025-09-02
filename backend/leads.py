@@ -8,9 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 try:  # pragma: no cover - allow running as package or script
-    from .auth import get_current_user
+    from . import auth
 except ImportError:  # fallback for running from backend directory
-    from auth import get_current_user
+    import auth
+
+get_current_user = auth.get_current_user
 
 try:  # Optional dependency for PostgreSQL
     import psycopg2  # type: ignore
@@ -95,6 +97,9 @@ with _get_conn() as _conn:
 
 router = APIRouter()
 
+LOCAL_USER_ID = os.getenv("LOCAL_USER_ID", "local-dev-user")
+LOCAL_USER_EMAIL = os.getenv("LOCAL_USER_EMAIL", "")
+
 
 class LeadCreate(BaseModel):
     name: str
@@ -121,9 +126,14 @@ class LeadUpdate(BaseModel):
 def _user_identity(user: dict | None) -> tuple[str, str]:
     """Return the identifier and email for the current user.
 
-    Requests lacking a valid authenticated user are rejected to prevent leads
-    from leaking across accounts.
+    When authentication is disabled (e.g. in local development) the API falls
+    back to a deterministic user so that leads can still be created and listed.
+    If authentication is enabled and no user is provided, the request is
+    rejected.
     """
+
+    if not auth.AUTH_ENABLED:
+        return LOCAL_USER_ID, LOCAL_USER_EMAIL
 
     if user and "sub" in user:
         return user["sub"], user.get("email", "")

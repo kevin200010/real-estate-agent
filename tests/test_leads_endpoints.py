@@ -23,44 +23,40 @@ def create_app(tmp_path):
     from fastapi import FastAPI
     app = FastAPI()
     app.include_router(leads.router)
-    from backend import auth
-    app.dependency_overrides[auth.get_current_user] = override_user(
-        "user1", "user1@example.com"
-    )
     return app
 
 
 def test_leads_are_scoped_to_user(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
+    from backend import auth
 
-    # Create lead for user1
+    auth.AUTH_ENABLED = True
+    app.dependency_overrides[auth.get_current_user] = override_user(
+        "user1", "user1@example.com"
+    )
+
     resp = client.post("/leads", json={"name": "Alice", "stage": "New"})
     assert resp.status_code == 200
     lead_id = resp.json()["id"]
 
-    # Verify user1 sees their lead
     resp = client.get("/leads")
     assert resp.status_code == 200
     data = resp.json()
     assert len(data) == 1
     assert data[0]["name"] == "Alice"
 
-    # Switch to user2 and create lead
-    from backend import auth
     app.dependency_overrides[auth.get_current_user] = override_user(
         "user2", "user2@example.com"
     )
     resp = client.post("/leads", json={"name": "Bob", "stage": "Qualified"})
     assert resp.status_code == 200
 
-    # User2 should only see their lead
     resp = client.get("/leads")
     data = resp.json()
     assert len(data) == 1
     assert data[0]["name"] == "Bob"
 
-    # Switch back to user1 and update stage
     app.dependency_overrides[auth.get_current_user] = override_user(
         "user1", "user1@example.com"
     )
@@ -74,8 +70,9 @@ def test_leads_are_scoped_to_user(tmp_path):
 def test_leads_require_authentication(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
-
     from backend import auth
+
+    auth.AUTH_ENABLED = True
     app.dependency_overrides[auth.get_current_user] = lambda: None
 
     resp = client.get("/leads")
@@ -83,3 +80,21 @@ def test_leads_require_authentication(tmp_path):
 
     resp = client.post("/leads", json={"name": "Guest", "stage": "New"})
     assert resp.status_code == 401
+
+
+def test_leads_fallback_user_when_auth_disabled(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    from backend import auth
+
+    auth.AUTH_ENABLED = False
+    app.dependency_overrides[auth.get_current_user] = lambda: None
+
+    resp = client.post("/leads", json={"name": "Guest", "stage": "New"})
+    assert resp.status_code == 200
+
+    resp = client.get("/leads")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "Guest"
