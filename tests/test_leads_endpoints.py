@@ -176,6 +176,45 @@ def test_leads_are_filtered_by_email(tmp_path):
     assert data[0]["name"] == "Alice"
 
 
+def test_leads_are_filtered_by_id(tmp_path):
+    """Users sharing an email should still only see their own leads."""
+
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    from backend import auth
+
+    auth.AUTH_ENABLED = True
+
+    # Both users share the same email but have different IDs
+    app.dependency_overrides[auth.get_current_user] = override_user(
+        "user1", "shared@example.com"
+    )
+    resp = client.post("/leads", json={"name": "Alice", "stage": "New"})
+    assert resp.status_code == 200
+
+    app.dependency_overrides[auth.get_current_user] = override_user(
+        "user2", "shared@example.com"
+    )
+    resp = client.post("/leads", json={"name": "Bob", "stage": "Qualified"})
+    assert resp.status_code == 200
+
+    # user2 should only see Bob
+    resp = client.get("/leads")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "Bob"
+
+    # user1 should only see Alice
+    app.dependency_overrides[auth.get_current_user] = override_user(
+        "user1", "shared@example.com"
+    )
+    resp = client.get("/leads")
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "Alice"
+
+
 def test_delete_lead_is_scoped_to_user(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
