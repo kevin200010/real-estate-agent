@@ -50,6 +50,17 @@ export function createAgentChat() {
     return { id, address, price, lat, lng, image, streetView };
   }
 
+  function buildImgTag(p, attrs = '') {
+    const src = p.streetView || p.image;
+    if (!src) return '';
+    const attr = attrs ? ` ${attrs}` : '';
+    if (p.streetView && p.image) {
+      const fallback = (p.image || '').replace(/"/g, '&quot;');
+      return `<img src="${p.streetView}" alt="Property image"${attr} onerror="this.onerror=null;this.src='${fallback}';"/>`;
+    }
+    return `<img src="${src}" alt="Property image"${attr}/>`;
+  }
+
   function initMap() {
     if (window.google && window.google.maps) {
       mapEl.textContent = '';
@@ -100,9 +111,9 @@ export function createAgentChat() {
         if (isNaN(lat) || isNaN(lng)) return;
         const position = { lat, lng };
         const content = document.createElement('div');
-        const img = p.streetView || p.image;
-        if (img) {
-          content.innerHTML += `<img src="${img}" alt="Property image" style="max-width:200px"/><br/>`;
+        const imgHtml = buildImgTag(p, 'style="max-width:200px"');
+        if (imgHtml) {
+          content.innerHTML += imgHtml + '<br/>';
         }
         content.innerHTML += `${p.address || ''}<br/>${p.price || ''}<br/>`+
           `<button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button>`;
@@ -138,9 +149,9 @@ export function createAgentChat() {
         const lat = Number(p.lat), lng = Number(p.lng);
         if (isNaN(lat) || isNaN(lng)) return;
         let content = '';
-        const img = p.streetView || p.image;
-        if (img) {
-          content += `<img src="${img}" alt="Property image" style="max-width:200px"/><br/>`;
+        const imgHtml = buildImgTag(p, 'style="max-width:200px"');
+        if (imgHtml) {
+          content += imgHtml + '<br/>';
         }
         content += `${p.address || ''}<br/>${p.price || ''}<br/>`+
           `<button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button>`;
@@ -247,8 +258,9 @@ export function createAgentChat() {
         const card = document.createElement('div');
         card.className = 'prop-card glass';
         card.dataset.id = p.id;
+        const imgTag = buildImgTag(p);
         card.innerHTML = `
-          <img src="${p.streetView || p.image}" alt="Property image" />
+          ${imgTag}
           <div class="details">
             <div>${p.address || ''}</div>
             <div>${p.price || ''}</div>
