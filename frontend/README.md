@@ -12,7 +12,7 @@ This directory contains a minimal browser client that displays a floating chat w
    ```
 3. Open [http://localhost:8001/signin.html](http://localhost:8001/signin.html) to create an account or sign in. After logging in you will be redirected to the main app where you can click the blue chat bubble in the bottom-right corner to open the widget and ask about properties.
 
-The app uses [Google Maps](https://developers.google.com/maps) when a `GOOGLE_MAPS_API_KEY` is set in `config.js`. If the key is missing or invalid it falls back to [OpenStreetMap](https://www.openstreetmap.org/) via Leaflet. To enable Google Maps, copy `config.sample.js` to `config.js` and replace `YOUR_API_KEY_HERE` with a valid API key.
+The app uses [Google Maps](https://developers.google.com/maps) when a `GOOGLE_MAPS_API_KEY` is set in `config.js`. If the key is missing or invalid it falls back to [OpenStreetMap](https://www.openstreetmap.org/) via Leaflet. Property cards will display a Google Street View snapshot for each listing when latitude and longitude are available. To enable Google Maps and Street View, copy `config.sample.js` to `config.js` and replace `YOUR_API_KEY_HERE` with a valid API key.
 
 The leads page can sync with each signed-in user's Google Calendar. To enable
 this, create a Google Cloud project, enable the Calendar API, and obtain an

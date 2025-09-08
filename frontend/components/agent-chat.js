@@ -43,13 +43,17 @@ export function createAgentChat() {
     const lat = parseFloat(p.lat ?? p.latitude ?? p.Latitude);
     const lng = parseFloat(p.lng ?? p.longitude ?? p.Longitude);
     const image = p.image || p.Image || '';
-    return { id, address, price, lat, lng, image };
+    let streetView = '';
+    if (!isNaN(lat) && !isNaN(lng) && window.GOOGLE_MAPS_API_KEY) {
+      streetView = `https://maps.googleapis.com/maps/api/streetview?size=200x120&location=${lat},${lng}&key=${window.GOOGLE_MAPS_API_KEY}`;
+    }
+    return { id, address, price, lat, lng, image, streetView };
   }
 
   function initMap() {
     if (window.google && window.google.maps) {
       mapEl.textContent = '';
-      map = new google.maps.Map(mapEl, { center: { lat: 39.5, lng: -98.35 }, zoom: 5 });
+      map = new google.maps.Map(mapEl, { center: { lat: 39.5, lng: -98.35 }, zoom: 5, streetViewControl: true });
       defaultIcon = 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png';
       activeIcon = 'https://maps.google.com/mapfiles/ms/icons/red-dot.png';
     } else if (window.L) {
@@ -96,8 +100,9 @@ export function createAgentChat() {
         if (isNaN(lat) || isNaN(lng)) return;
         const position = { lat, lng };
         const content = document.createElement('div');
-        if (p.image) {
-          content.innerHTML += `<img src="${p.image}" alt="Property image" style="max-width:200px"/><br/>`;
+        const img = p.streetView || p.image;
+        if (img) {
+          content.innerHTML += `<img src="${img}" alt="Property image" style="max-width:200px"/><br/>`;
         }
         content.innerHTML += `${p.address || ''}<br/>${p.price || ''}<br/>`+
           `<button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button>`;
@@ -133,8 +138,9 @@ export function createAgentChat() {
         const lat = Number(p.lat), lng = Number(p.lng);
         if (isNaN(lat) || isNaN(lng)) return;
         let content = '';
-        if (p.image) {
-          content += `<img src="${p.image}" alt="Property image" style="max-width:200px"/><br/>`;
+        const img = p.streetView || p.image;
+        if (img) {
+          content += `<img src="${img}" alt="Property image" style="max-width:200px"/><br/>`;
         }
         content += `${p.address || ''}<br/>${p.price || ''}<br/>`+
           `<button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button>`;
@@ -242,7 +248,7 @@ export function createAgentChat() {
         card.className = 'prop-card glass';
         card.dataset.id = p.id;
         card.innerHTML = `
-          <img src="${p.image}" alt="Property image" />
+          <img src="${p.streetView || p.image}" alt="Property image" />
           <div class="details">
             <div>${p.address || ''}</div>
             <div>${p.price || ''}</div>
