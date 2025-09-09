@@ -44,8 +44,13 @@ export function createAgentChat() {
     const lng = parseFloat(p.lng ?? p.longitude ?? p.Longitude);
     const image = p.image || p.Image || '';
     let streetView = '';
-    if (!isNaN(lat) && !isNaN(lng) && window.GOOGLE_MAPS_API_KEY) {
-      streetView = `https://maps.googleapis.com/maps/api/streetview?size=200x120&location=${lat},${lng}&key=${window.GOOGLE_MAPS_API_KEY}`;
+    if (window.GOOGLE_MAPS_API_KEY) {
+      if (!isNaN(lat) && !isNaN(lng)) {
+        streetView = `https://maps.googleapis.com/maps/api/streetview?size=200x120&location=${lat},${lng}&key=${window.GOOGLE_MAPS_API_KEY}`;
+      } else if (address) {
+        const loc = encodeURIComponent(address);
+        streetView = `https://maps.googleapis.com/maps/api/streetview?size=200x120&location=${loc}&key=${window.GOOGLE_MAPS_API_KEY}`;
+      }
     }
     return { id, address, price, lat, lng, image, streetView };
   }
