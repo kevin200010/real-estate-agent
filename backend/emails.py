@@ -14,6 +14,8 @@ from typing import List, Optional
 import email
 import imaplib
 import os
+import smtplib
+from email.message import EmailMessage as _EmailMessage
 
 
 @dataclass
@@ -32,11 +34,15 @@ class BaseEmailProvider:
     def list_messages(self, max_results: int = 10) -> List[EmailMessage]:
         raise NotImplementedError
 
+    def send_message(self, to_addr: str, subject: str, body: str) -> bool:
+        raise NotImplementedError
+
 
 class GmailProvider(BaseEmailProvider):
     """Fetch messages from a Gmail inbox via IMAP."""
 
     SERVER = "imap.gmail.com"
+    SMTP_SERVER = "smtp.gmail.com"
 
     def __init__(self, username: Optional[str] = None, password: Optional[str] = None) -> None:
         self.username = username or os.getenv("GMAIL_USERNAME")
@@ -67,11 +73,28 @@ class GmailProvider(BaseEmailProvider):
         except Exception:
             return []
 
+    def send_message(self, to_addr: str, subject: str, body: str) -> bool:
+        if not self.username or not self.password:
+            return False
+        try:
+            msg = _EmailMessage()
+            msg["Subject"] = subject
+            msg["From"] = self.username
+            msg["To"] = to_addr
+            msg.set_content(body)
+            with smtplib.SMTP_SSL(self.SMTP_SERVER, 465) as smtp:
+                smtp.login(self.username, self.password)
+                smtp.send_message(msg)
+            return True
+        except Exception:
+            return False
+
 
 class OutlookProvider(BaseEmailProvider):
     """Fetch messages from an Outlook inbox via IMAP."""
 
     SERVER = "imap-mail.outlook.com"
+    SMTP_SERVER = "smtp-mail.outlook.com"
 
     def __init__(self, username: Optional[str] = None, password: Optional[str] = None) -> None:
         self.username = username or os.getenv("OUTLOOK_USERNAME")
@@ -101,6 +124,22 @@ class OutlookProvider(BaseEmailProvider):
                 return messages
         except Exception:
             return []
+
+    def send_message(self, to_addr: str, subject: str, body: str) -> bool:
+        if not self.username or not self.password:
+            return False
+        try:
+            msg = _EmailMessage()
+            msg["Subject"] = subject
+            msg["From"] = self.username
+            msg["To"] = to_addr
+            msg.set_content(body)
+            with smtplib.SMTP_SSL(self.SMTP_SERVER, 465) as smtp:
+                smtp.login(self.username, self.password)
+                smtp.send_message(msg)
+            return True
+        except Exception:
+            return False
 
 
 def get_provider(

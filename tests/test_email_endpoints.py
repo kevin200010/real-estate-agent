@@ -62,3 +62,39 @@ def test_gmail_sync_endpoint_returns_list(monkeypatch):
         "/emails/gmail/sync", json={"username": "user@gmail.com", "password": "secret"}
     )
     _assert_messages(resp)
+
+
+def test_outlook_sync_endpoint_returns_list(monkeypatch):
+    from emails import OutlookProvider, EmailMessage
+
+    def fake_list_messages(self, max_results: int = 10):  # pragma: no cover - simple stub
+        return [EmailMessage(id="1", subject="Test", sender="sender@example.com")]
+
+    monkeypatch.setattr(OutlookProvider, "list_messages", fake_list_messages)
+
+    resp = client.post(
+        "/emails/outlook/sync", json={"username": "user@outlook.com", "password": "secret"}
+    )
+    _assert_messages(resp)
+
+
+def test_send_email(monkeypatch):
+    from emails import GmailProvider
+
+    def fake_send(self, to_addr: str, subject: str, body: str):  # pragma: no cover
+        return True
+
+    monkeypatch.setattr(GmailProvider, "send_message", fake_send)
+
+    resp = client.post(
+        "/emails/gmail/send",
+        json={
+            "username": "user@gmail.com",
+            "password": "secret",
+            "to": "rcpt@example.com",
+            "subject": "Hi",
+            "body": "Test",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json().get("status") == "sent"

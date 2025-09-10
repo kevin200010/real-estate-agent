@@ -36,10 +36,11 @@ _sonic = SonicClient()
 app.include_router(appointments_router)
 app.include_router(leads_router)
 
-# In-memory store for per-user Gmail credentials gathered during the sync flow.
-# A production system should persist these securely instead of keeping them in
-# a process-level dictionary.
-_gmail_credentials: dict[str, dict[str, str]] = {}
+# In-memory store for per-user email credentials gathered during the sync flow.
+# Keys are provider names (``gmail`` or ``outlook``) and map to dictionaries of
+# user IDs to credential dicts. A production system should persist these
+# securely instead of keeping them in a process-level dictionary.
+_email_credentials: dict[str, dict[str, dict[str, str]]] = {"gmail": {}, "outlook": {}}
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -93,21 +94,25 @@ async def voice(
     return {**result, "transcript": transcript}
 
 
-@app.post("/emails/gmail/sync")
-async def sync_gmail(
-    payload: dict, user: dict | None = Depends(get_current_user)
+@app.post("/emails/{provider}/sync")
+async def sync_email(
+    provider: str, payload: dict, user: dict | None = Depends(get_current_user)
 ):
-    """Store Gmail credentials for the current user and return recent messages."""
+    """Store credentials for the given provider and return recent messages."""
 
     username = payload.get("username")
     password = payload.get("password")
     if not username or not password:
         raise HTTPException(status_code=400, detail="username and password required")
 
-    key = user["sub"] if user else "default"
-    _gmail_credentials[key] = {"username": username, "password": password}
+    provider = provider.lower()
+    if provider not in _email_credentials:
+        raise HTTPException(status_code=404, detail="unknown provider")
 
-    service = get_provider("gmail", username=username, password=password)
+    key = user["sub"] if user else "default"
+    _email_credentials[provider][key] = {"username": username, "password": password}
+
+    service = get_provider(provider, username=username, password=password)
     messages = service.list_messages()
     return {"messages": [m.__dict__ for m in messages]}
 
@@ -118,18 +123,15 @@ async def list_emails(
 ):
     """Return recent emails for the given provider.
 
-    The endpoint currently supports ``gmail`` and ``outlook``. When the
-    appropriate credentials are not configured, an empty list is returned.
+    When the appropriate credentials are not configured, an empty list is
+    returned instead of an error.
     """
 
-    service = None
-    if provider == "gmail":
-        key = user["sub"] if user else "default"
-        creds = _gmail_credentials.get(key)
-        if creds:
-            service = get_provider("gmail", creds.get("username"), creds.get("password"))
-        else:
-            service = get_provider("gmail")
+    provider = provider.lower()
+    key = user["sub"] if user else "default"
+    creds = _email_credentials.get(provider, {}).get(key)
+    if creds:
+        service = get_provider(provider, creds.get("username"), creds.get("password"))
     else:
         service = get_provider(provider)
 
@@ -137,6 +139,39 @@ async def list_emails(
         raise HTTPException(status_code=404, detail="unknown provider")
     messages = service.list_messages()
     return {"messages": [m.__dict__ for m in messages]}
+
+
+@app.post("/emails/{provider}/send")
+async def send_email(
+    provider: str, payload: dict, user: dict | None = Depends(get_current_user)
+):
+    """Send an email through the specified provider."""
+
+    provider = provider.lower()
+    to_addr = payload.get("to")
+    subject = payload.get("subject", "")
+    body = payload.get("body", "")
+    username = payload.get("username")
+    password = payload.get("password")
+
+    key = user["sub"] if user else "default"
+    if not username or not password:
+        creds = _email_credentials.get(provider, {}).get(key)
+        if creds:
+            username = username or creds.get("username")
+            password = password or creds.get("password")
+
+    if not to_addr or not username or not password:
+        raise HTTPException(status_code=400, detail="missing required fields")
+
+    service = get_provider(provider, username=username, password=password)
+    if service is None:
+        raise HTTPException(status_code=404, detail="unknown provider")
+
+    success = service.send_message(to_addr, subject, body)
+    if not success:
+        raise HTTPException(status_code=500, detail="failed to send email")
+    return {"status": "sent"}
 
 
 import json

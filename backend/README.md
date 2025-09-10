@@ -41,21 +41,18 @@ appointments will not persist across restarts.
 
 ### Optional: Email integration
 
-The backend exposes endpoints for viewing emails from Gmail or Outlook.
+The backend exposes endpoints for viewing and sending emails from Gmail or
+Outlook.
 
-- **Gmail** – Users provide their Gmail address and app password via a POST to
-  `/emails/gmail/sync`. The server stores the credentials in memory and uses
-  them when handling `GET /emails/gmail`.
-- **Outlook** – Supply credentials via environment variables and call
-  `GET /emails/outlook`.
+- **Sync credentials** – POST `/emails/{provider}/sync` with `username` and
+  `password`. The server stores credentials in memory for the session and uses
+  them for later requests.
+- **List emails** – GET `/emails/{provider}` to retrieve recent messages.
+- **Send email** – POST `/emails/{provider}/send` with `to`, `subject`, and
+  `body` (credentials may be omitted if previously synced).
 
-```
-OUTLOOK_USERNAME=user@example.com
-OUTLOOK_PASSWORD=your_password
-```
-
-If credentials are missing or incorrect the endpoint returns an empty list
-instead of raising an error.
+If credentials are missing or incorrect the listing endpoint returns an empty
+list instead of raising an error.
 
 ## REST API
 

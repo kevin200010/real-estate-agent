@@ -94,21 +94,17 @@ and remember the OAuth credentials for future sessions. To enable this flow:
 
 ### Email integration (Gmail and Outlook)
 
-The backend can display recent emails from popular providers.
+The application can sync and send email through Gmail or Outlook.
 
-- **Gmail** – Users supply their Gmail address and app password at runtime by
-  POSTing to `/emails/gmail/sync`. The credentials are stored in memory for the
-  session and used when subsequently calling `GET /emails/gmail`.
-- **Outlook** – Continue to provide credentials via environment variables and
-  call `GET /emails/outlook`.
+- **Sync** – Users provide their address and app password at runtime via
+  `POST /emails/{provider}/sync`. Credentials are kept in memory for the
+  session and reused when calling `GET /emails/{provider}`.
+- **Send** – Submit a message to `POST /emails/{provider}/send` with `to`,
+  `subject`, and `body` fields. If credentials were previously synced they are
+  reused; otherwise include `username` and `password` in the payload.
 
-```
-OUTLOOK_USERNAME=user@example.com
-OUTLOOK_PASSWORD=your_password
-```
-
-When credentials are missing the endpoints return an empty list so the rest of
-the application continues to function.
+When credentials are missing the listing endpoint returns an empty list so the
+rest of the application continues to function.
 
 ## Notes
 

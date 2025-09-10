@@ -7,6 +7,7 @@ export function initTopbar() {
       <span class="tab" data-route="#/leads">Leads</span>
       <span class="tab" data-route="#/outreach">Outreach</span>
       <span class="tab" data-route="#/agent">Agent</span>
+      <span class="tab" data-route="#/emails">Emails</span>
     </div>
     <div class="right">
       <input id="global-search" placeholder="Search" />
