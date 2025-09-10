@@ -13,6 +13,7 @@ from property_chatbot import SonicClient
 from auth import AUTH_ENABLED, get_current_user
 from appointments import router as appointments_router
 from leads import router as leads_router
+from emails import get_provider
 import json
 from pathlib import Path
 
@@ -34,6 +35,11 @@ templates = Jinja2Templates(directory="templates")
 _sonic = SonicClient()
 app.include_router(appointments_router)
 app.include_router(leads_router)
+
+# In-memory store for per-user Gmail credentials gathered during the sync flow.
+# A production system should persist these securely instead of keeping them in
+# a process-level dictionary.
+_gmail_credentials: dict[str, dict[str, str]] = {}
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -85,6 +91,52 @@ async def voice(
     transcript = await asyncio.to_thread(_sonic.transcribe, audio_bytes)
     result = await app_graph.ainvoke({"user_input": transcript})
     return {**result, "transcript": transcript}
+
+
+@app.post("/emails/gmail/sync")
+async def sync_gmail(
+    payload: dict, user: dict | None = Depends(get_current_user)
+):
+    """Store Gmail credentials for the current user and return recent messages."""
+
+    username = payload.get("username")
+    password = payload.get("password")
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="username and password required")
+
+    key = user["sub"] if user else "default"
+    _gmail_credentials[key] = {"username": username, "password": password}
+
+    service = get_provider("gmail", username=username, password=password)
+    messages = service.list_messages()
+    return {"messages": [m.__dict__ for m in messages]}
+
+
+@app.get("/emails/{provider}")
+async def list_emails(
+    provider: str, user: dict | None = Depends(get_current_user)
+):
+    """Return recent emails for the given provider.
+
+    The endpoint currently supports ``gmail`` and ``outlook``. When the
+    appropriate credentials are not configured, an empty list is returned.
+    """
+
+    service = None
+    if provider == "gmail":
+        key = user["sub"] if user else "default"
+        creds = _gmail_credentials.get(key)
+        if creds:
+            service = get_provider("gmail", creds.get("username"), creds.get("password"))
+        else:
+            service = get_provider("gmail")
+    else:
+        service = get_provider(provider)
+
+    if service is None:
+        raise HTTPException(status_code=404, detail="unknown provider")
+    messages = service.list_messages()
+    return {"messages": [m.__dict__ for m in messages]}
 
 
 import json

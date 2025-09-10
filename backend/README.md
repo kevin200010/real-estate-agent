@@ -39,6 +39,24 @@ want to use:
 If these variables are omitted the server falls back to an in-memory store and
 appointments will not persist across restarts.
 
+### Optional: Email integration
+
+The backend exposes endpoints for viewing emails from Gmail or Outlook.
+
+- **Gmail** – Users provide their Gmail address and app password via a POST to
+  `/emails/gmail/sync`. The server stores the credentials in memory and uses
+  them when handling `GET /emails/gmail`.
+- **Outlook** – Supply credentials via environment variables and call
+  `GET /emails/outlook`.
+
+```
+OUTLOOK_USERNAME=user@example.com
+OUTLOOK_PASSWORD=your_password
+```
+
+If credentials are missing or incorrect the endpoint returns an empty list
+instead of raising an error.
+
 ## REST API
 
 Start the server:
