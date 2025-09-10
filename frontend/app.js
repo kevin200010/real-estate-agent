@@ -699,9 +699,19 @@ function createEmailsView(){
   const wrap=document.createElement('div');
   wrap.className='emails-view';
   const controls=document.createElement('div');
-  const gmailBtn=document.createElement('button'); gmailBtn.textContent='Sync Gmail';
-  const outlookBtn=document.createElement('button'); outlookBtn.textContent='Sync Outlook';
-  controls.append(gmailBtn,outlookBtn);
+  const gmailForm=document.createElement('form');
+  gmailForm.className='sync-form gmail-sync';
+  gmailForm.innerHTML=`<input name="username" type="email" placeholder="Gmail address" required>
+    <input name="password" type="password" placeholder="App password" required>
+    <button type="submit">Sync Gmail</button>`;
+
+  const outlookForm=document.createElement('form');
+  outlookForm.className='sync-form outlook-sync';
+  outlookForm.innerHTML=`<input name="username" type="email" placeholder="Outlook address" required>
+    <input name="password" type="password" placeholder="App password" required>
+    <button type="submit">Sync Outlook</button>`;
+
+  controls.append(gmailForm,outlookForm);
   const list=document.createElement('div'); list.id='email-list';
   const form=document.createElement('form');
   form.innerHTML=`<h3>Send Email</h3>
@@ -729,9 +739,11 @@ function createEmailsView(){
     });
   }
 
-  gmailBtn.addEventListener('click',async ()=>{
-    const username=prompt('Gmail username');
-    const password=prompt('Gmail password');
+  gmailForm.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const fd=new FormData(gmailForm);
+    const username=fd.get('username');
+    const password=fd.get('password');
     if(!username||!password) return;
     await authFetch(`${window.API_BASE_URL}/emails/gmail/sync`,{
       method:'POST',
@@ -741,9 +753,11 @@ function createEmailsView(){
     render('gmail');
   });
 
-  outlookBtn.addEventListener('click',async ()=>{
-    const username=prompt('Outlook username');
-    const password=prompt('Outlook password');
+  outlookForm.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const fd=new FormData(outlookForm);
+    const username=fd.get('username');
+    const password=fd.get('password');
     if(!username||!password) return;
     await authFetch(`${window.API_BASE_URL}/emails/outlook/sync`,{
       method:'POST',

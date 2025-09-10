@@ -485,3 +485,13 @@ button:hover{
 /* Responsive */
 @media (max-width:1024px) {
 }
+
+/* Email sync forms */
+.emails-view .sync-form{
+  display:inline-block;
+  margin-right:1rem;
+}
+
+.emails-view .sync-form input{
+  margin-right:0.5rem;
+}

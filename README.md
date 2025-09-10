@@ -96,12 +96,19 @@ and remember the OAuth credentials for future sessions. To enable this flow:
 
 The application can sync and send email through Gmail or Outlook.
 
-- **Sync** – Users provide their address and app password at runtime via
-  `POST /emails/{provider}/sync`. Credentials are kept in memory for the
-  session and reused when calling `GET /emails/{provider}`.
-- **Send** – Submit a message to `POST /emails/{provider}/send` with `to`,
-  `subject`, and `body` fields. If credentials were previously synced they are
-  reused; otherwise include `username` and `password` in the payload.
+1. **Prepare a Gmail app password** – Enable two‑factor authentication on your
+   Google account and generate an app password from the security settings.
+2. **Open the Emails page** – Start the backend and frontend servers, sign in,
+   then navigate to the **Emails** tab in the top bar.
+3. **Sync Gmail** – Enter your Gmail address and app password in the Sync Gmail
+   form. The backend stores the credentials in memory for the session and
+   fetches recent messages via `POST /emails/gmail/sync`.
+4. **List messages** – After syncing, the page displays results from
+   `GET /emails/gmail` (or `GET /emails/outlook`).
+5. **Send email** – Use the **Send Email** form which posts to
+   `POST /emails/{provider}/send` with `to`, `subject`, and `body` fields. If
+   credentials were previously synced they are reused; otherwise include
+   `username` and `password` in the payload.
 
 When credentials are missing the listing endpoint returns an empty list so the
 rest of the application continues to function.
