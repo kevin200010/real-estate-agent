@@ -408,7 +408,7 @@ async function router(){
     const center=props.length?{lat:Number(props[0].lat),lng:Number(props[0].lng)}:{lat:39.5,lng:-98.35};
     const zoom=props.length?10:5;
     if(window.google && window.google.maps){
-      state.gmap=new google.maps.Map(map,{center,zoom});
+      state.gmap=new google.maps.Map(map,{center,zoom,streetViewControl:true});
       state.defaultIcon=state.defaultIcon||'https://maps.google.com/mapfiles/ms/icons/blue-dot.png';
       state.activeIcon=state.activeIcon||'https://maps.google.com/mapfiles/ms/icons/red-dot.png';
       const bounds=new google.maps.LatLngBounds();
@@ -426,8 +426,9 @@ async function router(){
             p.saleOrRent||''
           ].filter(Boolean).join(' | ');
           const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
+          const imgSrc=(window.GOOGLE_MAPS_API_KEY&&!isNaN(lat)&&!isNaN(lng))?`https://maps.googleapis.com/maps/api/streetview?size=200x120&location=${lat},${lng}&key=${window.GOOGLE_MAPS_API_KEY}`:(p.image||'');
           const content=document.createElement('div');
-          content.innerHTML=`${p.image?`<img src="${p.image}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button>`;
+          content.innerHTML=`${imgSrc?`<img src="${imgSrc}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button>`;
           const marker=new google.maps.Marker({position,map:state.gmap,icon:state.defaultIcon});
           marker.infoWindow=new google.maps.InfoWindow({content});
           content.querySelector('.add-lead')?.addEventListener('click',()=>{location.hash=`#/leads?prop=${p.id}`;});
@@ -458,7 +459,8 @@ async function router(){
             p.saleOrRent||''
           ].filter(Boolean).join(' | ');
           const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
-          const marker=L.marker(position,{icon:state.defaultIcon}).addTo(state.gmap).bindPopup(`<div>${p.image?`<img src="${p.image}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button></div>`);
+          const imgSrc=(window.GOOGLE_MAPS_API_KEY&&!isNaN(lat)&&!isNaN(lng))?`https://maps.googleapis.com/maps/api/streetview?size=200x120&location=${lat},${lng}&key=${window.GOOGLE_MAPS_API_KEY}`:(p.image||'');
+          const marker=L.marker(position,{icon:state.defaultIcon}).addTo(state.gmap).bindPopup(`<div>${imgSrc?`<img src="${imgSrc}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button></div>`);
           state.markers[p.id]=marker;
           bounds.extend(position);
           marker.on('click',()=>selectProperty(p.id));
