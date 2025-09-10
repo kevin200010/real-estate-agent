@@ -669,6 +669,9 @@ async function router(){
   } else if(route.startsWith('#/outreach')){
     topbarAPI.setActive('#/outreach');
     main.appendChild(createOutreach());
+  } else if(route.startsWith('#/emails')){
+    topbarAPI.setActive('#/emails');
+    main.appendChild(createEmailsView());
   } else if(route.startsWith('#/agent')){
     topbarAPI.setActive('#/agent');
     if(!agentChatEl) agentChatEl=createAgentChat();
@@ -690,6 +693,82 @@ function createOutreach(){
   editor.append(textarea,timeline);
   view.append(cohorts,editor);
   return view;
+}
+
+function createEmailsView(){
+  const wrap=document.createElement('div');
+  wrap.className='emails-view';
+  const controls=document.createElement('div');
+  const gmailBtn=document.createElement('button'); gmailBtn.textContent='Sync Gmail';
+  const outlookBtn=document.createElement('button'); outlookBtn.textContent='Sync Outlook';
+  controls.append(gmailBtn,outlookBtn);
+  const list=document.createElement('div'); list.id='email-list';
+  const form=document.createElement('form');
+  form.innerHTML=`<h3>Send Email</h3>
+    <label>Provider<select name="provider"><option value="gmail">Gmail</option><option value="outlook">Outlook</option></select></label>
+    <label>To<input name="to" type="email" required></label>
+    <label>Subject<input name="subject" required></label>
+    <label>Body<textarea name="body" required></textarea></label>
+    <button type="submit">Send</button>`;
+  wrap.append(controls,list,form);
+
+  async function render(provider){
+    const resp=await authFetch(`${window.API_BASE_URL}/emails/${provider}`);
+    if(!resp.ok) return;
+    const data=await resp.json();
+    list.innerHTML='';
+    (data.messages||[]).forEach(m=>{
+      const item=document.createElement('div');
+      item.className='email-item';
+      item.textContent=`${m.subject} - ${m.sender}`;
+      item.addEventListener('click',()=>item.classList.toggle('read'));
+      const cat=document.createElement('input');
+      cat.placeholder='Category';
+      item.appendChild(cat);
+      list.appendChild(item);
+    });
+  }
+
+  gmailBtn.addEventListener('click',async ()=>{
+    const username=prompt('Gmail username');
+    const password=prompt('Gmail password');
+    if(!username||!password) return;
+    await authFetch(`${window.API_BASE_URL}/emails/gmail/sync`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username,password})
+    });
+    render('gmail');
+  });
+
+  outlookBtn.addEventListener('click',async ()=>{
+    const username=prompt('Outlook username');
+    const password=prompt('Outlook password');
+    if(!username||!password) return;
+    await authFetch(`${window.API_BASE_URL}/emails/outlook/sync`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username,password})
+    });
+    render('outlook');
+  });
+
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const fd=new FormData(form);
+    const provider=fd.get('provider');
+    const to=fd.get('to');
+    const subject=fd.get('subject');
+    const body=fd.get('body');
+    const resp=await authFetch(`${window.API_BASE_URL}/emails/${provider}/send`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({to,subject,body})
+    });
+    if(resp.ok) alert('Email sent');
+  });
+
+  return wrap;
 }
 
 function setupShortcuts(){

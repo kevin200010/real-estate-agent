@@ -92,6 +92,20 @@ and remember the OAuth credentials for future sessions. To enable this flow:
    next login the application will fetch events from Google Calendar without
    prompting you again.
 
+### Email integration (Gmail and Outlook)
+
+The application can sync and send email through Gmail or Outlook.
+
+- **Sync** – Users provide their address and app password at runtime via
+  `POST /emails/{provider}/sync`. Credentials are kept in memory for the
+  session and reused when calling `GET /emails/{provider}`.
+- **Send** – Submit a message to `POST /emails/{provider}/send` with `to`,
+  `subject`, and `body` fields. If credentials were previously synced they are
+  reused; otherwise include `username` and `password` in the payload.
+
+When credentials are missing the listing endpoint returns an empty list so the
+rest of the application continues to function.
+
 ## Notes
 
 This example focuses on illustrating how components fit together. Production applications should implement robust error handling, streaming audio for low latency, and secure storage of user data.

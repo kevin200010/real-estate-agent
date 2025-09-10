@@ -39,6 +39,21 @@ want to use:
 If these variables are omitted the server falls back to an in-memory store and
 appointments will not persist across restarts.
 
+### Optional: Email integration
+
+The backend exposes endpoints for viewing and sending emails from Gmail or
+Outlook.
+
+- **Sync credentials** – POST `/emails/{provider}/sync` with `username` and
+  `password`. The server stores credentials in memory for the session and uses
+  them for later requests.
+- **List emails** – GET `/emails/{provider}` to retrieve recent messages.
+- **Send email** – POST `/emails/{provider}/send` with `to`, `subject`, and
+  `body` (credentials may be omitted if previously synced).
+
+If credentials are missing or incorrect the listing endpoint returns an empty
+list instead of raising an error.
+
 ## REST API
 
 Start the server:
