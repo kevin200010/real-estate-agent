@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -54,7 +54,7 @@ async def _run_mailbox_sync() -> None:
             await asyncio.sleep(0)
         finally:
             _mailbox_sync_state['status'] = 'idle'
-            _mailbox_sync_state['last_run'] = datetime.now(datetime.UTC).isoformat()
+            _mailbox_sync_state['last_run'] = datetime.now(timezone.utc).isoformat()
 
 
 @app.get("/", response_class=HTMLResponse)
