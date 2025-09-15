@@ -7,6 +7,7 @@ import { initToast } from './components/toast.js';
 import { createAgentChat } from './components/agent-chat.js';
 import { openAppointmentForm } from './components/appointment.js';
 import { createEventCalendar } from './components/event-calendar.js';
+import { createEmailsView } from './components/email.js';
 
 const mapReady = new Promise(resolve => {
   if (window.GOOGLE_MAPS_API_KEY) {
@@ -44,17 +45,21 @@ window.mapReady = mapReady;
 const state={ data:{}, gmap:null, markers:{}, activeMarkerId:null };
 let topbarAPI;
 let agentChatEl;
+let emailsEl;
 let googleTokenClient;
 const googleTokenListeners=[];
 let gmailTokenClient;
 const gmailTokenListeners=[];
+let gmailAccount={ email:null, expiresAt:null, scope:null, tokenType:null };
 
 function onGoogleToken(fn){
   googleTokenListeners.push(fn);
 }
 
 function onGmailToken(fn){
-  gmailTokenListeners.push(fn);
+  if(typeof fn==='function'){
+    gmailTokenListeners.push({ type:'listener', handler:fn });
+  }
 }
 
 async function authFetch(url, options = {}) {
@@ -75,6 +80,170 @@ async function authFetch(url, options = {}) {
     console.error(`Request to ${url} was unauthorized (401). Ensure you are logged in and the API accepts your token.`);
   }
   return resp;
+}
+
+function updateGmailAccount(patch={}){
+  if(!patch||typeof patch!=='object') return gmailAccount;
+  const next={ ...gmailAccount };
+  if(Object.prototype.hasOwnProperty.call(patch,'email')) next.email=patch.email;
+  if(Object.prototype.hasOwnProperty.call(patch,'expiresAt')) next.expiresAt=patch.expiresAt;
+  if(Object.prototype.hasOwnProperty.call(patch,'scope')) next.scope=patch.scope;
+  if(Object.prototype.hasOwnProperty.call(patch,'tokenType')) next.tokenType=patch.tokenType;
+  gmailAccount=next;
+  window.GMAIL_ACCOUNT=gmailAccount;
+  if(gmailAccount.email){ window.GMAIL_ACCOUNT_EMAIL=gmailAccount.email; }
+  else { delete window.GMAIL_ACCOUNT_EMAIL; }
+  return gmailAccount;
+}
+
+function setGmailAccessToken(token,meta={}){
+  if(!token) return;
+  window.GMAIL_ACCESS_TOKEN=token;
+  window.GMAIL_TOKEN_INFO={ ...meta, access_token:token };
+  const patch={};
+  if(Object.prototype.hasOwnProperty.call(meta,'expires_at')) patch.expiresAt=meta.expires_at;
+  if(Object.prototype.hasOwnProperty.call(meta,'scope')) patch.scope=meta.scope;
+  if(Object.prototype.hasOwnProperty.call(meta,'token_type')) patch.tokenType=meta.token_type;
+  if(Object.prototype.hasOwnProperty.call(meta,'email')) patch.email=meta.email;
+  if(Object.keys(patch).length) updateGmailAccount(patch);
+  if(!gmailTokenListeners.length) return;
+  const listeners=gmailTokenListeners.splice(0);
+  listeners.forEach(entry=>{
+    if(entry.type==='listener' && typeof entry.handler==='function'){
+      try{ entry.handler(); }catch(err){ console.error('Gmail token listener failed',err); }
+    } else if(entry.type==='promise' && typeof entry.resolve==='function'){
+      entry.resolve(token);
+    }
+  });
+}
+
+function handleGmailTokenError(error){
+  if(!gmailTokenListeners.length) return;
+  const remaining=[];
+  gmailTokenListeners.splice(0).forEach(entry=>{
+    if(entry.type==='promise' && typeof entry.reject==='function'){
+      entry.reject(error);
+    } else if(entry.type==='listener'){
+      remaining.push(entry);
+    }
+  });
+  if(remaining.length) gmailTokenListeners.push(...remaining);
+}
+
+function requestGmailToken(prompt='consent'){
+  if(!gmailTokenClient){
+    return Promise.reject(new Error('Gmail auth not initialized'));
+  }
+  return new Promise((resolve,reject)=>{
+    gmailTokenListeners.push({ type:'promise', resolve, reject });
+    try{
+      gmailTokenClient.requestAccessToken({ prompt });
+    }catch(err){
+      const index=gmailTokenListeners.findIndex(entry=>entry.resolve===resolve && entry.reject===reject);
+      if(index>-1) gmailTokenListeners.splice(index,1);
+      reject(err);
+    }
+  });
+}
+
+async function saveGmailAccountDetails(details={}){
+  if(!details||typeof details!=='object') return;
+  const payload={};
+  if(Object.prototype.hasOwnProperty.call(details,'email')) payload.email=details.email;
+  if(Object.prototype.hasOwnProperty.call(details,'access_token')) payload.access_token=details.access_token;
+  if(Object.prototype.hasOwnProperty.call(details,'token_type')) payload.token_type=details.token_type;
+  if(Object.prototype.hasOwnProperty.call(details,'scope')) payload.scope=details.scope;
+  if(Object.prototype.hasOwnProperty.call(details,'expires_at')) payload.expires_at=details.expires_at;
+  if(Object.prototype.hasOwnProperty.call(details,'expires_in')) payload.expires_in=details.expires_in;
+  if(!Object.keys(payload).length) return;
+  const patch={};
+  if(Object.prototype.hasOwnProperty.call(payload,'email')) patch.email=payload.email;
+  if(Object.prototype.hasOwnProperty.call(payload,'expires_at')) patch.expiresAt=payload.expires_at;
+  if(Object.prototype.hasOwnProperty.call(payload,'scope')) patch.scope=payload.scope;
+  if(Object.prototype.hasOwnProperty.call(payload,'token_type')) patch.tokenType=payload.token_type;
+  if(Object.keys(patch).length) updateGmailAccount(patch);
+  if(!window.API_BASE_URL) return;
+  try{
+    await authFetch(`${window.API_BASE_URL}/emails/gmail/token`,{
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body:JSON.stringify(payload)
+    });
+  }catch(err){
+    console.warn('Failed to persist Gmail account',err);
+  }
+}
+
+async function ensureStoredGmailAccessToken({ silent=false }={}){
+  if(!window.API_BASE_URL) return null;
+  try{
+    const resp=await authFetch(`${window.API_BASE_URL}/emails/gmail/token`);
+    if(!resp.ok) return null;
+    const data=await resp.json();
+    if(data && typeof data==='object'){
+      const patch={};
+      if(Object.prototype.hasOwnProperty.call(data,'email')) patch.email=data.email;
+      if(Object.prototype.hasOwnProperty.call(data,'expires_at')) patch.expiresAt=data.expires_at;
+      if(Object.prototype.hasOwnProperty.call(data,'scope')) patch.scope=data.scope;
+      if(Object.prototype.hasOwnProperty.call(data,'token_type')) patch.tokenType=data.token_type;
+      if(Object.keys(patch).length) updateGmailAccount(patch);
+      if(data.access_token){
+        const expiresAt=data.expires_at ? Date.parse(data.expires_at) : null;
+        if(!expiresAt || expiresAt> Date.now()+60000){
+          setGmailAccessToken(data.access_token,{
+            expires_at:data.expires_at,
+            scope:data.scope,
+            token_type:data.token_type,
+            email:data.email
+          });
+        }
+      }
+    }
+  }catch(err){
+    if(!silent) console.warn('Failed to load stored Gmail token',err);
+    return null;
+  }
+  return {
+    email:gmailAccount.email,
+    expires_at:gmailAccount.expiresAt,
+    scope:gmailAccount.scope,
+    token_type:gmailAccount.tokenType,
+    accessToken:window.GMAIL_ACCESS_TOKEN || null
+  };
+}
+
+async function loadStoredGmailToken(){
+  const initial=await ensureStoredGmailAccessToken({ silent:true });
+  if(window.GMAIL_ACCESS_TOKEN){
+    return {
+      email:gmailAccount.email,
+      expires_at:gmailAccount.expiresAt,
+      scope:gmailAccount.scope,
+      token_type:gmailAccount.tokenType,
+      accessToken:window.GMAIL_ACCESS_TOKEN
+    };
+  }
+  if(!gmailTokenClient){
+    return initial || {
+      email:gmailAccount.email,
+      expires_at:gmailAccount.expiresAt,
+      scope:gmailAccount.scope,
+      token_type:gmailAccount.tokenType,
+      accessToken:null
+    };
+  }
+  try{
+    await requestGmailAccessToken({ prompt:'none' });
+  }catch(err){
+    console.warn('Silent Gmail authorization failed',err);
+  }
+  return {
+    email:gmailAccount.email,
+    expires_at:gmailAccount.expiresAt,
+    scope:gmailAccount.scope,
+    token_type:gmailAccount.tokenType,
+    accessToken:window.GMAIL_ACCESS_TOKEN || null
+  };
 }
 
 function initGoogleAuth() {
@@ -113,23 +282,37 @@ function initGmailAuth() {
   if (!window.google || !window.google.accounts || !window.GOOGLE_CLIENT_ID) {
     setTimeout(initGmailAuth, 500);
     return;
-    }
+  }
   gmailTokenClient = window.google.accounts.oauth2.initTokenClient({
     client_id: window.GOOGLE_CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send',
+    scope: 'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.compose',
     callback: resp => {
       if (resp.access_token) {
-        window.GMAIL_ACCESS_TOKEN = resp.access_token;
-        const fns = gmailTokenListeners.splice(0);
-        fns.forEach(fn => fn());
+        const expiresAt = resp.expires_in
+          ? new Date(Date.now() + resp.expires_in * 1000).toISOString()
+          : null;
+        setGmailAccessToken(resp.access_token, {
+          expires_at: expiresAt,
+          scope: resp.scope,
+          token_type: resp.token_type
+        });
+        saveGmailAccountDetails({
+          access_token: resp.access_token,
+          scope: resp.scope,
+          token_type: resp.token_type,
+          expires_at: expiresAt,
+          expires_in: resp.expires_in
+        });
+      } else if (resp.error) {
+        console.warn('Gmail token request failed', resp.error);
+        handleGmailTokenError(resp.error);
       }
     }
   });
 }
 
-function requestGmailAccessToken() {
-  if (gmailTokenClient)
-    gmailTokenClient.requestAccessToken({ prompt: 'consent' });
+function requestGmailAccessToken(options = {}) {
+  return requestGmailToken(options.prompt ?? 'consent');
 }
 
 async function ensureGoogleAccessToken() {
@@ -701,7 +884,18 @@ async function router(){
     main.appendChild(createOutreach());
   } else if(route.startsWith('#/emails')){
     topbarAPI.setActive('#/emails');
-    main.appendChild(createEmailsView());
+    if(!emailsEl){
+      emailsEl=createEmailsView({
+        getToken: () => window.GMAIL_ACCESS_TOKEN,
+        requestToken: requestGmailAccessToken,
+        onToken: onGmailToken,
+        authFetch,
+        apiBaseUrl: window.API_BASE_URL || '',
+        loadStoredToken: loadStoredGmailToken,
+        saveAccount: saveGmailAccountDetails
+      });
+    }
+    main.appendChild(emailsEl);
   } else if(route.startsWith('#/agent')){
     topbarAPI.setActive('#/agent');
     if(!agentChatEl) agentChatEl=createAgentChat();
@@ -723,72 +917,6 @@ function createOutreach(){
   editor.append(textarea,timeline);
   view.append(cohorts,editor);
   return view;
-}
-
-function createEmailsView(){
-  const wrap=document.createElement('div');
-  wrap.className='emails-view';
-  const connect=document.createElement('button');
-  connect.textContent='Connect Gmail';
-  connect.addEventListener('click',requestGmailAccessToken);
-  wrap.appendChild(connect);
-  const list=document.createElement('div');
-  list.id='email-list';
-  wrap.appendChild(list);
-  const composeBtn=document.createElement('button');
-  composeBtn.className='compose-btn';
-  composeBtn.textContent='Compose';
-  wrap.appendChild(composeBtn);
-  const compose=document.createElement('form');
-  compose.className='compose-form hidden';
-  compose.innerHTML=`<label>To<input name="to" type="email" required></label>
-    <label>Subject<input name="subject" required></label>
-    <label>Body<textarea name="body" required></textarea></label>
-    <div class="actions"><button type="submit" class="send">Send</button><button type="button" class="close">Close</button></div>`;
-  wrap.appendChild(compose);
-  composeBtn.addEventListener('click',()=>compose.classList.toggle('hidden'));
-  compose.querySelector('.close').addEventListener('click',()=>compose.classList.add('hidden'));
-
-  async function fetchMessages(){
-    const token=window.GMAIL_ACCESS_TOKEN;
-    if(!token) return;
-    list.innerHTML='';
-    try{
-      const resp=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=10',{headers:{Authorization:`Bearer ${token}`}});
-      const data=await resp.json();
-      const msgs=data.messages||[];
-      for(const m of msgs){
-        const det=await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From`,{headers:{Authorization:`Bearer ${token}`}});
-        const d=await det.json();
-        const headers=d.payload?.headers||[];
-        const subject=headers.find(h=>h.name==='Subject')?.value||'';
-        const sender=headers.find(h=>h.name==='From')?.value||'';
-        const item=document.createElement('div');
-        item.className='email-item';
-        item.textContent=`${subject} - ${sender}`;
-        list.appendChild(item);
-      }
-    }catch{}
-  }
-
-  onGmailToken(fetchMessages);
-  if(window.GMAIL_ACCESS_TOKEN) fetchMessages();
-
-  compose.addEventListener('submit',async e=>{
-    e.preventDefault();
-    const fd=new FormData(compose);
-    const to=fd.get('to');
-    const subject=fd.get('subject');
-    const body=fd.get('body');
-    const token=window.GMAIL_ACCESS_TOKEN;
-    if(!token) return;
-    const msg=['To: '+to,'Subject: '+subject,'',body].join('\n');
-    const encoded=btoa(unescape(encodeURIComponent(msg))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-    const resp=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({raw:encoded})});
-    if(resp.ok){alert('Email sent'); compose.reset(); compose.classList.add('hidden');}
-  });
-
-  return wrap;
 }
 
 function setupShortcuts(){

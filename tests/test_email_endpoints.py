@@ -31,6 +31,8 @@ sys.modules.setdefault("multipart.multipart", types.SimpleNamespace(parse_option
 # Allow importing backend modules as top-level modules
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "backend"))
 import web_app  # type: ignore
+import gmail_accounts  # type: ignore
+import auth  # type: ignore
 
 client = TestClient(web_app.app)
 
@@ -78,6 +80,13 @@ def test_outlook_sync_endpoint_returns_list(monkeypatch):
     _assert_messages(resp)
 
 
+
+
+def test_clean_sync_endpoint():
+    resp = client.post("/emails/gmail/clean-sync")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert 'status' in data
 def test_send_email(monkeypatch):
     from emails import GmailProvider
 
@@ -98,3 +107,60 @@ def test_send_email(monkeypatch):
     )
     assert resp.status_code == 200
     assert resp.json().get("status") == "sent"
+
+
+def test_gmail_token_persistence(tmp_path):
+    original_db = gmail_accounts.DATABASE_URL
+    gmail_accounts.configure_database(f"sqlite:///{tmp_path}/gmail.db")
+    original_auth = auth.AUTH_ENABLED
+    auth.AUTH_ENABLED = True
+    client = TestClient(web_app.app)
+    web_app.app.dependency_overrides[auth.get_current_user] = lambda: {
+        "sub": "user-1",
+        "email": "user1@example.com",
+    }
+    try:
+        resp = client.get("/emails/gmail/token")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["access_token"] is None
+        assert data["email"] is None
+
+        resp = client.post(
+            "/emails/gmail/token",
+            json={
+                "access_token": "abc",
+                "scope": "scope1",
+                "token_type": "Bearer",
+                "expires_at": "2030-01-01T00:00:00Z",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["access_token"] == "abc"
+        assert data["scope"] == "scope1"
+
+        resp = client.post(
+            "/emails/gmail/token",
+            json={"email": "linked@example.com"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["email"] == "linked@example.com"
+
+        resp = client.get("/emails/gmail/token")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["access_token"] == "abc"
+        assert data["email"] == "linked@example.com"
+
+        resp = client.delete("/emails/gmail/token")
+        assert resp.status_code == 200
+        resp = client.get("/emails/gmail/token")
+        data = resp.json()
+        assert data["access_token"] is None
+        assert data["email"] is None
+    finally:
+        gmail_accounts.configure_database(original_db)
+        auth.AUTH_ENABLED = original_auth
+        web_app.app.dependency_overrides.pop(auth.get_current_user, None)
