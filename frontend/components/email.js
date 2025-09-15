@@ -483,7 +483,12 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
     labels: [],
     profile: null,
     loading: false,
-    syncing: false
+    syncing: false,
+    pageSize: 10,
+    maxThreads: 50,
+    page: 0,
+    threadPages: [],
+    pageTokens: [null]
   };
 
   const root = document.createElement('div');
@@ -509,7 +514,7 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
   refreshBtn.className = 'emails-refresh';
   refreshBtn.textContent = 'Refresh';
   refreshBtn.addEventListener('click', () => {
-    loadThreads(true);
+    loadThreads({ preserveSelection: true, reset: true, page: 0 });
   });
 
   const syncBtn = document.createElement('button');
@@ -534,7 +539,25 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
   listPane.className = 'emails-thread-list';
   const list = document.createElement('div');
   list.className = 'emails-thread-items';
-  listPane.appendChild(list);
+
+  const pagination = document.createElement('div');
+  pagination.className = 'emails-pagination';
+  const prevPageBtn = document.createElement('button');
+  prevPageBtn.type = 'button';
+  prevPageBtn.className = 'emails-page-btn';
+  prevPageBtn.textContent = 'Previous';
+  prevPageBtn.addEventListener('click', () => goToPreviousPage());
+  const pageInfo = document.createElement('span');
+  pageInfo.className = 'emails-page-info';
+  pageInfo.textContent = 'Page 1 of 1';
+  const nextPageBtn = document.createElement('button');
+  nextPageBtn.type = 'button';
+  nextPageBtn.className = 'emails-page-btn';
+  nextPageBtn.textContent = 'Next';
+  nextPageBtn.addEventListener('click', () => goToNextPage());
+  pagination.append(prevPageBtn, pageInfo, nextPageBtn);
+
+  listPane.append(list, pagination);
 
   const detailPane = document.createElement('div');
   detailPane.className = 'emails-thread-detail';
@@ -747,6 +770,8 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
     detailPane.appendChild(createPlaceholder('No conversation selected.'));
     composeBtn.disabled = true;
     refreshBtn.disabled = true;
+    resetPagination();
+    updatePaginationControls();
     setSyncStatus('');
   }
 
@@ -759,6 +784,7 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
       state.threads = [];
       state.selectedThreadId = null;
     }
+    updatePaginationControls();
   }
 
   function setSyncStatus(text) {
@@ -772,6 +798,111 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
     syncBtn.textContent = isSyncing ? 'Syncing…' : 'Clean & Sync';
     if (message) setSyncStatus(message);
     if (!isSyncing && !message) setSyncStatus('');
+  }
+
+  function resetPagination() {
+    state.threads = [];
+    state.selectedThreadId = null;
+    state.page = 0;
+    state.threadPages = [];
+    state.pageTokens = [null];
+  }
+
+  function getMaxPages() {
+    return Math.max(1, Math.ceil(state.maxThreads / state.pageSize));
+  }
+
+  function updatePaginationControls() {
+    const hasToken = Boolean(getToken());
+    const maxPages = getMaxPages();
+    const currentPage = Math.max(0, Math.min(state.page || 0, maxPages - 1));
+    const loadedPages = state.threadPages.reduce(
+      (count, page) => count + (Array.isArray(page) ? 1 : 0),
+      0
+    );
+    const hasCachedNext = Array.isArray(state.threadPages[currentPage + 1]);
+    const hasNextToken = Boolean(state.pageTokens[currentPage + 1]);
+    const potentialTotal = hasNextToken
+      ? Math.min(maxPages, Math.max(loadedPages + 1, currentPage + 2))
+      : Math.min(maxPages, Math.max(loadedPages, currentPage + 1));
+    const totalDisplay = Math.max(1, potentialTotal || (hasToken ? currentPage + 1 : 1));
+    pageInfo.textContent = `Page ${Math.min(currentPage + 1, totalDisplay)} of ${totalDisplay}`;
+    prevPageBtn.disabled = !hasToken || state.loading || currentPage <= 0;
+    const canGoNext =
+      hasToken &&
+      !state.loading &&
+      currentPage + 1 < maxPages &&
+      (hasCachedNext || hasNextToken);
+    nextPageBtn.disabled = !canGoNext;
+  }
+
+  async function goToPage(index) {
+    if (state.loading) return;
+    const maxPages = getMaxPages();
+    const target = Math.max(0, Math.min(index, maxPages - 1));
+    if (target === state.page && Array.isArray(state.threadPages[target])) return;
+    if (target > 0 && !Array.isArray(state.threadPages[target]) && !state.pageTokens[target]) {
+      return;
+    }
+    await loadThreads({ preserveSelection: false, page: target });
+  }
+
+  async function goToNextPage() {
+    const nextIndex = state.page + 1;
+    const maxPages = getMaxPages();
+    if (nextIndex >= maxPages) return;
+    const hasCachedNext = Array.isArray(state.threadPages[nextIndex]);
+    const hasToken = Boolean(state.pageTokens[nextIndex]);
+    if (!hasCachedNext && !hasToken) return;
+    await goToPage(nextIndex);
+  }
+
+  async function goToPreviousPage() {
+    const prevIndex = state.page - 1;
+    if (prevIndex < 0) return;
+    await goToPage(prevIndex);
+  }
+
+  async function fetchPage(pageIndex, { force = false } = {}) {
+    const maxPages = getMaxPages();
+    if (pageIndex < 0 || pageIndex >= maxPages) return [];
+    if (!force && Array.isArray(state.threadPages[pageIndex])) {
+      return state.threadPages[pageIndex];
+    }
+    if (force) {
+      state.threadPages = state.threadPages.slice(0, pageIndex);
+      state.pageTokens = state.pageTokens.slice(0, pageIndex + 1);
+    }
+    if (pageIndex > 0 && !state.pageTokens[pageIndex]) {
+      state.threadPages[pageIndex] = [];
+      state.pageTokens[pageIndex + 1] = null;
+      return [];
+    }
+    const remaining = state.maxThreads - pageIndex * state.pageSize;
+    if (remaining <= 0) {
+      state.threadPages[pageIndex] = [];
+      state.pageTokens[pageIndex + 1] = null;
+      return [];
+    }
+    const params = {
+      labelIds: 'INBOX',
+      maxResults: Math.min(state.pageSize, remaining)
+    };
+    const pageToken = state.pageTokens[pageIndex];
+    if (pageToken) params.pageToken = pageToken;
+    const resp = await gmail.listThreads(params);
+    const threads = resp?.threads || [];
+    if (!threads.length) {
+      state.threadPages[pageIndex] = [];
+      state.pageTokens[pageIndex + 1] = null;
+      return [];
+    }
+    const detailed = await Promise.all(threads.map(t => gmail.getThread(t.id)));
+    const normalized = detailed.map(normalizeThread);
+    normalized.sort((a, b) => (b.latestInternalDate || 0) - (a.latestInternalDate || 0));
+    state.threadPages[pageIndex] = normalized;
+    state.pageTokens[pageIndex + 1] = resp.nextPageToken || null;
+    return normalized;
   }
 
   async function handleSync() {
@@ -803,7 +934,7 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
       const lastRun = data?.last_run ? `Last sync: ${new Date(data.last_run).toLocaleString()}` : '';
       setSyncStatus(status === 'syncing' ? 'Mailbox syncing…' : lastRun || 'Mailbox sync requested');
       showToast('Mailbox sync triggered');
-      await loadThreads(true);
+      await loadThreads({ preserveSelection: true, reset: true, page: 0 });
     } catch (err) {
       console.error(err);
       const message = err?.message || 'Mailbox sync failed';
@@ -843,7 +974,7 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
       detailPane.appendChild(createLoadingIndicator('Preparing messages…'));
       try {
         await Promise.all([fetchProfile(), fetchLabels()]);
-        await loadThreads(false);
+        await loadThreads({ preserveSelection: false, reset: true, page: 0 });
       } catch (err) {
         handleActionError(err, 'Failed to load mailbox');
         if (err instanceof GmailError && err.status === 401 && requestToken) {
@@ -858,48 +989,111 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
     return initPromise;
   }
 
-  async function loadThreads(preserveSelection = true) {
+  async function loadThreads(options = {}) {
+    const config =
+      typeof options === 'boolean' ? { preserveSelection: options } : options || {};
+    const {
+      preserveSelection = true,
+      reset = false,
+      page = null,
+      force = false
+    } = config;
+
+    const previousSelection = preserveSelection ? state.selectedThreadId : null;
+
+    if (reset) resetPagination();
+
     if (!ensureAuthorized()) return;
-    state.loading = true;
+
+    const maxPages = getMaxPages();
+    const targetPage = Math.min(
+      Math.max(
+        0,
+        page === null || page === undefined ? state.page || 0 : page
+      ),
+      maxPages - 1
+    );
+
+    const needsFetch =
+      reset ||
+      force ||
+      !Array.isArray(state.threadPages[targetPage]);
+
+    state.loading = needsFetch;
     updateAuthButtons();
-    list.innerHTML = '';
-    list.appendChild(createLoadingIndicator('Loading messages…'));
-    try {
-      const resp = await gmail.listThreads({ labelIds: 'INBOX', maxResults: 25 });
-      const threads = resp?.threads || [];
-      if (!threads.length) {
-        state.threads = [];
-        state.selectedThreadId = null;
-        list.innerHTML = '';
-        list.appendChild(createPlaceholder('Your inbox is empty.'));
-        detailPane.innerHTML = '';
-        detailPane.appendChild(createPlaceholder('No conversation selected.'));
-        return;
-      }
-      const detailed = await Promise.all(threads.map(t => gmail.getThread(t.id)));
-      const normalized = detailed.map(normalizeThread);
-      normalized.sort((a, b) => (b.latestInternalDate || 0) - (a.latestInternalDate || 0));
-      state.threads = normalized;
-      const previous = preserveSelection ? state.selectedThreadId : null;
-      if (previous && normalized.some(t => t.id === previous)) {
-        state.selectedThreadId = previous;
-      } else {
-        state.selectedThreadId = normalized[0]?.id || null;
-      }
-      renderThreadList();
-      const active = state.threads.find(t => t.id === state.selectedThreadId) || null;
-      renderThreadDetail(active);
-    } catch (err) {
-      handleActionError(err, 'Unable to load messages');
+    if (needsFetch) {
       list.innerHTML = '';
-      list.appendChild(createPlaceholder('Unable to load messages. Try reconnecting Gmail.'));
-      if (err instanceof GmailError && err.status === 401 && requestToken) {
+      list.appendChild(createLoadingIndicator('Loading messages…'));
+    }
+    updatePaginationControls();
+
+    let fetchError = null;
+
+    if (needsFetch) {
+      try {
+        for (let i = 0; i <= targetPage; i++) {
+          if (i > 0 && !state.pageTokens[i]) break;
+          const shouldFetch =
+            reset ||
+            (force && i === targetPage) ||
+            !Array.isArray(state.threadPages[i]);
+          if (!shouldFetch) continue;
+          await fetchPage(i, {
+            force: (force && i === targetPage) || (reset && i === targetPage)
+          });
+        }
+      } catch (err) {
+        fetchError = err;
+      }
+    }
+
+    state.loading = false;
+
+    if (fetchError) {
+      state.threads = [];
+      state.selectedThreadId = null;
+      handleActionError(fetchError, 'Unable to load messages');
+      list.innerHTML = '';
+      list.appendChild(
+        createPlaceholder('Unable to load messages. Try reconnecting Gmail.')
+      );
+      renderThreadDetail(null);
+      if (fetchError instanceof GmailError && fetchError.status === 401 && requestToken) {
         requestToken();
       }
-    } finally {
-      state.loading = false;
       updateAuthButtons();
+      updatePaginationControls();
+      return;
     }
+
+    let resolvedPage = targetPage;
+    while (resolvedPage > 0 && !Array.isArray(state.threadPages[resolvedPage])) {
+      resolvedPage -= 1;
+    }
+    if (!Array.isArray(state.threadPages[resolvedPage])) {
+      resolvedPage = 0;
+    }
+
+    state.page = resolvedPage;
+    state.threads = Array.isArray(state.threadPages[resolvedPage])
+      ? state.threadPages[resolvedPage]
+      : [];
+
+    if (
+      previousSelection &&
+      state.threads.some(thread => thread.id === previousSelection)
+    ) {
+      state.selectedThreadId = previousSelection;
+    } else {
+      state.selectedThreadId = state.threads[0]?.id || null;
+    }
+
+    renderThreadList();
+    const active =
+      state.threads.find(t => t.id === state.selectedThreadId) || null;
+    renderThreadDetail(active);
+    updateAuthButtons();
+    updatePaginationControls();
   }
   function renderThreadList() {
     list.innerHTML = '';
@@ -907,7 +1101,7 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
       list.appendChild(createPlaceholder('Connect Gmail to load messages.'));
       return;
     }
-    if (state.loading) {
+    if (state.loading && !state.threads.length) {
       list.appendChild(createLoadingIndicator('Loading messages…'));
       return;
     }
@@ -1155,7 +1349,7 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
     try {
       await action();
       if (successMessage) showToast(successMessage);
-      await loadThreads(true);
+      await loadThreads({ preserveSelection: true, page: state.page, force: true });
       if (threadId) {
         const thread = state.threads.find(t => t.id === threadId) || null;
         renderThreadDetail(thread);
@@ -1256,7 +1450,7 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
       await gmail.sendMessage(raw, { threadId, useDraft });
       showToast('Message sent');
       closeCompose();
-      await loadThreads(true);
+      await loadThreads({ preserveSelection: true, reset: true, page: 0 });
     } catch (err) {
       handleActionError(err, 'Failed to send email');
       if (err instanceof GmailError && err.status === 401 && requestToken) {
