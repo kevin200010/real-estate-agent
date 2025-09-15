@@ -7,6 +7,7 @@ import { initToast } from './components/toast.js';
 import { createAgentChat } from './components/agent-chat.js';
 import { openAppointmentForm } from './components/appointment.js';
 import { createEventCalendar } from './components/event-calendar.js';
+import { createEmailsView } from './components/email.js';
 
 const mapReady = new Promise(resolve => {
   if (window.GOOGLE_MAPS_API_KEY) {
@@ -44,6 +45,7 @@ window.mapReady = mapReady;
 const state={ data:{}, gmap:null, markers:{}, activeMarkerId:null };
 let topbarAPI;
 let agentChatEl;
+let emailsEl;
 let googleTokenClient;
 const googleTokenListeners=[];
 let gmailTokenClient;
@@ -113,10 +115,10 @@ function initGmailAuth() {
   if (!window.google || !window.google.accounts || !window.GOOGLE_CLIENT_ID) {
     setTimeout(initGmailAuth, 500);
     return;
-    }
+  }
   gmailTokenClient = window.google.accounts.oauth2.initTokenClient({
     client_id: window.GOOGLE_CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send',
+    scope: 'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.compose',
     callback: resp => {
       if (resp.access_token) {
         window.GMAIL_ACCESS_TOKEN = resp.access_token;
@@ -701,7 +703,16 @@ async function router(){
     main.appendChild(createOutreach());
   } else if(route.startsWith('#/emails')){
     topbarAPI.setActive('#/emails');
-    main.appendChild(createEmailsView());
+    if(!emailsEl){
+      emailsEl=createEmailsView({
+        getToken: () => window.GMAIL_ACCESS_TOKEN,
+        requestToken: requestGmailAccessToken,
+        onToken: onGmailToken,
+        authFetch,
+        apiBaseUrl: window.API_BASE_URL || ''
+      });
+    }
+    main.appendChild(emailsEl);
   } else if(route.startsWith('#/agent')){
     topbarAPI.setActive('#/agent');
     if(!agentChatEl) agentChatEl=createAgentChat();
@@ -723,72 +734,6 @@ function createOutreach(){
   editor.append(textarea,timeline);
   view.append(cohorts,editor);
   return view;
-}
-
-function createEmailsView(){
-  const wrap=document.createElement('div');
-  wrap.className='emails-view';
-  const connect=document.createElement('button');
-  connect.textContent='Connect Gmail';
-  connect.addEventListener('click',requestGmailAccessToken);
-  wrap.appendChild(connect);
-  const list=document.createElement('div');
-  list.id='email-list';
-  wrap.appendChild(list);
-  const composeBtn=document.createElement('button');
-  composeBtn.className='compose-btn';
-  composeBtn.textContent='Compose';
-  wrap.appendChild(composeBtn);
-  const compose=document.createElement('form');
-  compose.className='compose-form hidden';
-  compose.innerHTML=`<label>To<input name="to" type="email" required></label>
-    <label>Subject<input name="subject" required></label>
-    <label>Body<textarea name="body" required></textarea></label>
-    <div class="actions"><button type="submit" class="send">Send</button><button type="button" class="close">Close</button></div>`;
-  wrap.appendChild(compose);
-  composeBtn.addEventListener('click',()=>compose.classList.toggle('hidden'));
-  compose.querySelector('.close').addEventListener('click',()=>compose.classList.add('hidden'));
-
-  async function fetchMessages(){
-    const token=window.GMAIL_ACCESS_TOKEN;
-    if(!token) return;
-    list.innerHTML='';
-    try{
-      const resp=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=10',{headers:{Authorization:`Bearer ${token}`}});
-      const data=await resp.json();
-      const msgs=data.messages||[];
-      for(const m of msgs){
-        const det=await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From`,{headers:{Authorization:`Bearer ${token}`}});
-        const d=await det.json();
-        const headers=d.payload?.headers||[];
-        const subject=headers.find(h=>h.name==='Subject')?.value||'';
-        const sender=headers.find(h=>h.name==='From')?.value||'';
-        const item=document.createElement('div');
-        item.className='email-item';
-        item.textContent=`${subject} - ${sender}`;
-        list.appendChild(item);
-      }
-    }catch{}
-  }
-
-  onGmailToken(fetchMessages);
-  if(window.GMAIL_ACCESS_TOKEN) fetchMessages();
-
-  compose.addEventListener('submit',async e=>{
-    e.preventDefault();
-    const fd=new FormData(compose);
-    const to=fd.get('to');
-    const subject=fd.get('subject');
-    const body=fd.get('body');
-    const token=window.GMAIL_ACCESS_TOKEN;
-    if(!token) return;
-    const msg=['To: '+to,'Subject: '+subject,'',body].join('\n');
-    const encoded=btoa(unescape(encodeURIComponent(msg))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-    const resp=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({raw:encoded})});
-    if(resp.ok){alert('Email sent'); compose.reset(); compose.classList.add('hidden');}
-  });
-
-  return wrap;
 }
 
 function setupShortcuts(){

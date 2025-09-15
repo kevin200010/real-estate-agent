@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +42,19 @@ app.include_router(leads_router)
 # user IDs to credential dicts. A production system should persist these
 # securely instead of keeping them in a process-level dictionary.
 _email_credentials: dict[str, dict[str, dict[str, str]]] = {"gmail": {}, "outlook": {}}
+
+
+_mailbox_sync_lock = asyncio.Lock()
+_mailbox_sync_state: dict[str, str | None] = {"status": "idle", "last_run": None}
+
+
+async def _run_mailbox_sync() -> None:
+    async with _mailbox_sync_lock:
+        try:
+            await asyncio.sleep(0)
+        finally:
+            _mailbox_sync_state['status'] = 'idle'
+            _mailbox_sync_state['last_run'] = datetime.now(datetime.UTC).isoformat()
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -92,6 +106,15 @@ async def voice(
     transcript = await asyncio.to_thread(_sonic.transcribe, audio_bytes)
     result = await app_graph.ainvoke({"user_input": transcript})
     return {**result, "transcript": transcript}
+
+
+@app.post("/emails/gmail/clean-sync")
+async def trigger_mailbox_sync(user: dict | None = Depends(get_current_user)):
+    if _mailbox_sync_state.get('status') == 'syncing':
+        return {"status": 'syncing', "last_run": _mailbox_sync_state.get('last_run')}
+    _mailbox_sync_state['status'] = 'syncing'
+    asyncio.get_running_loop().create_task(_run_mailbox_sync())
+    return {"status": 'queued', "last_run": _mailbox_sync_state.get('last_run')}
 
 
 @app.post("/emails/{provider}/sync")

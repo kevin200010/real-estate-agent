@@ -78,6 +78,13 @@ def test_outlook_sync_endpoint_returns_list(monkeypatch):
     _assert_messages(resp)
 
 
+
+
+def test_clean_sync_endpoint():
+    resp = client.post("/emails/gmail/clean-sync")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert 'status' in data
 def test_send_email(monkeypatch):
     from emails import GmailProvider
 
