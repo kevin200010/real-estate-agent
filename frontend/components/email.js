@@ -485,7 +485,6 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
     loading: false,
     syncing: false,
     pageSize: 10,
-    maxThreads: 50,
     page: 0,
     threadPages: [],
     pageTokens: [null]
@@ -808,52 +807,51 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
     state.pageTokens = [null];
   }
 
-  function getMaxPages() {
-    return Math.max(1, Math.ceil(state.maxThreads / state.pageSize));
+  function hasPage(index) {
+    if (index <= 0) return true;
+    if (Array.isArray(state.threadPages[index])) return true;
+    return Boolean(state.pageTokens[index]);
+  }
+
+  function getTotalPages() {
+    const maxIndex = Math.max(
+      state.threadPages.length - 1,
+      state.pageTokens.length - 1
+    );
+    let total = 1;
+    for (let i = 1; i <= maxIndex; i++) {
+      if (hasPage(i)) total = i + 1;
+    }
+    return total;
   }
 
   function updatePaginationControls() {
     const hasToken = Boolean(getToken());
-    const maxPages = getMaxPages();
-    const currentPage = Math.max(0, Math.min(state.page || 0, maxPages - 1));
-    const loadedPages = state.threadPages.reduce(
-      (count, page) => count + (Array.isArray(page) ? 1 : 0),
-      0
-    );
-    const hasCachedNext = Array.isArray(state.threadPages[currentPage + 1]);
-    const hasNextToken = Boolean(state.pageTokens[currentPage + 1]);
-    const potentialTotal = hasNextToken
-      ? Math.min(maxPages, Math.max(loadedPages + 1, currentPage + 2))
-      : Math.min(maxPages, Math.max(loadedPages, currentPage + 1));
-    const totalDisplay = Math.max(1, potentialTotal || (hasToken ? currentPage + 1 : 1));
-    pageInfo.textContent = `Page ${Math.min(currentPage + 1, totalDisplay)} of ${totalDisplay}`;
-    prevPageBtn.disabled = !hasToken || state.loading || currentPage <= 0;
-    const canGoNext =
-      hasToken &&
-      !state.loading &&
-      currentPage + 1 < maxPages &&
-      (hasCachedNext || hasNextToken);
+    if (!hasToken) {
+      pageInfo.textContent = 'Page 1 of 1';
+      prevPageBtn.disabled = true;
+      nextPageBtn.disabled = true;
+      return;
+    }
+    const totalPages = getTotalPages();
+    const currentPage = Math.max(0, Math.min(state.page || 0, totalPages - 1));
+    pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
+    prevPageBtn.disabled = state.loading || currentPage <= 0;
+    const canGoNext = hasPage(currentPage + 1) && !state.loading;
     nextPageBtn.disabled = !canGoNext;
   }
 
   async function goToPage(index) {
     if (state.loading) return;
-    const maxPages = getMaxPages();
-    const target = Math.max(0, Math.min(index, maxPages - 1));
+    const target = Math.max(0, index);
+    if (!hasPage(target)) return;
     if (target === state.page && Array.isArray(state.threadPages[target])) return;
-    if (target > 0 && !Array.isArray(state.threadPages[target]) && !state.pageTokens[target]) {
-      return;
-    }
     await loadThreads({ preserveSelection: false, page: target });
   }
 
   async function goToNextPage() {
     const nextIndex = state.page + 1;
-    const maxPages = getMaxPages();
-    if (nextIndex >= maxPages) return;
-    const hasCachedNext = Array.isArray(state.threadPages[nextIndex]);
-    const hasToken = Boolean(state.pageTokens[nextIndex]);
-    if (!hasCachedNext && !hasToken) return;
+    if (!hasPage(nextIndex) || state.loading) return;
     await goToPage(nextIndex);
   }
 
@@ -864,8 +862,7 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
   }
 
   async function fetchPage(pageIndex, { force = false } = {}) {
-    const maxPages = getMaxPages();
-    if (pageIndex < 0 || pageIndex >= maxPages) return [];
+    if (pageIndex < 0) return [];
     if (!force && Array.isArray(state.threadPages[pageIndex])) {
       return state.threadPages[pageIndex];
     }
@@ -878,15 +875,9 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
       state.pageTokens[pageIndex + 1] = null;
       return [];
     }
-    const remaining = state.maxThreads - pageIndex * state.pageSize;
-    if (remaining <= 0) {
-      state.threadPages[pageIndex] = [];
-      state.pageTokens[pageIndex + 1] = null;
-      return [];
-    }
     const params = {
       labelIds: 'INBOX',
-      maxResults: Math.min(state.pageSize, remaining)
+      maxResults: state.pageSize
     };
     const pageToken = state.pageTokens[pageIndex];
     if (pageToken) params.pageToken = pageToken;
@@ -1005,14 +996,12 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
 
     if (!ensureAuthorized()) return;
 
-    const maxPages = getMaxPages();
-    const targetPage = Math.min(
-      Math.max(
-        0,
-        page === null || page === undefined ? state.page || 0 : page
-      ),
-      maxPages - 1
-    );
+    const requestedPage =
+      page === null || page === undefined ? state.page || 0 : page;
+    let targetPage = Math.max(0, requestedPage);
+    while (targetPage > 0 && !hasPage(targetPage)) {
+      targetPage -= 1;
+    }
 
     const needsFetch =
       reset ||
@@ -1267,6 +1256,10 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
       detailPane.appendChild(summary);
     }
 
+    const messagesWrap = document.createElement('div');
+    messagesWrap.className = 'emails-thread-messages';
+    detailPane.appendChild(messagesWrap);
+
     thread.messages.forEach(message => {
       const messageEl = document.createElement('article');
       messageEl.className = 'emails-message';
@@ -1321,10 +1314,11 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
       }
 
       messageEl.appendChild(renderMessageActions(message, thread));
-      detailPane.appendChild(messageEl);
+      messagesWrap.appendChild(messageEl);
     });
 
     detailPane.scrollTop = 0;
+    messagesWrap.scrollTop = 0;
   }
 
   function renderMessageActions(message, thread) {

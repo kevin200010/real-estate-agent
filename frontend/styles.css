@@ -491,7 +491,9 @@ button:hover{
   display: flex;
   flex-direction: column;
   gap: var(--gap);
-  min-height: calc(100vh - 120px);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .emails-header {
@@ -663,8 +665,17 @@ button:hover{
   background: rgba(255,255,255,0.75);
   border-radius: var(--radius-lg);
   padding: var(--gap);
-  overflow-y: auto;
   box-shadow: var(--shadow);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.emails-thread-messages {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  overflow-y: auto;
   min-height: 0;
 }
 
