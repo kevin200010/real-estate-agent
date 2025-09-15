@@ -92,26 +92,20 @@ and remember the OAuth credentials for future sessions. To enable this flow:
    next login the application will fetch events from Google Calendar without
    prompting you again.
 
-### Email integration (Gmail and Outlook)
+### Email integration (Gmail)
 
-The application can sync and send email through Gmail or Outlook.
+The application can link to Gmail through OAuth and display messages from the
+selected account.
 
-1. **Prepare a Gmail app password** – Enable two‑factor authentication on your
-   Google account and generate an app password from the security settings.
-2. **Open the Emails page** – Start the backend and frontend servers, sign in,
+1. **Open the Emails page** – Start the backend and frontend servers, sign in,
    then navigate to the **Emails** tab in the top bar.
-3. **Sync Gmail** – Enter your Gmail address and app password in the Sync Gmail
-   form. The backend stores the credentials in memory for the session and
-   fetches recent messages via `POST /emails/gmail/sync`.
-4. **List messages** – After syncing, the page displays results from
-   `GET /emails/gmail` (or `GET /emails/outlook`).
-5. **Send email** – Use the **Send Email** form which posts to
-   `POST /emails/{provider}/send` with `to`, `subject`, and `body` fields. If
-   credentials were previously synced they are reused; otherwise include
-   `username` and `password` in the payload.
-
-When credentials are missing the listing endpoint returns an empty list so the
-rest of the application continues to function.
+2. **Connect Gmail** – Click the **Connect Gmail** button and choose an account
+   from the Google account picker. Grant the requested permissions.
+3. **View messages** – After authorization the page loads recent messages from
+   the chosen Gmail account.
+4. **Send email** – Use the floating **Compose** button in the bottom‑right to
+   draft a message. The form sends the email through Gmail's API using the
+   authorized account.
 
 ## Notes
 
