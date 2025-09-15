@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +15,11 @@ from auth import AUTH_ENABLED, get_current_user
 from appointments import router as appointments_router
 from leads import router as leads_router
 from emails import get_provider
+from gmail_accounts import (
+    delete_account as delete_gmail_account,
+    get_account as get_gmail_account,
+    save_account as save_gmail_account,
+)
 import json
 from pathlib import Path
 
@@ -211,6 +216,9 @@ except Exception:
     _google_tokens = {}
 
 
+_GMAIL_PROVIDER = "gmail"
+
+
 @app.post("/google-token")
 async def save_google_token(
     payload: dict, user: dict | None = Depends(get_current_user)
@@ -260,4 +268,72 @@ async def delete_google_token(user: dict | None = Depends(get_current_user)):
         _TOKENS_FILE.write_text(json.dumps(_google_tokens))
     except Exception:
         logging.exception("Failed to persist Google token")
+    return {"status": "deleted"}
+
+
+def _gmail_account_response(record: dict | None) -> dict:
+    return {
+        "provider": (record or {}).get("provider", _GMAIL_PROVIDER),
+        "email": (record or {}).get("email"),
+        "access_token": (record or {}).get("access_token"),
+        "token_type": (record or {}).get("token_type"),
+        "scope": (record or {}).get("scope"),
+        "expires_at": (record or {}).get("expires_at"),
+        "updated_at": (record or {}).get("updated_at"),
+    }
+
+
+@app.get("/emails/gmail/token")
+async def get_gmail_token(user: dict | None = Depends(get_current_user)):
+    if AUTH_ENABLED and not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    key = user["sub"] if user else "default"
+    record = get_gmail_account(_GMAIL_PROVIDER, key)
+    return _gmail_account_response(record)
+
+
+@app.post("/emails/gmail/token")
+async def store_gmail_token(payload: dict, user: dict | None = Depends(get_current_user)):
+    if AUTH_ENABLED and not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    key = user["sub"] if user else "default"
+    access_token = payload.get("access_token")
+    email = payload.get("email")
+    token_type = payload.get("token_type")
+    scope = payload.get("scope")
+    expires_at = payload.get("expires_at")
+    expires_in = payload.get("expires_in")
+    if expires_at is None and expires_in is not None:
+        try:
+            seconds = float(expires_in)
+        except (TypeError, ValueError):
+            seconds = None
+        if seconds is not None:
+            expires_at = (datetime.now(timezone.utc) + timedelta(seconds=seconds)).isoformat()
+
+    updates = {
+        "email": email,
+        "access_token": access_token,
+        "token_type": token_type,
+        "scope": scope,
+        "expires_at": expires_at,
+    }
+
+    if not any(value is not None for value in updates.values()):
+        raise HTTPException(status_code=400, detail="No account details provided")
+
+    record = save_gmail_account(
+        _GMAIL_PROVIDER,
+        key,
+        **{k: v for k, v in updates.items() if v is not None},
+    )
+    return _gmail_account_response(record)
+
+
+@app.delete("/emails/gmail/token")
+async def delete_gmail_token(user: dict | None = Depends(get_current_user)):
+    if AUTH_ENABLED and not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    key = user["sub"] if user else "default"
+    delete_gmail_account(_GMAIL_PROVIDER, key)
     return {"status": "deleted"}

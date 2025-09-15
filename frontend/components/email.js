@@ -57,7 +57,15 @@ class GmailClient {
   async listThreads(params = {}) {
     const search = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') search.append(key, value);
+      if (Array.isArray(value)) {
+        value.forEach(item => {
+          if (item !== undefined && item !== null && item !== '') {
+            search.append(key, item);
+          }
+        });
+      } else if (value !== undefined && value !== null && value !== '') {
+        search.append(key, value);
+      }
     });
     const qs = search.toString();
     return this._request(`threads${qs ? `?${qs}` : ''}`);
@@ -66,7 +74,15 @@ class GmailClient {
   async getThread(id, params = {}) {
     const search = new URLSearchParams({ format: 'full' });
     Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') search.append(key, value);
+      if (Array.isArray(value)) {
+        value.forEach(item => {
+          if (item !== undefined && item !== null && item !== '') {
+            search.append(key, item);
+          }
+        });
+      } else if (value !== undefined && value !== null && value !== '') {
+        search.append(key, value);
+      }
     });
     const qs = search.toString();
     return this._request(`threads/${id}${qs ? `?${qs}` : ''}`);
@@ -475,7 +491,15 @@ function normalizeThread(thread) {
     latestInternalDate: last?.internalDate || 0
   };
 }
-export function createEmailsView({ getToken, requestToken, onToken, authFetch, apiBaseUrl }) {
+export function createEmailsView({
+  getToken,
+  requestToken,
+  onToken,
+  authFetch,
+  apiBaseUrl,
+  loadStoredToken = null,
+  saveAccount = null
+}) {
   const gmail = new GmailClient(getToken);
   const state = {
     threads: [],
@@ -487,8 +511,54 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
     pageSize: 10,
     page: 0,
     threadPages: [],
-    pageTokens: [null]
+    pageTokens: [null],
+    view: 'inbox'
   };
+  const folderOptions = [
+    { key: 'inbox', label: 'Inbox', labelIds: ['INBOX'] },
+    { key: 'starred', label: 'Starred', labelIds: ['STARRED'] },
+    { key: 'sent', label: 'Sent', labelIds: ['SENT'] },
+    { key: 'drafts', label: 'Drafts', labelIds: ['DRAFT'] },
+    { key: 'important', label: 'Important', labelIds: ['IMPORTANT'] }
+  ];
+  const folderMap = folderOptions.reduce((acc, option) => {
+    acc[option.key] = option;
+    return acc;
+  }, {});
+  const folderButtons = {};
+
+  function getCurrentView() {
+    return folderMap[state.view] || folderOptions[0];
+  }
+
+  function updateFolderNav() {
+    Object.entries(folderButtons).forEach(([key, btn]) => {
+      btn.classList.toggle('active', key === state.view);
+      btn.disabled = state.loading && key !== state.view;
+    });
+  }
+
+  function setActiveView(viewKey, { force = false, skipLoad = false } = {}) {
+    if (!folderMap[viewKey]) return;
+    if (!force && state.view === viewKey) return;
+    state.view = viewKey;
+    updateFolderNav();
+    if (!skipLoad) {
+      loadThreads({ preserveSelection: false, reset: true, page: 0 });
+    }
+  }
+
+  function triggerRequestToken(options) {
+    if (!requestToken) return;
+    try {
+      const result = requestToken(options);
+      if (result && typeof result.catch === 'function') {
+        result.catch(() => {});
+      }
+    } catch (err) {
+      console.warn('Failed to request Gmail authorization', err);
+    }
+  }
 
   const root = document.createElement('div');
   root.className = 'emails-page';
@@ -499,13 +569,15 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
   headerLeft.className = 'emails-header-left';
   const headerRight = document.createElement('div');
   headerRight.className = 'emails-header-right';
+  const accountInfo = document.createElement('div');
+  accountInfo.className = 'emails-account-info';
 
   const connectBtn = document.createElement('button');
   connectBtn.type = 'button';
   connectBtn.className = 'emails-connect';
   connectBtn.textContent = 'Connect Gmail';
   connectBtn.addEventListener('click', () => {
-    if (requestToken) requestToken();
+    triggerRequestToken();
   });
 
   const refreshBtn = document.createElement('button');
@@ -528,7 +600,7 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
   syncStatusEl.className = 'emails-sync-status';
 
   headerLeft.append(connectBtn, refreshBtn, syncBtn);
-  headerRight.append(syncStatusEl);
+  headerRight.append(accountInfo, syncStatusEl);
   header.append(headerLeft, headerRight);
 
   const layout = document.createElement('div');
@@ -536,6 +608,20 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
 
   const listPane = document.createElement('div');
   listPane.className = 'emails-thread-list';
+  const folderNav = document.createElement('div');
+  folderNav.className = 'emails-folder-nav';
+  folderOptions.forEach(option => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'emails-folder-btn';
+    btn.textContent = option.label;
+    btn.addEventListener('click', () => {
+      if (state.loading && option.key === state.view) return;
+      setActiveView(option.key);
+    });
+    folderButtons[option.key] = btn;
+    folderNav.appendChild(btn);
+  });
   const list = document.createElement('div');
   list.className = 'emails-thread-items';
 
@@ -556,7 +642,8 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
   nextPageBtn.addEventListener('click', () => goToNextPage());
   pagination.append(prevPageBtn, pageInfo, nextPageBtn);
 
-  listPane.append(list, pagination);
+  listPane.append(folderNav, list, pagination);
+  updateFolderNav();
 
   const detailPane = document.createElement('div');
   detailPane.className = 'emails-thread-detail';
@@ -570,7 +657,7 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
   composeBtn.textContent = 'Compose';
   composeBtn.addEventListener('click', () => {
     if (!ensureAuthorized(false)) {
-      if (requestToken) requestToken();
+      triggerRequestToken();
       return;
     }
     openCompose({ mode: 'compose' });
@@ -653,11 +740,28 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
   });
 
   updateAuthButtons();
-  if (getToken()) {
-    handleTokenReady();
-  } else {
+  updateAccountInfo();
+
+  (async () => {
+    if (getToken()) {
+      await handleTokenReady();
+      return;
+    }
+    if (typeof loadStoredToken === 'function') {
+      try {
+        await loadStoredToken();
+      } catch (err) {
+        console.warn('Failed to load stored Gmail token', err);
+      }
+      updateAuthButtons();
+      updateAccountInfo();
+      if (getToken()) {
+        await handleTokenReady();
+        return;
+      }
+    }
     renderDisconnectedState();
-  }
+  })();
 
   function renderComposeAttachments() {
     attachmentsList.innerHTML = '';
@@ -771,23 +875,35 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
     refreshBtn.disabled = true;
     resetPagination();
     updatePaginationControls();
+    updateFolderNav();
     setSyncStatus('');
+    updateAccountInfo();
   }
 
   function updateAuthButtons() {
     const hasToken = Boolean(getToken());
-    connectBtn.textContent = hasToken ? 'Reconnect Gmail' : 'Connect Gmail';
+    const linkedEmail = window.GMAIL_ACCOUNT && window.GMAIL_ACCOUNT.email;
+    connectBtn.textContent = hasToken || linkedEmail ? 'Reconnect Gmail' : 'Connect Gmail';
     composeBtn.disabled = !hasToken;
     refreshBtn.disabled = !hasToken || state.loading;
-    if (!hasToken) {
+    if (!hasToken && !state.loading) {
       state.threads = [];
       state.selectedThreadId = null;
     }
     updatePaginationControls();
+    updateFolderNav();
   }
 
   function setSyncStatus(text) {
     syncStatusEl.textContent = text || '';
+  }
+
+  function updateAccountInfo() {
+    const email =
+      state.profile?.emailAddress ||
+      (window.GMAIL_ACCOUNT && window.GMAIL_ACCOUNT.email) ||
+      '';
+    accountInfo.textContent = email ? `Linked Gmail: ${email}` : '';
   }
 
   function setSyncing(isSyncing, message) {
@@ -875,10 +991,11 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
       state.pageTokens[pageIndex + 1] = null;
       return [];
     }
+    const currentView = getCurrentView();
     const params = {
-      labelIds: 'INBOX',
       maxResults: state.pageSize
     };
+    if (currentView.labelIds) params.labelIds = currentView.labelIds;
     const pageToken = state.pageTokens[pageIndex];
     if (pageToken) params.pageToken = pageToken;
     const resp = await gmail.listThreads(params);
@@ -938,8 +1055,20 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
   async function fetchProfile() {
     try {
       state.profile = await gmail.getProfile();
+      if (saveAccount && state.profile?.emailAddress) {
+        try {
+          const result = saveAccount({ email: state.profile.emailAddress });
+          if (result && typeof result.catch === 'function') {
+            result.catch(() => {});
+          }
+        } catch (err) {
+          console.warn('Failed to persist Gmail account email', err);
+        }
+      }
     } catch (err) {
       console.warn('Failed to load Gmail profile', err);
+    } finally {
+      updateAccountInfo();
     }
   }
 
@@ -969,7 +1098,7 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
       } catch (err) {
         handleActionError(err, 'Failed to load mailbox');
         if (err instanceof GmailError && err.status === 401 && requestToken) {
-          requestToken();
+          triggerRequestToken();
         }
       }
     })().finally(() => {
@@ -1015,6 +1144,7 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
       list.appendChild(createLoadingIndicator('Loading messages…'));
     }
     updatePaginationControls();
+    updateFolderNav();
 
     let fetchError = null;
 
@@ -1037,6 +1167,7 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
     }
 
     state.loading = false;
+    updateFolderNav();
 
     if (fetchError) {
       state.threads = [];
@@ -1048,10 +1179,11 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
       );
       renderThreadDetail(null);
       if (fetchError instanceof GmailError && fetchError.status === 401 && requestToken) {
-        requestToken();
+        triggerRequestToken();
       }
       updateAuthButtons();
       updatePaginationControls();
+      updateFolderNav();
       return;
     }
 
@@ -1094,10 +1226,14 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
       list.appendChild(createLoadingIndicator('Loading messages…'));
       return;
     }
+    const currentView = getCurrentView();
     if (!state.threads.length) {
-      list.appendChild(createPlaceholder('No conversations found.'));
+      list.appendChild(
+        createPlaceholder(`No conversations in ${currentView.label}.`)
+      );
       return;
     }
+    const showRecipients = currentView.key === 'sent' || currentView.key === 'drafts';
     state.threads.forEach(thread => {
       const item = document.createElement('div');
       item.className = 'emails-thread-item';
@@ -1109,7 +1245,15 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
       top.className = 'emails-thread-top';
       const nameEl = document.createElement('span');
       nameEl.className = 'emails-thread-name';
-      nameEl.textContent = senderName(thread.lastMessage?.from || '(No sender)');
+      let headerValue = showRecipients
+        ? thread.lastMessage?.to || thread.lastMessage?.cc || thread.lastMessage?.bcc || ''
+        : thread.lastMessage?.from || '';
+      if (showRecipients && !headerValue) {
+        headerValue = thread.lastMessage?.from || '';
+      }
+      const firstEntry = headerValue ? headerValue.split(',')[0] : '';
+      const fallback = showRecipients ? '(No recipient)' : '(No sender)';
+      nameEl.textContent = senderName(firstEntry || fallback) || fallback;
       const meta = document.createElement('div');
       meta.className = 'emails-thread-meta';
       const dateEl = document.createElement('span');
@@ -1351,7 +1495,7 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
     } catch (err) {
       handleActionError(err, 'Email action failed');
       if (err instanceof GmailError && err.status === 401 && requestToken) {
-        requestToken();
+        triggerRequestToken();
       }
     }
   }
@@ -1448,7 +1592,7 @@ export function createEmailsView({ getToken, requestToken, onToken, authFetch, a
     } catch (err) {
       handleActionError(err, 'Failed to send email');
       if (err instanceof GmailError && err.status === 401 && requestToken) {
-        requestToken();
+        triggerRequestToken();
       }
     } finally {
       sendBtn.disabled = false;
