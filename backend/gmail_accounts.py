@@ -59,10 +59,49 @@ def _ensure_schema(url: Optional[str] = None) -> None:
                 scope TEXT,
                 expires_at TEXT,
                 updated_at TEXT,
+                imap_username TEXT,
+                imap_password TEXT,
                 PRIMARY KEY (provider, user_id)
             )
             """
         )
+
+        # Older installations may not yet include the ``imap_username`` and
+        # ``imap_password`` columns. Attempt to add them when they are
+        # missing so credentials gathered from the sync endpoint can be
+        # persisted alongside OAuth tokens.
+        try:
+            columns: set[str] = set()
+            if _is_postgres(target):  # pragma: no cover - depends on psycopg2
+                cur.execute(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name = 'gmail_accounts'
+                    AND table_schema = current_schema()
+                    """
+                )
+                columns = {row[0] for row in cur.fetchall()}
+            else:
+                cur.execute("PRAGMA table_info(gmail_accounts)")
+                rows = cur.fetchall()
+                for row in rows:
+                    if isinstance(row, sqlite3.Row):
+                        columns.add(str(row["name"]))
+                    else:
+                        # PRAGMA table_info returns tuples of the form
+                        # (cid, name, type, notnull, dflt_value, pk)
+                        columns.add(str(row[1]))
+
+            for column in ("imap_username", "imap_password"):
+                if column not in columns:
+                    cur.execute(f"ALTER TABLE gmail_accounts ADD COLUMN {column} TEXT")
+        except Exception:  # pragma: no cover - defensive
+            # Failing to add the optional columns should not prevent the
+            # application from starting. Loggers are not configured here so
+            # we simply swallow the exception.
+            pass
+
         conn.commit()
 
 
@@ -86,6 +125,8 @@ def save_account(
     token_type: Optional[str] = None,
     scope: Optional[str] = None,
     expires_at: Optional[str] = None,
+    imap_username: Optional[str] = None,
+    imap_password: Optional[str] = None,
 ) -> Dict[str, Optional[str]]:
     """Insert or update a linked Gmail account for a user."""
 
@@ -105,6 +146,10 @@ def save_account(
         if isinstance(expires_at, datetime):
             expires_at = expires_at.astimezone(timezone.utc).isoformat()
         updates["expires_at"] = expires_at
+    if imap_username is not None:
+        updates["imap_username"] = imap_username
+    if imap_password is not None:
+        updates["imap_password"] = imap_password
 
     timestamp = datetime.now(timezone.utc).isoformat()
     updates["updated_at"] = timestamp
@@ -146,7 +191,7 @@ def get_account(provider: str, user_id: str) -> Optional[Dict[str, Optional[str]
         placeholder = "%s" if _is_postgres(url) else "?"
         cur.execute(
             f"""
-            SELECT provider, user_id, email, access_token, token_type, scope, expires_at, updated_at
+            SELECT provider, user_id, email, access_token, token_type, scope, expires_at, updated_at, imap_username, imap_password
             FROM gmail_accounts
             WHERE provider = {placeholder} AND user_id = {placeholder}
             """,

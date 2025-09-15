@@ -11,7 +11,8 @@ from fastapi.templating import Jinja2Templates
 
 from langgraph_app import app_graph
 from property_chatbot import SonicClient
-from auth import AUTH_ENABLED, get_current_user
+import auth
+from auth import get_current_user
 from appointments import router as appointments_router
 from leads import router as leads_router
 from emails import get_provider
@@ -42,10 +43,12 @@ _sonic = SonicClient()
 app.include_router(appointments_router)
 app.include_router(leads_router)
 
-# In-memory store for per-user email credentials gathered during the sync flow.
+# In-memory cache for per-user email credentials gathered during the sync flow.
 # Keys are provider names (``gmail`` or ``outlook``) and map to dictionaries of
-# user IDs to credential dicts. A production system should persist these
-# securely instead of keeping them in a process-level dictionary.
+# user IDs to credential dicts. Gmail credentials are also persisted in
+# ``gmail_accounts`` so they survive restarts and remain isolated per user. A
+# production system should persist passwords securely instead of keeping them in
+# plaintext.
 _email_credentials: dict[str, dict[str, dict[str, str]]] = {"gmail": {}, "outlook": {}}
 
 
@@ -138,7 +141,24 @@ async def sync_email(
         raise HTTPException(status_code=404, detail="unknown provider")
 
     key = user["sub"] if user else "default"
-    _email_credentials[provider][key] = {"username": username, "password": password}
+
+    if provider == _GMAIL_PROVIDER and auth.AUTH_ENABLED and not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    creds = {"username": username, "password": password}
+    _email_credentials[provider][key] = creds
+
+    if provider == _GMAIL_PROVIDER:
+        try:
+            save_gmail_account(
+                _GMAIL_PROVIDER,
+                key,
+                email=username,
+                imap_username=username,
+                imap_password=password,
+            )
+        except Exception:
+            logging.exception("Failed to persist Gmail credentials")
 
     service = get_provider(provider, username=username, password=password)
     messages = service.list_messages()
@@ -157,14 +177,33 @@ async def list_emails(
 
     provider = provider.lower()
     key = user["sub"] if user else "default"
-    creds = _email_credentials.get(provider, {}).get(key)
-    if creds:
+    store = _email_credentials.setdefault(provider, {})
+    creds = store.get(key)
+    record: dict | None = None
+
+    if provider == _GMAIL_PROVIDER:
+        if auth.AUTH_ENABLED and not user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        record = get_gmail_account(_GMAIL_PROVIDER, key)
+        if not creds and record:
+            imap_username = record.get("imap_username") or record.get("email")
+            imap_password = record.get("imap_password")
+            if imap_username and imap_password:
+                creds = {"username": imap_username, "password": imap_password}
+                store[key] = creds
+        if auth.AUTH_ENABLED and user and (
+            not record or not creds or not creds.get("username") or not creds.get("password")
+        ):
+            return {"messages": []}
+
+    if creds and creds.get("username") and creds.get("password"):
         service = get_provider(provider, creds.get("username"), creds.get("password"))
     else:
         service = get_provider(provider)
 
     if service is None:
         raise HTTPException(status_code=404, detail="unknown provider")
+
     messages = service.list_messages()
     return {"messages": [m.__dict__ for m in messages]}
 
@@ -188,6 +227,16 @@ async def send_email(
         if creds:
             username = username or creds.get("username")
             password = password or creds.get("password")
+        if provider == _GMAIL_PROVIDER and (not username or not password):
+            record = get_gmail_account(_GMAIL_PROVIDER, key)
+            if record:
+                username = username or record.get("imap_username") or record.get("email")
+                password = password or record.get("imap_password")
+                if username and password:
+                    _email_credentials.setdefault(provider, {})[key] = {
+                        "username": username,
+                        "password": password,
+                    }
 
     if not to_addr or not username or not password:
         raise HTTPException(status_code=400, detail="missing required fields")
@@ -228,7 +277,7 @@ async def save_google_token(
     When authentication is disabled (e.g. local development) the token is
     stored under a shared key instead of being associated with a user.
     """
-    if AUTH_ENABLED and not user:
+    if auth.AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     token = payload.get("access_token")
     if not token:
@@ -250,7 +299,7 @@ async def get_google_token(user: dict | None = Depends(get_current_user)):
     returning a 404. This avoids noisy errors in the frontend when a user has not
     granted access to their Google Calendar.
     """
-    if AUTH_ENABLED and not user:
+    if auth.AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     key = user["sub"] if user else "default"
     token = _google_tokens.get(key)
@@ -260,7 +309,7 @@ async def get_google_token(user: dict | None = Depends(get_current_user)):
 @app.delete("/google-token")
 async def delete_google_token(user: dict | None = Depends(get_current_user)):
     """Remove the stored Google OAuth token for the authenticated user."""
-    if AUTH_ENABLED and not user:
+    if auth.AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     key = user["sub"] if user else "default"
     _google_tokens.pop(key, None)
@@ -285,7 +334,7 @@ def _gmail_account_response(record: dict | None) -> dict:
 
 @app.get("/emails/gmail/token")
 async def get_gmail_token(user: dict | None = Depends(get_current_user)):
-    if AUTH_ENABLED and not user:
+    if auth.AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     key = user["sub"] if user else "default"
     record = get_gmail_account(_GMAIL_PROVIDER, key)
@@ -294,7 +343,7 @@ async def get_gmail_token(user: dict | None = Depends(get_current_user)):
 
 @app.post("/emails/gmail/token")
 async def store_gmail_token(payload: dict, user: dict | None = Depends(get_current_user)):
-    if AUTH_ENABLED and not user:
+    if auth.AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     key = user["sub"] if user else "default"
     access_token = payload.get("access_token")
@@ -332,8 +381,9 @@ async def store_gmail_token(payload: dict, user: dict | None = Depends(get_curre
 
 @app.delete("/emails/gmail/token")
 async def delete_gmail_token(user: dict | None = Depends(get_current_user)):
-    if AUTH_ENABLED and not user:
+    if auth.AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     key = user["sub"] if user else "default"
     delete_gmail_account(_GMAIL_PROVIDER, key)
+    _email_credentials.setdefault(_GMAIL_PROVIDER, {}).pop(key, None)
     return {"status": "deleted"}

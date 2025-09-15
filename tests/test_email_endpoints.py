@@ -66,6 +66,53 @@ def test_gmail_sync_endpoint_returns_list(monkeypatch):
     _assert_messages(resp)
 
 
+def test_gmail_sync_persists_credentials(monkeypatch, tmp_path):
+    from emails import GmailProvider, EmailMessage
+
+    original_db = gmail_accounts.DATABASE_URL
+    gmail_accounts.configure_database(f"sqlite:///{tmp_path}/gmail.db")
+
+    original_auth = auth.AUTH_ENABLED
+    auth.AUTH_ENABLED = True
+    user = {"sub": "user-credentials", "email": "user@example.com"}
+    web_app.app.dependency_overrides[auth.get_current_user] = lambda: user
+
+    try:
+        def sync_stub(self, max_results: int = 10):  # pragma: no cover - stub for sync
+            return [EmailMessage(id="1", subject="Test", sender="sender@example.com")]
+
+        monkeypatch.setattr(GmailProvider, "list_messages", sync_stub)
+
+        resp = client.post(
+            "/emails/gmail/sync",
+            json={"username": "linked@gmail.com", "password": "app-password"},
+        )
+        _assert_messages(resp)
+
+        record = gmail_accounts.get_account("gmail", user["sub"])
+        assert record is not None
+        assert record.get("imap_username") == "linked@gmail.com"
+        assert record.get("imap_password") == "app-password"
+
+        # Clear the in-memory cache to ensure credentials are restored from the DB
+        web_app._email_credentials["gmail"].pop(user["sub"], None)
+
+        def list_stub(self, max_results: int = 10):  # pragma: no cover - ensure cached creds
+            assert self.username == "linked@gmail.com"
+            assert self.password == "app-password"
+            return [EmailMessage(id="2", subject="Persisted", sender="sender@example.com")]
+
+        monkeypatch.setattr(GmailProvider, "list_messages", list_stub)
+
+        resp = client.get("/emails/gmail")
+        _assert_messages(resp)
+    finally:
+        gmail_accounts.configure_database(original_db)
+        auth.AUTH_ENABLED = original_auth
+        web_app.app.dependency_overrides.pop(auth.get_current_user, None)
+        web_app._email_credentials["gmail"].pop(user["sub"], None)
+
+
 def test_outlook_sync_endpoint_returns_list(monkeypatch):
     from emails import OutlookProvider, EmailMessage
 
