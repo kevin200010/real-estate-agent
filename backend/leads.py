@@ -100,9 +100,6 @@ with _get_conn() as _conn:
 
 router = APIRouter()
 
-LOCAL_USER_ID = os.getenv("LOCAL_USER_ID", "local-dev-user")
-LOCAL_USER_EMAIL = os.getenv("LOCAL_USER_EMAIL", "")
-
 
 class LeadCreate(BaseModel):
     name: str
@@ -129,24 +126,18 @@ class LeadUpdate(BaseModel):
 def _user_identity(user: dict | None) -> tuple[str, str]:
     """Return the identifier and email for the current user.
 
-    When authentication is disabled (e.g. in local development) the API falls
-    back to a deterministic user so that leads can still be created and listed.
-    If authentication is enabled and no user is provided, the request is
+    The request must include authenticated user information. When authentication
+    is disabled (e.g. in tests or local development) a user object may still be
+    supplied via dependency overrides and will be respected so leads remain
+    scoped per-user. If no user information is available the request is
     rejected.
     """
 
     if user and "sub" in user:
-        # Even when authentication is disabled we may still receive a user
-        # object via dependency overrides (e.g. tests) or from a future auth
-        # provider. Respect it so leads remain scoped per-user rather than
-        # falling back to the shared local user.
+        # Respect explicitly provided user objects even when the global
+        # authentication flag is disabled so that tests or alternative auth
+        # providers can still scope leads per-user.
         return user["sub"], user.get("email", "")
-
-    if not auth.AUTH_ENABLED:
-        # Authentication is disabled and no explicit user information was
-        # provided. Fall back to a deterministic local user so that the API
-        # continues to function in single-user environments.
-        return LOCAL_USER_ID, LOCAL_USER_EMAIL
 
     raise HTTPException(
         status_code=401,
