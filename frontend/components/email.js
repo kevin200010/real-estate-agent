@@ -596,10 +596,18 @@ export function createEmailsView({
     handleSync();
   });
 
+  const disconnectBtn = document.createElement('button');
+  disconnectBtn.type = 'button';
+  disconnectBtn.className = 'emails-disconnect';
+  disconnectBtn.textContent = 'Disconnect';
+  disconnectBtn.addEventListener('click', () => {
+    disconnectGmail();
+  });
+
   const syncStatusEl = document.createElement('div');
   syncStatusEl.className = 'emails-sync-status';
 
-  headerLeft.append(connectBtn, refreshBtn, syncBtn);
+  headerLeft.append(connectBtn, refreshBtn, syncBtn, disconnectBtn);
   headerRight.append(accountInfo, syncStatusEl);
   header.append(headerLeft, headerRight);
 
@@ -873,6 +881,10 @@ export function createEmailsView({
     detailPane.appendChild(createPlaceholder('No conversation selected.'));
     composeBtn.disabled = true;
     refreshBtn.disabled = true;
+    disconnectBtn.disabled = true;
+    disconnectBtn.classList.remove('loading');
+    disconnectBtn.style.display = 'none';
+    state.profile = null;
     resetPagination();
     updatePaginationControls();
     updateFolderNav();
@@ -886,6 +898,10 @@ export function createEmailsView({
     connectBtn.textContent = hasToken || linkedEmail ? 'Reconnect Gmail' : 'Connect Gmail';
     composeBtn.disabled = !hasToken;
     refreshBtn.disabled = !hasToken || state.loading;
+    const canDisconnect = Boolean(hasToken || linkedEmail);
+    disconnectBtn.style.display = canDisconnect ? '' : 'none';
+    disconnectBtn.disabled = !canDisconnect || state.loading;
+    disconnectBtn.classList.remove('loading');
     if (!hasToken && !state.loading) {
       state.threads = [];
       state.selectedThreadId = null;
@@ -1052,6 +1068,90 @@ export function createEmailsView({
       setSyncing(false);
     }
   }
+
+  async function revokeGmailToken(token) {
+    if (!token) return;
+    try {
+      if (
+        window.google &&
+        window.google.accounts &&
+        window.google.accounts.oauth2 &&
+        typeof window.google.accounts.oauth2.revoke === 'function'
+      ) {
+        await new Promise(resolve => {
+          try {
+            window.google.accounts.oauth2.revoke(token, () => resolve());
+          } catch (err) {
+            resolve();
+          }
+        });
+      } else {
+        await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`, {
+          method: 'POST'
+        }).catch(() => {});
+      }
+    } catch (err) {
+      console.warn('Failed to revoke Gmail token', err);
+    }
+  }
+
+  function clearGmailState() {
+    delete window.GMAIL_ACCESS_TOKEN;
+    delete window.GMAIL_TOKEN_INFO;
+    delete window.GMAIL_ACCOUNT;
+    delete window.GMAIL_ACCOUNT_EMAIL;
+    state.profile = null;
+  }
+
+  async function disconnectGmail() {
+    if (disconnectBtn.disabled) return;
+    disconnectBtn.disabled = true;
+    disconnectBtn.classList.add('loading');
+    const token = getToken();
+    let errorMessage = null;
+    try {
+      await revokeGmailToken(token);
+      if (apiBaseUrl) {
+        const disconnectResp = await authFetch(`${apiBaseUrl}/emails/gmail/sync`, {
+          method: 'DELETE'
+        });
+        if (!disconnectResp.ok && disconnectResp.status !== 404) {
+          let detail = null;
+          try {
+            detail = await disconnectResp.json();
+          } catch (err) {
+            detail = null;
+          }
+          const message = (detail && detail.detail) || 'Failed to disconnect Gmail';
+          throw new Error(message);
+        }
+        const tokenResp = await authFetch(`${apiBaseUrl}/emails/gmail/token`, {
+          method: 'DELETE'
+        });
+        if (!tokenResp.ok && tokenResp.status !== 404) {
+          let detail = null;
+          try {
+            detail = await tokenResp.json();
+          } catch (err) {
+            detail = null;
+          }
+          const message = (detail && detail.detail) || 'Failed to remove Gmail token';
+          throw new Error(message);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      errorMessage = err && err.message ? err.message : 'Failed to disconnect Gmail';
+    } finally {
+      clearGmailState();
+      renderDisconnectedState();
+      updateAuthButtons();
+      updateAccountInfo();
+      disconnectBtn.classList.remove('loading');
+    }
+    showToast(errorMessage || 'Gmail disconnected');
+  }
+
   async function fetchProfile() {
     try {
       state.profile = await gmail.getProfile();

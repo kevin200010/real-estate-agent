@@ -65,6 +65,17 @@ def _ensure_schema(url: Optional[str] = None) -> None:
             )
             """
         )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS linked_email_accounts (
+                provider TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                email TEXT NOT NULL,
+                linked_at TEXT NOT NULL,
+                PRIMARY KEY (provider, user_id)
+            )
+            """
+        )
 
         # Older installations may not yet include the ``imap_username`` and
         # ``imap_password`` columns. Attempt to add them when they are
@@ -215,6 +226,84 @@ def delete_account(provider: str, user_id: str) -> None:
         placeholder = "%s" if _is_postgres(url) else "?"
         cur.execute(
             f"DELETE FROM gmail_accounts WHERE provider = {placeholder} AND user_id = {placeholder}",
+            (provider, user_id),
+        )
+        conn.commit()
+
+
+def save_linked_email_account(provider: str, user_id: str, email: str) -> Dict[str, str]:
+    """Persist the email address linked to a user's mailbox provider."""
+
+    if not provider or not user_id:
+        raise ValueError("provider and user_id are required")
+    if not email:
+        raise ValueError("email is required")
+
+    timestamp = datetime.now(timezone.utc).isoformat()
+    url = DATABASE_URL
+    with _get_conn(url) as conn:
+        cur = _get_cursor(conn, url)
+        placeholder = "%s" if _is_postgres(url) else "?"
+        cur.execute(
+            f"SELECT 1 FROM linked_email_accounts WHERE provider = {placeholder} AND user_id = {placeholder}",
+            (provider, user_id),
+        )
+        exists = cur.fetchone() is not None
+        if exists:
+            cur.execute(
+                f"""
+                UPDATE linked_email_accounts
+                SET email = {placeholder}, linked_at = {placeholder}
+                WHERE provider = {placeholder} AND user_id = {placeholder}
+                """,
+                (email, timestamp, provider, user_id),
+            )
+        else:
+            placeholders = ", ".join([placeholder] * 4)
+            cur.execute(
+                f"""
+                INSERT INTO linked_email_accounts (provider, user_id, email, linked_at)
+                VALUES ({placeholders})
+                """,
+                (provider, user_id, email, timestamp),
+            )
+        conn.commit()
+    return get_linked_email_account(provider, user_id) or {}
+
+
+def get_linked_email_account(provider: str, user_id: str) -> Optional[Dict[str, str]]:
+    """Return the linked email record for ``provider`` and ``user_id``."""
+
+    url = DATABASE_URL
+    with _get_conn(url) as conn:
+        cur = _get_cursor(conn, url)
+        placeholder = "%s" if _is_postgres(url) else "?"
+        cur.execute(
+            f"""
+            SELECT provider, user_id, email, linked_at
+            FROM linked_email_accounts
+            WHERE provider = {placeholder} AND user_id = {placeholder}
+            """,
+            (provider, user_id),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        if hasattr(row, "keys"):
+            return dict(row)
+        columns = [desc[0] for desc in cur.description]
+        return dict(zip(columns, row))  # pragma: no cover - defensive branch
+
+
+def delete_linked_email_account(provider: str, user_id: str) -> None:
+    """Delete the linked email mapping for a user and provider."""
+
+    url = DATABASE_URL
+    with _get_conn(url) as conn:
+        cur = _get_cursor(conn, url)
+        placeholder = "%s" if _is_postgres(url) else "?"
+        cur.execute(
+            f"DELETE FROM linked_email_accounts WHERE provider = {placeholder} AND user_id = {placeholder}",
             (provider, user_id),
         )
         conn.commit()

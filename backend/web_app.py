@@ -18,8 +18,11 @@ from leads import router as leads_router
 from emails import get_provider
 from gmail_accounts import (
     delete_account as delete_gmail_account,
+    delete_linked_email_account,
     get_account as get_gmail_account,
+    get_linked_email_account,
     save_account as save_gmail_account,
+    save_linked_email_account,
 )
 import json
 from pathlib import Path
@@ -157,12 +160,37 @@ async def sync_email(
                 imap_username=username,
                 imap_password=password,
             )
+            save_linked_email_account(_GMAIL_PROVIDER, key, username)
         except Exception:
             logging.exception("Failed to persist Gmail credentials")
 
     service = get_provider(provider, username=username, password=password)
     messages = service.list_messages()
     return {"messages": [m.__dict__ for m in messages]}
+
+
+@app.delete("/emails/{provider}/sync")
+async def disconnect_email_provider(
+    provider: str, user: dict | None = Depends(get_current_user)
+):
+    """Disconnect the stored credentials for ``provider`` for the user."""
+
+    provider = provider.lower()
+    if provider not in _email_credentials:
+        raise HTTPException(status_code=404, detail="unknown provider")
+
+    key = user["sub"] if user else "default"
+
+    if provider == _GMAIL_PROVIDER and auth.AUTH_ENABLED and not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    _email_credentials.setdefault(provider, {}).pop(key, None)
+
+    if provider == _GMAIL_PROVIDER:
+        delete_gmail_account(_GMAIL_PROVIDER, key)
+        delete_linked_email_account(_GMAIL_PROVIDER, key)
+
+    return {"status": "disconnected"}
 
 
 @app.get("/emails/{provider}")
@@ -180,10 +208,12 @@ async def list_emails(
     store = _email_credentials.setdefault(provider, {})
     creds = store.get(key)
     record: dict | None = None
+    linked_record: dict | None = None
 
     if provider == _GMAIL_PROVIDER:
         if auth.AUTH_ENABLED and not user:
             raise HTTPException(status_code=401, detail="Not authenticated")
+        linked_record = get_linked_email_account(_GMAIL_PROVIDER, key)
         record = get_gmail_account(_GMAIL_PROVIDER, key)
         if not creds and record:
             imap_username = record.get("imap_username") or record.get("email")
@@ -192,7 +222,11 @@ async def list_emails(
                 creds = {"username": imap_username, "password": imap_password}
                 store[key] = creds
         if auth.AUTH_ENABLED and user and (
-            not record or not creds or not creds.get("username") or not creds.get("password")
+            not linked_record
+            or not record
+            or not creds
+            or not creds.get("username")
+            or not creds.get("password")
         ):
             return {"messages": []}
 
@@ -232,11 +266,21 @@ async def send_email(
             if record:
                 username = username or record.get("imap_username") or record.get("email")
                 password = password or record.get("imap_password")
+                if username:
+                    try:
+                        save_linked_email_account(_GMAIL_PROVIDER, key, username)
+                    except Exception:
+                        logging.exception("Failed to persist linked Gmail account during send")
                 if username and password:
                     _email_credentials.setdefault(provider, {})[key] = {
                         "username": username,
                         "password": password,
                     }
+
+    if provider == _GMAIL_PROVIDER and auth.AUTH_ENABLED and user:
+        linked_record = get_linked_email_account(_GMAIL_PROVIDER, key)
+        if not linked_record:
+            raise HTTPException(status_code=400, detail="No linked Gmail account")
 
     if not to_addr or not username or not password:
         raise HTTPException(status_code=400, detail="missing required fields")
@@ -376,6 +420,12 @@ async def store_gmail_token(payload: dict, user: dict | None = Depends(get_curre
         key,
         **{k: v for k, v in updates.items() if v is not None},
     )
+    linked_email = record.get("email") if record else None
+    if linked_email:
+        try:
+            save_linked_email_account(_GMAIL_PROVIDER, key, linked_email)
+        except Exception:
+            logging.exception("Failed to persist linked Gmail email during token save")
     return _gmail_account_response(record)
 
 
@@ -386,4 +436,5 @@ async def delete_gmail_token(user: dict | None = Depends(get_current_user)):
     key = user["sub"] if user else "default"
     delete_gmail_account(_GMAIL_PROVIDER, key)
     _email_credentials.setdefault(_GMAIL_PROVIDER, {}).pop(key, None)
+    delete_linked_email_account(_GMAIL_PROVIDER, key)
     return {"status": "deleted"}

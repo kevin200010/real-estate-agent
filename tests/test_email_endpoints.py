@@ -93,6 +93,9 @@ def test_gmail_sync_persists_credentials(monkeypatch, tmp_path):
         assert record is not None
         assert record.get("imap_username") == "linked@gmail.com"
         assert record.get("imap_password") == "app-password"
+        linked = gmail_accounts.get_linked_email_account("gmail", user["sub"])
+        assert linked is not None
+        assert linked.get("email") == "linked@gmail.com"
 
         # Clear the in-memory cache to ensure credentials are restored from the DB
         web_app._email_credentials["gmail"].pop(user["sub"], None)
@@ -106,6 +109,96 @@ def test_gmail_sync_persists_credentials(monkeypatch, tmp_path):
 
         resp = client.get("/emails/gmail")
         _assert_messages(resp)
+    finally:
+        gmail_accounts.configure_database(original_db)
+        auth.AUTH_ENABLED = original_auth
+        web_app.app.dependency_overrides.pop(auth.get_current_user, None)
+        web_app._email_credentials["gmail"].pop(user["sub"], None)
+
+
+def test_gmail_messages_are_scoped_per_user(monkeypatch, tmp_path):
+    from emails import GmailProvider, EmailMessage
+
+    original_db = gmail_accounts.DATABASE_URL
+    gmail_accounts.configure_database(f"sqlite:///{tmp_path}/gmail.db")
+
+    original_auth = auth.AUTH_ENABLED
+    auth.AUTH_ENABLED = True
+
+    user_a = {"sub": "user-a", "email": "usera@example.com"}
+    user_b = {"sub": "user-b", "email": "userb@example.com"}
+
+    def list_messages(self, max_results: int = 10):  # pragma: no cover - stub for scoping
+        assert self.username == "usera@gmail.com"
+        return [EmailMessage(id="a1", subject="A", sender="sender@example.com")]
+
+    monkeypatch.setattr(GmailProvider, "list_messages", list_messages)
+
+    try:
+        web_app.app.dependency_overrides[auth.get_current_user] = lambda: user_a
+        resp = client.post(
+            "/emails/gmail/sync",
+            json={"username": "usera@gmail.com", "password": "pw-a"},
+        )
+        _assert_messages(resp)
+
+        linked_a = gmail_accounts.get_linked_email_account("gmail", user_a["sub"])
+        assert linked_a is not None and linked_a.get("email") == "usera@gmail.com"
+
+        web_app.app.dependency_overrides[auth.get_current_user] = lambda: user_b
+        resp = client.get("/emails/gmail")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["messages"] == []
+        assert gmail_accounts.get_linked_email_account("gmail", user_b["sub"]) is None
+
+        web_app.app.dependency_overrides[auth.get_current_user] = lambda: user_a
+        resp = client.get("/emails/gmail")
+        _assert_messages(resp)
+        assert gmail_accounts.get_linked_email_account("gmail", user_a["sub"]) is not None
+    finally:
+        gmail_accounts.configure_database(original_db)
+        auth.AUTH_ENABLED = original_auth
+        web_app.app.dependency_overrides.pop(auth.get_current_user, None)
+        web_app._email_credentials["gmail"].pop(user_a["sub"], None)
+        web_app._email_credentials["gmail"].pop(user_b["sub"], None)
+
+
+def test_gmail_disconnect_clears_credentials(monkeypatch, tmp_path):
+    from emails import GmailProvider, EmailMessage
+
+    original_db = gmail_accounts.DATABASE_URL
+    gmail_accounts.configure_database(f"sqlite:///{tmp_path}/gmail.db")
+
+    original_auth = auth.AUTH_ENABLED
+    auth.AUTH_ENABLED = True
+
+    user = {"sub": "user-disconnect", "email": "disconnect@example.com"}
+
+    def list_messages(self, max_results: int = 10):  # pragma: no cover - stub for sync
+        return [EmailMessage(id="1", subject="Disconnect", sender="sender@example.com")]
+
+    monkeypatch.setattr(GmailProvider, "list_messages", list_messages)
+
+    try:
+        web_app.app.dependency_overrides[auth.get_current_user] = lambda: user
+        resp = client.post(
+            "/emails/gmail/sync",
+            json={"username": "disconnect@gmail.com", "password": "pw"},
+        )
+        _assert_messages(resp)
+
+        assert gmail_accounts.get_account("gmail", user["sub"]) is not None
+        assert gmail_accounts.get_linked_email_account("gmail", user["sub"]) is not None
+        assert web_app._email_credentials["gmail"].get(user["sub"]) is not None
+
+        resp = client.delete("/emails/gmail/sync")
+        assert resp.status_code == 200
+        assert resp.json().get("status") == "disconnected"
+
+        assert gmail_accounts.get_account("gmail", user["sub"]) is None
+        assert gmail_accounts.get_linked_email_account("gmail", user["sub"]) is None
+        assert web_app._email_credentials["gmail"].get(user["sub"]) is None
     finally:
         gmail_accounts.configure_database(original_db)
         auth.AUTH_ENABLED = original_auth
