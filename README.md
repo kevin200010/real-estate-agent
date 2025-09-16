@@ -107,6 +107,30 @@ selected account.
    draft a message. The form sends the email through Gmail's API using the
    authorized account.
 
+#### Database setup for Gmail sync
+
+Linked Gmail accounts and credentials are stored server‑side so each Cognito
+user only sees messages from the Gmail address they connected. The backend
+persists these details in two tables, `gmail_accounts` and
+`linked_email_accounts`.
+
+* **SQLite (default)** – If you are using the default SQLite database
+  (`sqlite:///./leads.db`), no additional setup is required. The tables are
+  created automatically the first time the backend starts.
+* **PostgreSQL** – To store Gmail credentials in PostgreSQL instead, provision a
+  database (see the _Local PostgreSQL database_ section above for commands) and
+  point the backend at it:
+
+  ```bash
+  # Optional: use a separate database just for Gmail data
+  export GMAIL_DATABASE_URL=postgresql://username:password@localhost:5432/cascade_ai_gmail
+  ```
+
+  If `GMAIL_DATABASE_URL` is not set the Gmail tables reuse the primary
+  `DATABASE_URL`. After setting the desired connection string, start the backend
+  once and it will create the `gmail_accounts` and `linked_email_accounts`
+  tables automatically.
+
 ## Notes
 
 This example focuses on illustrating how components fit together. Production applications should implement robust error handling, streaming audio for low latency, and secure storage of user data.
