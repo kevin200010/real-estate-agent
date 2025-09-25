@@ -2,6 +2,7 @@ import os
 import sys
 import types
 
+import pytest
 from fastapi.testclient import TestClient
 
 # Provide minimal jinja2 and multipart stubs so ``web_app`` can be imported
@@ -247,6 +248,60 @@ def test_send_email(monkeypatch):
     )
     assert resp.status_code == 200
     assert resp.json().get("status") == "sent"
+
+
+def test_get_user_email_messages_requires_auth_when_enabled():
+    original_auth = auth.AUTH_ENABLED
+    auth.AUTH_ENABLED = True
+    try:
+        with pytest.raises(web_app.EmailAuthenticationRequired):
+            web_app.get_user_email_messages("gmail", None)
+    finally:
+        auth.AUTH_ENABLED = original_auth
+
+
+def test_get_user_email_messages_scoped_to_user(monkeypatch, tmp_path):
+    from emails import EmailMessage, GmailProvider
+
+    original_db = gmail_accounts.DATABASE_URL
+    gmail_accounts.configure_database(f"sqlite:///{tmp_path}/gmail.db")
+    original_auth = auth.AUTH_ENABLED
+    auth.AUTH_ENABLED = True
+
+    user_a = {"sub": "user-a", "email": "usera@example.com"}
+    user_b = {"sub": "user-b", "email": "userb@example.com"}
+
+    gmail_accounts.save_account(
+        "gmail",
+        user_a["sub"],
+        email="usera@gmail.com",
+        imap_username="usera@gmail.com",
+        imap_password="pw-a",
+    )
+    gmail_accounts.save_linked_email_account("gmail", user_a["sub"], "usera@gmail.com")
+
+    web_app._email_credentials.setdefault("gmail", {})[user_a["sub"]] = {
+        "username": "usera@gmail.com",
+        "password": "pw-a",
+    }
+
+    def list_messages(self, max_results: int = 10):  # pragma: no cover - scoped helper
+        assert self.username == "usera@gmail.com"
+        return [EmailMessage(id="msg-1", subject="Hello", sender="sender@example.com")]
+
+    monkeypatch.setattr(GmailProvider, "list_messages", list_messages)
+
+    try:
+        messages_a = web_app.get_user_email_messages("gmail", user_a)
+        assert len(messages_a) == 1
+        assert messages_a[0].id == "msg-1"
+
+        messages_b = web_app.get_user_email_messages("gmail", user_b)
+        assert messages_b == []
+    finally:
+        gmail_accounts.configure_database(original_db)
+        auth.AUTH_ENABLED = original_auth
+        web_app._email_credentials["gmail"].pop(user_a["sub"], None)
 
 
 def test_gmail_token_persistence(tmp_path):
