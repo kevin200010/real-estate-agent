@@ -168,6 +168,33 @@ def _row_to_dict(row) -> dict:
     }
 
 
+def get_leads_for_user(user_id: str, user_email: str | None = None) -> List[dict]:
+    """Return all leads stored for ``user_id`` and ``user_email``.
+
+    The lookup mirrors the scoping used by the API endpoints so callers outside
+    of the FastAPI router receive the same per-user isolation guarantees.
+    ``user_email`` is optional to support identity providers that do not supply
+    an email address; in that case the leads are keyed by the empty string.
+    """
+
+    if not user_id:
+        raise ValueError("user_id is required to fetch leads")
+
+    normalized_email = user_email or ""
+    with _get_conn() as conn:
+        cur = _get_cursor(conn)
+        cur.execute(
+            (
+                "SELECT * FROM leads WHERE user_id = ? AND creator_email = ?"
+                if not _is_postgres()
+                else "SELECT * FROM leads WHERE user_id = %s AND creator_email = %s"
+            ),
+            (user_id, normalized_email),
+        )
+        rows = cur.fetchall()
+    return [_row_to_dict(r) for r in rows]
+
+
 @router.get("/leads")
 def list_leads(user: dict | None = Depends(get_current_user)) -> List[dict]:
     """Return leads belonging to the current user's identity.
@@ -177,18 +204,7 @@ def list_leads(user: dict | None = Depends(get_current_user)) -> List[dict]:
     """
 
     uid, email = _user_identity(user)
-    with _get_conn() as conn:
-        cur = _get_cursor(conn)
-        cur.execute(
-            (
-                "SELECT * FROM leads WHERE user_id = ? AND creator_email = ?"
-                if not _is_postgres()
-                else "SELECT * FROM leads WHERE user_id = %s AND creator_email = %s"
-            ),
-            (uid, email),
-        )
-        rows = cur.fetchall()
-    return [_row_to_dict(r) for r in rows]
+    return get_leads_for_user(uid, email)
 
 
 @router.post("/leads")

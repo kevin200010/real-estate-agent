@@ -215,6 +215,35 @@ def test_leads_are_filtered_by_id(tmp_path):
     assert data[0]["name"] == "Alice"
 
 
+def test_get_leads_for_user_returns_scoped_results(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    from backend import auth
+    import backend.leads as leads
+
+    auth.AUTH_ENABLED = True
+
+    app.dependency_overrides[auth.get_current_user] = override_user(
+        "user-a", "usera@example.com"
+    )
+    resp = client.post("/leads", json={"name": "Alice", "stage": "New"})
+    assert resp.status_code == 200
+
+    app.dependency_overrides[auth.get_current_user] = override_user(
+        "user-b", "userb@example.com"
+    )
+    resp = client.post("/leads", json={"name": "Bob", "stage": "Qualified"})
+    assert resp.status_code == 200
+
+    leads_for_a = leads.get_leads_for_user("user-a", "usera@example.com")
+    assert len(leads_for_a) == 1
+    assert leads_for_a[0]["name"] == "Alice"
+
+    leads_for_b = leads.get_leads_for_user("user-b", "userb@example.com")
+    assert len(leads_for_b) == 1
+    assert leads_for_b[0]["name"] == "Bob"
+
+
 def test_delete_lead_is_scoped_to_user(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)

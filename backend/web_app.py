@@ -15,7 +15,7 @@ import auth
 from auth import get_current_user
 from appointments import router as appointments_router
 from leads import router as leads_router
-from emails import get_provider
+from emails import EmailMessage, get_provider
 from gmail_accounts import (
     delete_account as delete_gmail_account,
     delete_linked_email_account,
@@ -53,6 +53,75 @@ app.include_router(leads_router)
 # production system should persist passwords securely instead of keeping them in
 # plaintext.
 _email_credentials: dict[str, dict[str, dict[str, str]]] = {"gmail": {}, "outlook": {}}
+
+
+class EmailAccessError(Exception):
+    """Base class for email retrieval errors."""
+
+
+class EmailAuthenticationRequired(EmailAccessError):
+    """Raised when a request requires a signed-in user."""
+
+
+class UnknownEmailProviderError(EmailAccessError):
+    """Raised when an unsupported email provider is requested."""
+
+
+def _user_key(user: dict | None) -> str:
+    """Return the storage key for the current user."""
+
+    return user["sub"] if user else "default"
+
+
+def get_user_email_messages(provider: str, user: dict | None) -> list[EmailMessage]:
+    """Return recent messages for ``provider`` scoped to ``user``.
+
+    The helper centralises the logic used by the API layer so other modules
+    (such as background agents) can read a user's inbox without duplicating the
+    credential resolution rules. Gmail requires an authenticated user when the
+    authentication system is enabled; when credentials are incomplete the
+    function returns an empty list instead of raising.
+    """
+
+    provider = provider.lower()
+    if provider not in _email_credentials:
+        raise UnknownEmailProviderError(provider)
+
+    key = _user_key(user)
+    store = _email_credentials.setdefault(provider, {})
+    creds = store.get(key)
+    record: dict | None = None
+    linked_record: dict | None = None
+
+    if provider == _GMAIL_PROVIDER:
+        if auth.AUTH_ENABLED and not user:
+            raise EmailAuthenticationRequired("Not authenticated")
+        linked_record = get_linked_email_account(_GMAIL_PROVIDER, key)
+        record = get_gmail_account(_GMAIL_PROVIDER, key)
+        if not creds and record:
+            imap_username = record.get("imap_username") or record.get("email")
+            imap_password = record.get("imap_password")
+            if imap_username and imap_password:
+                creds = {"username": imap_username, "password": imap_password}
+                store[key] = creds
+        if auth.AUTH_ENABLED and user and (
+            not linked_record
+            or not record
+            or not creds
+            or not creds.get("username")
+            or not creds.get("password")
+        ):
+            return []
+
+    if creds and creds.get("username") and creds.get("password"):
+        service = get_provider(provider, creds.get("username"), creds.get("password"))
+    else:
+        service = get_provider(provider)
+
+    if service is None:
+        raise UnknownEmailProviderError(provider)
+
+    return service.list_messages()
 
 
 _mailbox_sync_lock = asyncio.Lock()
@@ -143,7 +212,7 @@ async def sync_email(
     if provider not in _email_credentials:
         raise HTTPException(status_code=404, detail="unknown provider")
 
-    key = user["sub"] if user else "default"
+    key = _user_key(user)
 
     if provider == _GMAIL_PROVIDER and auth.AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -179,7 +248,7 @@ async def disconnect_email_provider(
     if provider not in _email_credentials:
         raise HTTPException(status_code=404, detail="unknown provider")
 
-    key = user["sub"] if user else "default"
+    key = _user_key(user)
 
     if provider == _GMAIL_PROVIDER and auth.AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -204,41 +273,12 @@ async def list_emails(
     """
 
     provider = provider.lower()
-    key = user["sub"] if user else "default"
-    store = _email_credentials.setdefault(provider, {})
-    creds = store.get(key)
-    record: dict | None = None
-    linked_record: dict | None = None
-
-    if provider == _GMAIL_PROVIDER:
-        if auth.AUTH_ENABLED and not user:
-            raise HTTPException(status_code=401, detail="Not authenticated")
-        linked_record = get_linked_email_account(_GMAIL_PROVIDER, key)
-        record = get_gmail_account(_GMAIL_PROVIDER, key)
-        if not creds and record:
-            imap_username = record.get("imap_username") or record.get("email")
-            imap_password = record.get("imap_password")
-            if imap_username and imap_password:
-                creds = {"username": imap_username, "password": imap_password}
-                store[key] = creds
-        if auth.AUTH_ENABLED and user and (
-            not linked_record
-            or not record
-            or not creds
-            or not creds.get("username")
-            or not creds.get("password")
-        ):
-            return {"messages": []}
-
-    if creds and creds.get("username") and creds.get("password"):
-        service = get_provider(provider, creds.get("username"), creds.get("password"))
-    else:
-        service = get_provider(provider)
-
-    if service is None:
+    try:
+        messages = get_user_email_messages(provider, user)
+    except EmailAuthenticationRequired:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    except UnknownEmailProviderError:
         raise HTTPException(status_code=404, detail="unknown provider")
-
-    messages = service.list_messages()
     return {"messages": [m.__dict__ for m in messages]}
 
 
@@ -255,7 +295,7 @@ async def send_email(
     username = payload.get("username")
     password = payload.get("password")
 
-    key = user["sub"] if user else "default"
+    key = _user_key(user)
     if not username or not password:
         creds = _email_credentials.get(provider, {}).get(key)
         if creds:
@@ -326,7 +366,7 @@ async def save_google_token(
     token = payload.get("access_token")
     if not token:
         raise HTTPException(status_code=400, detail="access_token required")
-    key = user["sub"] if user else "default"
+    key = _user_key(user)
     _google_tokens[key] = token
     try:
         _TOKENS_FILE.write_text(json.dumps(_google_tokens))
@@ -345,7 +385,7 @@ async def get_google_token(user: dict | None = Depends(get_current_user)):
     """
     if auth.AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    key = user["sub"] if user else "default"
+    key = _user_key(user)
     token = _google_tokens.get(key)
     return {"access_token": token}
 
@@ -355,7 +395,7 @@ async def delete_google_token(user: dict | None = Depends(get_current_user)):
     """Remove the stored Google OAuth token for the authenticated user."""
     if auth.AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    key = user["sub"] if user else "default"
+    key = _user_key(user)
     _google_tokens.pop(key, None)
     try:
         _TOKENS_FILE.write_text(json.dumps(_google_tokens))
@@ -380,7 +420,7 @@ def _gmail_account_response(record: dict | None) -> dict:
 async def get_gmail_token(user: dict | None = Depends(get_current_user)):
     if auth.AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    key = user["sub"] if user else "default"
+    key = _user_key(user)
     record = get_gmail_account(_GMAIL_PROVIDER, key)
     return _gmail_account_response(record)
 
@@ -389,7 +429,7 @@ async def get_gmail_token(user: dict | None = Depends(get_current_user)):
 async def store_gmail_token(payload: dict, user: dict | None = Depends(get_current_user)):
     if auth.AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    key = user["sub"] if user else "default"
+    key = _user_key(user)
     access_token = payload.get("access_token")
     email = payload.get("email")
     token_type = payload.get("token_type")
@@ -433,7 +473,7 @@ async def store_gmail_token(payload: dict, user: dict | None = Depends(get_curre
 async def delete_gmail_token(user: dict | None = Depends(get_current_user)):
     if auth.AUTH_ENABLED and not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    key = user["sub"] if user else "default"
+    key = _user_key(user)
     delete_gmail_account(_GMAIL_PROVIDER, key)
     _email_credentials.setdefault(_GMAIL_PROVIDER, {}).pop(key, None)
     delete_linked_email_account(_GMAIL_PROVIDER, key)
