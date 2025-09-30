@@ -26,6 +26,7 @@ export function createAgentChat() {
   let activeMarkerId;
   let pendingProps = [];
   let history = JSON.parse(sessionStorage.getItem('agentChatMessages') || '[]');
+  let resizeObserver;
 
   async function authHeader() {
     try {
@@ -66,6 +67,19 @@ export function createAgentChat() {
     return `<img src="${src}" alt="Property image"${attr}/>`;
   }
 
+  function refreshMapSize() {
+    if (!wrap.isConnected) return;
+    if (!map) return;
+    if (window.google && map instanceof google.maps.Map) {
+      google.maps.event.trigger(map, 'resize');
+      if (activeMarkerId && markerMap[activeMarkerId]) {
+        map.panTo(markerMap[activeMarkerId].getPosition());
+      }
+    } else if (typeof map?.invalidateSize === 'function') {
+      map.invalidateSize();
+    }
+  }
+
   function initMap() {
     if (window.google && window.google.maps) {
       mapEl.textContent = '';
@@ -96,10 +110,18 @@ export function createAgentChat() {
       return;
     }
     if (pendingProps.length) updateMap(pendingProps);
+    refreshMapSize();
   }
   // Initialize the map after the element is in the DOM and the map library is ready
   const init = () => setTimeout(initMap, 0);
   if (window.mapReady) window.mapReady.then(init); else init();
+
+  const handleResize = () => refreshMapSize();
+  window.addEventListener('resize', handleResize);
+  if (window.ResizeObserver) {
+    resizeObserver = new ResizeObserver(() => refreshMapSize());
+    resizeObserver.observe(wrap);
+  }
 
   function updateMap(props) {
     pendingProps = props;
@@ -108,8 +130,11 @@ export function createAgentChat() {
       markers.forEach(m => m.setMap(null));
       markers = [];
       markerMap = {};
-      if (!props.length) return;
       activeMarkerId = null;
+      if (!props.length) {
+        refreshMapSize();
+        return;
+      }
       const bounds = new google.maps.LatLngBounds();
       props.forEach(p => {
         const lat = Number(p.lat), lng = Number(p.lng);
@@ -147,8 +172,11 @@ export function createAgentChat() {
       markers.forEach(m => m.remove());
       markers = [];
       markerMap = {};
-      if (!props.length) return;
       activeMarkerId = null;
+      if (!props.length) {
+        refreshMapSize();
+        return;
+      }
       const bounds = L.latLngBounds();
       props.forEach(p => {
         const lat = Number(p.lat), lng = Number(p.lng);
@@ -182,6 +210,7 @@ export function createAgentChat() {
       });
       if (props.length > 1) map.fitBounds(bounds); else map.setView(bounds.getCenter(), 14);
     }
+    refreshMapSize();
   }
 
   function highlightCard(id) {

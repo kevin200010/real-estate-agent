@@ -17,6 +17,50 @@ export AWS_DEFAULT_REGION=us-east-1
 The application loads sample listings from `rag_data.json` bundled in this
 directory. Customize the file or connect a retrieval service for your own data.
 
+### Database setup
+
+The backend persists both CRM leads and Gmail credentials in a relational
+database. By default it creates a local SQLite file at `./leads.db`, but you can
+point it at PostgreSQL or any other database supported by the standard library
+`sqlite3` module.
+
+1. **Choose a location**
+
+   ```bash
+   # SQLite (default)
+   export DATABASE_URL=sqlite:///./data/app.db
+
+   # Optional: store Gmail credentials in a separate database
+   export GMAIL_DATABASE_URL=$DATABASE_URL
+
+   # PostgreSQL example
+   export DATABASE_URL=postgresql://user:password@localhost:5432/real_estate
+   export GMAIL_DATABASE_URL=$DATABASE_URL
+   ```
+
+2. **Create the database (PostgreSQL only)**
+
+   ```bash
+   createdb real_estate
+   ```
+
+3. **Start the FastAPI app** – the first import of `backend.leads` and
+   `backend.gmail_accounts` automatically creates the required tables:
+
+   - `leads` stores every lead keyed by `user_id` and the email address that
+     created it, ensuring one user's leads never appear in another user's list.
+   - `gmail_accounts` and `linked_email_accounts` persist per-user Gmail IMAP
+     credentials, access tokens, and the linked email address so only the
+     authenticated owner can sync or send mail.
+
+   ```bash
+   uvicorn backend.web_app:app --reload
+   ```
+
+When `AUTH_ENABLED` is `True` (for example when Amazon Cognito is configured)
+each request is scoped to the caller's user ID, so leads and email credentials
+remain isolated for that account.
+
 ### Optional: Google Calendar integration
 
 The appointment-booking UI can read and write events on a Google Calendar. To
