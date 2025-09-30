@@ -879,9 +879,6 @@ async function router(){
           if(history.replaceState){ history.replaceState(null,'','#/leads'); }
         }
       }
-  } else if(route.startsWith('#/outreach')){
-    topbarAPI.setActive('#/outreach');
-    main.appendChild(createOutreach());
   } else if(route.startsWith('#/emails')){
     topbarAPI.setActive('#/emails');
     if(!emailsEl){
@@ -903,20 +900,6 @@ async function router(){
     const msgs = agentChatEl.querySelector('#chat-messages');
     if (msgs) msgs.scrollTop = msgs.scrollHeight;
   }
-}
-
-function createOutreach(){
-  const view=document.createElement('div');view.className='outreach-view';
-  const cohorts=document.createElement('div');cohorts.className='cohorts';
-  (state.data.cohorts||[]).forEach(c=>{
-    const item=document.createElement('div');item.textContent=c.name;cohorts.appendChild(item);
-  });
-  const editor=document.createElement('div');editor.className='editor';
-  const textarea=document.createElement('textarea');textarea.value=(state.data.templates&&state.data.templates[0].body)||'';
-  const timeline=document.createElement('div');timeline.className='timeline';timeline.textContent='Sequence timeline';
-  editor.append(textarea,timeline);
-  view.append(cohorts,editor);
-  return view;
 }
 
 function setupShortcuts(){

@@ -277,11 +277,12 @@ button:hover{
 #map { min-height: 380px; width: 100%; border-radius: 12px; overflow: hidden; margin-right:0; margin-bottom:var(--gap); }
 #agent-map {
   min-height: 380px;
-  flex: 1;
+  flex: 1 1 360px;
   height: 100%;
   width: 100%;
   border-radius: 12px;
   overflow: hidden;
+  min-width: 0;
 }
 #agent-map.glass { background: transparent; }
 .sourcing-view #grid { width:100%; margin-top:2%;  backdrop-filter:blur(5px); flex:1; overflow-y:auto;}
@@ -314,37 +315,30 @@ button:hover{
 .lead-card:hover { background:var(--card); box-shadow:0 0 8px var(--accent); }
 .lead-card .delete-lead { position:absolute; top:4px; right:4px; background:none; border:none; cursor:pointer; }
 
-.outreach-view { display:flex; height:100%; gap:var(--gap); }
-.cohorts { width:220px; background:var(--card); border-radius:var(--radius-lg); padding:var(--gap); overflow-y:auto; }
-.editor { flex:1; display:flex; flex-direction:column; gap:var(--gap); }
-.editor textarea { flex:1; }
-.timeline { height:120px; background:var(--card); border-radius:var(--radius-lg); padding:var(--gap); overflow-y:auto; }
-
 /* Agent chat */
 .agent-chat {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  justify-content: flex-start;
+  display: grid;
+  grid-template-columns: minmax(320px, 1.1fr) minmax(320px, 1fr);
   gap: var(--gap);
+  align-items: stretch;
   height: 100%;
   width: 100%;
+  min-height: 0;
 }
 
 .chat-box {
-  flex: 1;
-  max-width: 800px;
-  height: 700px;
-  max-height: 100%;
-  background: var(--card);
-  /* border:1px solid var(--muted); */
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
   overflow: hidden;
   transition: box-shadow 0.3s;
   backdrop-filter: blur(5px);
+  min-height: 0;
+  height: 100%;
+  max-width: none;
+  min-width: 0;
 }
 .chat-box:hover { box-shadow:0 0 15px var(--accent); }
 .chat-actions {
@@ -366,6 +360,7 @@ button:hover{
   padding:var(--gap);
   overflow-y:auto;
   background:var(--card);
+  min-height: 0;
 }
 .chat-form {
   display:flex;
@@ -373,15 +368,16 @@ button:hover{
   padding:var(--gap);
   /* border-top:1px solid var(--muted); */
   background:var(--card);
- 
+  flex-wrap:wrap;
 }
-.chat-form input { flex:1; font-weight: bold; }
+.chat-form input { flex:1 1 180px; font-weight: bold; min-width: 0; }
 .chat-form button {
   background:var(--accent);
   color:white;
   border:none;
   cursor:pointer;
   transition:filter 0.2s;
+  flex:0 1 auto;
 }
 .chat-form button:hover { filter:brightness(0.9); border-left:1px solid var(--muted); }
 .msg {
@@ -483,7 +479,40 @@ button:hover{
 .skeleton.card { height:60px; margin-bottom:var(--gap); }
 
 /* Responsive */
-@media (max-width:1024px) {
+@media (max-width: 1280px) {
+  .agent-chat {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 0.9fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .agent-chat {
+    grid-template-columns: 1fr;
+    grid-auto-rows: minmax(0, auto);
+  }
+
+  #agent-map {
+    min-height: 45vh;
+  }
+
+  .chat-box {
+    height: auto;
+    min-height: 320px;
+  }
+}
+
+@media (max-width: 640px) {
+  .chat-form input {
+    flex: 1 0 100%;
+  }
+
+  .chat-form button {
+    flex: 1 1 140px;
+  }
+
+  #agent-map {
+    min-height: 320px;
+  }
 }
 
 /* Emails */
