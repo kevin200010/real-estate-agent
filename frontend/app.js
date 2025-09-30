@@ -4,7 +4,6 @@ import { initCommandPalette, togglePalette } from './components/command-palette.
 import { createDataGrid } from './components/datagrid.js';
 import { createKanban } from './components/kanban.js';
 import { initToast } from './components/toast.js';
-import { createAgentChat } from './components/agent-chat.js';
 import { openAppointmentForm } from './components/appointment.js';
 import { createEventCalendar } from './components/event-calendar.js';
 import { createEmailsView } from './components/email.js';
@@ -44,7 +43,6 @@ window.mapReady = mapReady;
 
 const state={ data:{}, gmap:null, markers:{}, activeMarkerId:null };
 let topbarAPI;
-let agentChatEl;
 let emailsEl;
 let googleTokenClient;
 const googleTokenListeners=[];
@@ -893,12 +891,6 @@ async function router(){
       });
     }
     main.appendChild(emailsEl);
-  } else if(route.startsWith('#/agent')){
-    topbarAPI.setActive('#/agent');
-    if(!agentChatEl) agentChatEl=createAgentChat();
-    main.appendChild(agentChatEl);
-    const msgs = agentChatEl.querySelector('#chat-messages');
-    if (msgs) msgs.scrollTop = msgs.scrollHeight;
   }
 }
 

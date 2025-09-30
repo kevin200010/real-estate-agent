@@ -8,7 +8,6 @@ export function initCommandPalette(data) {
   items = [
     {label:'Go to Sourcing', action:()=>location.hash='#/sourcing'},
     {label:'Go to Leads', action:()=>location.hash='#/leads'},
-    {label:'Go to Agent', action:()=>location.hash='#/agent'},
     {label:'Go to Emails', action:()=>location.hash='#/emails'},
   ];
   (data.savedSearches||[]).forEach(s=>items.push({label:`Search: ${s}`, action:()=>alert('Load '+s)}));
