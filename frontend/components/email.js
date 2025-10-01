@@ -504,6 +504,7 @@ export function createEmailsView({
   const state = {
     threads: [],
     selectedThreadId: null,
+    selectedServerMessageId: null,
     labels: [],
     profile: null,
     loading: false,
@@ -512,7 +513,9 @@ export function createEmailsView({
     page: 0,
     threadPages: [],
     pageTokens: [null],
-    view: 'inbox'
+    view: 'inbox',
+    serverMode: false,
+    serverMessages: []
   };
   const folderOptions = [
     { key: 'inbox', label: 'Inbox', labelIds: ['INBOX'] },
@@ -533,13 +536,14 @@ export function createEmailsView({
 
   function updateFolderNav() {
     Object.entries(folderButtons).forEach(([key, btn]) => {
-      btn.classList.toggle('active', key === state.view);
-      btn.disabled = state.loading && key !== state.view;
+      btn.classList.toggle('active', key === state.view && !state.serverMode);
+      btn.disabled = state.loading || state.serverMode;
     });
   }
 
   function setActiveView(viewKey, { force = false, skipLoad = false } = {}) {
     if (!folderMap[viewKey]) return;
+    if (state.serverMode && !force) return;
     if (!force && state.view === viewKey) return;
     state.view = viewKey;
     updateFolderNav();
@@ -585,6 +589,10 @@ export function createEmailsView({
   refreshBtn.className = 'emails-refresh';
   refreshBtn.textContent = 'Refresh';
   refreshBtn.addEventListener('click', () => {
+    if (state.serverMode) {
+      refreshServerMessages();
+      return;
+    }
     loadThreads({ preserveSelection: true, reset: true, page: 0 });
   });
 
@@ -768,6 +776,12 @@ export function createEmailsView({
         return;
       }
     }
+    if (!getToken()) {
+      const loaded = await loadServerMessages();
+      if (loaded) {
+        return;
+      }
+    }
     renderDisconnectedState();
   })();
 
@@ -868,7 +882,7 @@ export function createEmailsView({
 
   function ensureAuthorized(showPlaceholders = true) {
     const token = getToken();
-    if (!token) {
+    if (!token && !state.serverMode) {
       if (showPlaceholders) renderDisconnectedState();
       return false;
     }
@@ -885,6 +899,9 @@ export function createEmailsView({
     disconnectBtn.classList.remove('loading');
     disconnectBtn.style.display = 'none';
     state.profile = null;
+    state.serverMode = false;
+    state.serverMessages = [];
+    state.selectedServerMessageId = null;
     resetPagination();
     updatePaginationControls();
     updateFolderNav();
@@ -897,12 +914,13 @@ export function createEmailsView({
     const linkedEmail = window.GMAIL_ACCOUNT && window.GMAIL_ACCOUNT.email;
     connectBtn.textContent = hasToken || linkedEmail ? 'Reconnect Gmail' : 'Connect Gmail';
     composeBtn.disabled = !hasToken;
-    refreshBtn.disabled = !hasToken || state.loading;
-    const canDisconnect = Boolean(hasToken || linkedEmail);
+    const canRefresh = hasToken || state.serverMode;
+    refreshBtn.disabled = !canRefresh || state.loading;
+    const canDisconnect = Boolean(hasToken || linkedEmail || state.serverMode);
     disconnectBtn.style.display = canDisconnect ? '' : 'none';
     disconnectBtn.disabled = !canDisconnect || state.loading;
     disconnectBtn.classList.remove('loading');
-    if (!hasToken && !state.loading) {
+    if (!hasToken && !state.loading && !state.serverMode) {
       state.threads = [];
       state.selectedThreadId = null;
     }
@@ -959,7 +977,13 @@ export function createEmailsView({
 
   function updatePaginationControls() {
     const hasToken = Boolean(getToken());
-    if (!hasToken) {
+    if (!hasToken && !state.serverMode) {
+      pageInfo.textContent = 'Page 1 of 1';
+      prevPageBtn.disabled = true;
+      nextPageBtn.disabled = true;
+      return;
+    }
+    if (state.serverMode) {
       pageInfo.textContent = 'Page 1 of 1';
       prevPageBtn.disabled = true;
       nextPageBtn.disabled = true;
@@ -1101,6 +1125,9 @@ export function createEmailsView({
     delete window.GMAIL_ACCOUNT;
     delete window.GMAIL_ACCOUNT_EMAIL;
     state.profile = null;
+    state.serverMode = false;
+    state.serverMessages = [];
+    state.selectedServerMessageId = null;
   }
 
   async function disconnectGmail() {
@@ -1186,6 +1213,9 @@ export function createEmailsView({
   async function handleTokenReady() {
     if (initializing) return initPromise;
     if (!ensureAuthorized()) return;
+    state.serverMode = false;
+    state.serverMessages = [];
+    state.selectedServerMessageId = null;
     initializing = true;
     initPromise = (async () => {
       list.innerHTML = '';
@@ -1218,6 +1248,14 @@ export function createEmailsView({
       page = null,
       force = false
     } = config;
+
+    if (state.serverMode) {
+      renderServerMessageList();
+      renderServerMessageDetail(
+        state.serverMessages.find(msg => msg.id === state.selectedServerMessageId) || null
+      );
+      return;
+    }
 
     const previousSelection = preserveSelection ? state.selectedThreadId : null;
 
@@ -1317,6 +1355,10 @@ export function createEmailsView({
     updatePaginationControls();
   }
   function renderThreadList() {
+    if (state.serverMode) {
+      renderServerMessageList();
+      return;
+    }
     list.innerHTML = '';
     if (!ensureAuthorized(false)) {
       list.appendChild(createPlaceholder('Connect Gmail to load messages.'));
@@ -1385,7 +1427,57 @@ export function createEmailsView({
     });
   }
 
+  function renderServerMessageList() {
+    list.innerHTML = '';
+    if (!state.serverMode) return;
+    if (state.loading && !state.serverMessages.length) {
+      list.appendChild(createLoadingIndicator('Loading messages…'));
+      return;
+    }
+    if (!state.serverMessages.length) {
+      list.appendChild(createPlaceholder('No messages available for the linked account.'));
+      return;
+    }
+    state.serverMessages.forEach(message => {
+      const item = document.createElement('div');
+      item.className = 'emails-thread-item';
+      if (message.id === state.selectedServerMessageId) item.classList.add('active');
+
+      const top = document.createElement('div');
+      top.className = 'emails-thread-top';
+      const nameEl = document.createElement('span');
+      nameEl.className = 'emails-thread-name';
+      nameEl.textContent = senderName(message.sender || '(No sender)') || '(No sender)';
+      const meta = document.createElement('div');
+      meta.className = 'emails-thread-meta';
+      const dateEl = document.createElement('span');
+      dateEl.className = 'emails-thread-date';
+      dateEl.textContent = '';
+      meta.append(dateEl);
+      top.append(nameEl, meta);
+
+      const subjectEl = document.createElement('div');
+      subjectEl.className = 'emails-thread-subject';
+      subjectEl.textContent = message.subject || '(No subject)';
+
+      const snippetEl = document.createElement('div');
+      snippetEl.className = 'emails-thread-snippet';
+      snippetEl.textContent = message.snippet || '';
+
+      item.append(top, subjectEl, snippetEl);
+      item.addEventListener('click', () => selectThread(message.id));
+      list.appendChild(item);
+    });
+  }
+
   function selectThread(id) {
+    if (state.serverMode) {
+      state.selectedServerMessageId = id;
+      renderServerMessageList();
+      const message = state.serverMessages.find(msg => msg.id === id) || null;
+      renderServerMessageDetail(message);
+      return;
+    }
     state.selectedThreadId = id;
     renderThreadList();
     const thread = state.threads.find(t => t.id === id) || null;
@@ -1393,6 +1485,14 @@ export function createEmailsView({
   }
 
   function renderThreadDetail(thread) {
+    if (state.serverMode) {
+      const message =
+        thread && typeof thread === 'object' && 'id' in thread
+          ? thread
+          : state.serverMessages.find(msg => msg.id === state.selectedServerMessageId) || null;
+      renderServerMessageDetail(message);
+      return;
+    }
     detailPane.innerHTML = '';
     if (!ensureAuthorized(false)) {
       detailPane.appendChild(createPlaceholder('Connect Gmail to read messages.'));
@@ -1563,6 +1663,100 @@ export function createEmailsView({
 
     detailPane.scrollTop = 0;
     messagesWrap.scrollTop = 0;
+  }
+
+  function renderServerMessageDetail(message) {
+    detailPane.innerHTML = '';
+    if (!state.serverMode) {
+      detailPane.appendChild(createPlaceholder('Select a conversation to read.'));
+      return;
+    }
+    if (!message) {
+      detailPane.appendChild(createPlaceholder('Select a message to read.'));
+      return;
+    }
+    const container = document.createElement('div');
+    container.className = 'emails-thread-server-detail';
+
+    const header = document.createElement('div');
+    header.className = 'emails-thread-header';
+    const subject = document.createElement('h2');
+    subject.textContent = message.subject || '(No subject)';
+    header.appendChild(subject);
+    container.appendChild(header);
+
+    if (message.sender) {
+      const senderLine = document.createElement('div');
+      senderLine.className = 'emails-thread-summary';
+      senderLine.textContent = `From ${message.sender}`;
+      container.appendChild(senderLine);
+    }
+
+    if (message.snippet) {
+      const body = document.createElement('div');
+      body.className = 'emails-thread-message-body';
+      body.textContent = message.snippet;
+      container.appendChild(body);
+    } else {
+      container.appendChild(createPlaceholder('No preview available for this message.'));
+    }
+
+    detailPane.appendChild(container);
+  }
+
+  async function loadServerMessages({ showErrors = false } = {}) {
+    if (!apiBaseUrl) return false;
+    state.serverMode = true;
+    state.loading = true;
+    state.threads = [];
+    state.selectedThreadId = null;
+    updateAuthButtons();
+    updateFolderNav();
+    list.innerHTML = '';
+    list.appendChild(createLoadingIndicator('Loading messages…'));
+    detailPane.innerHTML = '';
+    detailPane.appendChild(createPlaceholder('Fetching saved mailbox…'));
+    try {
+      const resp = await authFetch(`${apiBaseUrl}/emails/gmail`);
+      if (!resp.ok) {
+        throw new Error(`Request failed (${resp.status})`);
+      }
+      const data = await resp.json();
+      const items = Array.isArray(data?.messages) ? data.messages : [];
+      state.serverMessages = items.map((msg, index) => ({
+        id: msg?.id || `stored-${index}`,
+        subject: msg?.subject || '',
+        sender: msg?.sender || '',
+        snippet: msg?.snippet || ''
+      }));
+      state.selectedServerMessageId = state.serverMessages[0]?.id || null;
+      renderServerMessageList();
+      renderServerMessageDetail(
+        state.serverMessages.find(msg => msg.id === state.selectedServerMessageId) || null
+      );
+      updateAuthButtons();
+      updatePaginationControls();
+      updateAccountInfo();
+      return true;
+    } catch (err) {
+      console.warn('Failed to load stored Gmail messages', err);
+      state.serverMode = false;
+      state.serverMessages = [];
+      state.selectedServerMessageId = null;
+      if (showErrors) {
+        showToast('Unable to load saved Gmail messages');
+      }
+      renderDisconnectedState();
+      return false;
+    } finally {
+      state.loading = false;
+      updateAuthButtons();
+      updatePaginationControls();
+    }
+  }
+
+  async function refreshServerMessages() {
+    await loadServerMessages({ showErrors: true });
   }
 
   function renderMessageActions(message, thread) {
