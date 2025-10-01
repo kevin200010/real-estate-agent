@@ -669,7 +669,7 @@ async function router(){
       const overlay=document.createElement('div');
       overlay.className='modal';
       const form=document.createElement('form');
-      form.className='property-form';
+      form.className='property-form glass-form';
       const propertyMarkup=propertySections.map(section=>{
         const gridClasses=['property-section-grid'];
         if(section.columns===1) gridClasses.push('single-column');
@@ -706,7 +706,7 @@ async function router(){
         <div class="property-content">${propertyMarkup}</div>
         <div class='form-actions'>
           <button type='button' id='cancelProperty' class='ghost'>Cancel</button>
-          <button type='submit'>Save</button>
+          <button type='submit' class='primary'>Save</button>
         </div>`;
       const close=()=>overlay.remove();
       overlay.addEventListener('click',e=>{ if(e.target===overlay) close(); });
@@ -991,20 +991,49 @@ async function router(){
         const overlay=document.createElement('div');
         overlay.className='modal';
         const form=document.createElement('form');
-        form.className='lead-form';
+        form.className='lead-form glass-form';
         const isEdit=!!lead;
         const fullAddress=property? (property.city?`${property.address}, ${property.city}`:property.address):'';
-        form.innerHTML=`<h2>${isEdit?`Edit Lead${lead.property?` for ${lead.property}`:''}`:`Add Lead${property?` for ${fullAddress}`:''}`}</h2>`+
-          `<label>Listing Number:<input name='listing' ${(lead&&lead.listingNumber)?`value='${lead.listingNumber}'`:(property?`value='${property.listingNumber||''}'`:'')} required/></label>`+
-          `<label>Name:<input name='name' ${(lead&&lead.name)?`value='${lead.name}'`:''} required/></label>`+
-          `<label>Email:<input name='email' type='email' ${(lead&&lead.email)?`value='${lead.email}'`:''}/></label>`+
-          `<label>Phone:<input name='phone' ${(lead&&lead.phone)?`value='${lead.phone}'`:''}/></label>`+
-          `<label>Address:<input name='address' ${(lead&&lead.address)?`value='${lead.address}'`:''}/></label>`+
-          `<label>Notes:<textarea name='notes'>${(lead&&lead.notes)||''}</textarea></label>`+
-          `<div class='form-actions'>`+
-            `<button type='submit'>Save</button>`+
-            `<button type='button' id='cancelLead'>Cancel</button>`+
-          `</div>`;
+        const escapeHtml=value=>String(value??'')
+          .replace(/&/g,'&amp;')
+          .replace(/</g,'&lt;')
+          .replace(/>/g,'&gt;')
+          .replace(/"/g,'&quot;')
+          .replace(/'/g,'&#39;');
+        const contextLabel=property?fullAddress:(lead&&lead.property?lead.property:'');
+        const fields=[
+          { label:'Listing Number', name:'listing', required:true, value:lead?.listingNumber ?? property?.listingNumber ?? '' },
+          { label:'Name', name:'name', required:true, value:lead?.name ?? '' },
+          { label:'Email', name:'email', type:'email', value:lead?.email ?? '' },
+          { label:'Phone', name:'phone', type:'tel', value:lead?.phone ?? '' },
+          { label:'Address', name:'address', value:lead?.address ?? '' },
+          { label:'Notes', name:'notes', type:'textarea', value:lead?.notes ?? '', full:true }
+        ];
+        const fieldsMarkup=fields.map(field=>{
+          const id=`lead-${field.name}`;
+          const attrs=[`name="${field.name}"`,`id="${id}"`];
+          if(field.type && field.type!=='textarea') attrs.push(`type="${field.type}"`);
+          if(field.required) attrs.push('required');
+          const classes=['modal-field'];
+          if(field.full) classes.push('full');
+          const label=`<label for="${id}">${field.label}</label>`;
+          if(field.type==='textarea'){
+            return `<div class="${classes.join(' ')}">${label}<textarea ${attrs.join(' ')}>${escapeHtml(field.value)}</textarea></div>`;
+          }
+          const valueAttr=`value="${escapeHtml(field.value)}"`;
+          return `<div class="${classes.join(' ')}">${label}<input ${attrs.join(' ')} ${valueAttr} /></div>`;
+        }).join('');
+        const contextChip=contextLabel?`<span class="modal-chip">${escapeHtml(contextLabel)}</span>`:'';
+        form.innerHTML=`<div class="modal-header">
+            <h2>${isEdit?`Edit Lead`:`Add Lead`}</h2>
+            ${contextChip}
+            <p>Keep pipeline details clear so your team can follow up without leaving the workspace.</p>
+          </div>
+          <div class="form-fields">${fieldsMarkup}</div>
+          <div class='form-actions'>
+            <button type='button' id='cancelLead' class='ghost'>Cancel</button>
+            <button type='submit' class='primary'>${isEdit?'Update Lead':'Save Lead'}</button>
+          </div>`;
         const close=()=>overlay.remove();
         overlay.addEventListener('click',e=>{ if(e.target===overlay) close(); });
         form.addEventListener('submit',e=>{
