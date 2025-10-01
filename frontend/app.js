@@ -3,7 +3,7 @@ import { initTopbar } from './components/topbar.js';
 import { initCommandPalette, togglePalette } from './components/command-palette.js';
 import { createDataGrid } from './components/datagrid.js';
 import { createKanban } from './components/kanban.js';
-import { initToast } from './components/toast.js';
+import { initToast, showToast } from './components/toast.js';
 import { openAppointmentForm } from './components/appointment.js';
 import { createEventCalendar } from './components/event-calendar.js';
 import { createEmailsView } from './components/email.js';
@@ -78,6 +78,121 @@ async function authFetch(url, options = {}) {
     console.error(`Request to ${url} was unauthorized (401). Ensure you are logged in and the API accepts your token.`);
   }
   return resp;
+}
+
+const pendingPropertyUpdates = new Set();
+
+function normaliseProperties(list = []) {
+  if (!Array.isArray(list)) return [];
+  return list.map(item => ({
+    ...item,
+    inSystem: item?.inSystem !== false
+  }));
+}
+
+function mergeProperty(record) {
+  if (!record) return;
+  const props = Array.isArray(state.data.properties) ? [...state.data.properties] : [];
+  const idx = props.findIndex(p => String(p.id) === String(record.id));
+  if (idx >= 0) props[idx] = { ...props[idx], ...record };
+  else props.push(record);
+  state.data.properties = normaliseProperties(props);
+}
+
+function refreshSourcingView(focusId) {
+  const baseRoute = '#/sourcing';
+  if (!location.hash.startsWith(baseRoute)) return;
+  if (focusId) {
+    const nextHash = `${baseRoute}?prop=${focusId}`;
+    if (history.replaceState) history.replaceState(null, '', nextHash);
+    else location.hash = nextHash;
+  }
+  router();
+}
+
+async function markPropertyStatus(propertyId, inSystem) {
+  if (!window.API_BASE_URL) {
+    showToast('API base URL is not configured');
+    return;
+  }
+  if (pendingPropertyUpdates.has(propertyId)) return;
+  pendingPropertyUpdates.add(propertyId);
+  const endpoint = inSystem ? 'restore' : 'remove';
+  try {
+    const resp = await authFetch(`${window.API_BASE_URL}/properties/${propertyId}/${endpoint}`, { method: 'POST' });
+    if (!resp.ok) {
+      let message = `Request failed (${resp.status})`;
+      try {
+        const detail = await resp.json();
+        if (detail && typeof detail === 'object' && detail.detail) message = detail.detail;
+      } catch (err) {
+        console.warn('Failed to parse property update error', err);
+      }
+      throw new Error(message);
+    }
+    const updated = await resp.json();
+    mergeProperty(updated);
+    showToast(inSystem ? 'Listing restored to system' : 'Listing marked as out of system');
+    refreshSourcingView(updated.id);
+  } catch (err) {
+    console.error('Failed to update property status', err);
+    showToast(err?.message || 'Failed to update property');
+  } finally {
+    pendingPropertyUpdates.delete(propertyId);
+  }
+}
+
+async function createPropertyRecord(payload) {
+  if (!window.API_BASE_URL) {
+    throw new Error('API base URL is not configured');
+  }
+  const resp = await authFetch(`${window.API_BASE_URL}/properties`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) {
+    let message = `Request failed (${resp.status})`;
+    try {
+      const detail = await resp.json();
+      if (detail && typeof detail === 'object' && detail.detail) message = detail.detail;
+    } catch (err) {
+      console.warn('Failed to parse property create error', err);
+    }
+    throw new Error(message);
+  }
+  return resp.json();
+}
+
+async function loadInitialProperties() {
+  const fallback = async () => {
+    try {
+      const resp = await fetch('data/listings.csv');
+      if (!resp.ok) return [];
+      const csv = await resp.text();
+      return parseCSV(csv);
+    } catch (err) {
+      console.warn('Failed to load fallback property data', err);
+      return [];
+    }
+  };
+
+  if (window.API_BASE_URL) {
+    try {
+      const resp = await authFetch(`${window.API_BASE_URL}/properties`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (Array.isArray(data)) return normaliseProperties(data);
+      } else {
+        console.warn('Property API returned non-OK response', resp.status);
+      }
+    } catch (err) {
+      console.warn('Failed to load properties from API', err);
+    }
+  }
+
+  const fallbackData = await fallback();
+  return normaliseProperties(fallbackData);
 }
 
 function updateGmailAccount(patch={}){
@@ -398,14 +513,16 @@ const background='global-bg.svg';
 function startApp(){
   Promise.all([
     fetch('data/sample.json').then(r=>r.json()),
-    fetch('data/listings.csv').then(r=>r.text()),
+    loadInitialProperties(),
     mapReady
-  ]).then(([d,csv])=>{
-    d.properties=parseCSV(csv);
+  ]).then(([d,properties])=>{
+    d.properties=normaliseProperties(properties);
     // Leverages backend API for lead data so remove any bundled sample leads
     d.leads = [];
     state.data=d;
     init();
+  }).catch(err=>{
+    console.error('Failed to initialise application',err);
   });
   initGoogleAuth();
   initGmailAuth();
@@ -585,7 +702,7 @@ async function router(){
         </div>`;
       const close=()=>overlay.remove();
       overlay.addEventListener('click',e=>{ if(e.target===overlay) close(); });
-      form.addEventListener('submit',e=>{
+      form.addEventListener('submit',async e=>{
         e.preventDefault();
         if(!form.reportValidity()) return;
         const fd=new FormData(form);
@@ -598,17 +715,54 @@ async function router(){
           const value=obj[name];
           if(value!==undefined && value!=='') obj[name]=parseFloat(value);
         });
-        const id=Date.now();
-        const property={id,...obj,lat:obj.latitude,lng:obj.longitude,price:obj.listPrice,year:obj.yearBuilt,beds:obj.bedrooms,baths:(obj.fullBathrooms||0)+0.5*(obj.halfBathrooms||0)};
-        state.data.properties=state.data.properties||[];
-        state.data.properties.push(property);
-        close();
-        router();
+        const baths=(obj.fullBathrooms||0)+0.5*(obj.halfBathrooms||0);
+        const priceValue=obj.listPrice;
+        const price=typeof priceValue==='number' && !Number.isNaN(priceValue)
+          ? new Intl.NumberFormat('en-US',{ style:'currency', currency:'USD' }).format(priceValue)
+          : (priceValue?String(priceValue).trim():undefined);
+        const addressParts=[obj.address,obj.city,obj.state].filter(Boolean);
+        let addressDisplay=obj.address||'';
+        if(addressParts.length){
+          addressDisplay=addressParts.join(', ');
+          if(obj.zipCode) addressDisplay=`${addressDisplay} ${obj.zipCode}`.trim();
+        }
+        const payload={
+          listingNumber:obj.listingNumber||undefined,
+          address:addressDisplay||obj.address,
+          city:obj.city||undefined,
+          state:obj.state||undefined,
+          zipCode:obj.zipCode||undefined,
+          price:price||undefined,
+          beds:obj.bedrooms??undefined,
+          baths:baths||undefined,
+          year:obj.yearBuilt??undefined,
+          status:obj.listingStatus||undefined,
+          saleOrRent:obj.saleOrRent||undefined,
+          type:obj.propertyType||obj.propertySubtype||undefined,
+          lat:obj.latitude??undefined,
+          lng:obj.longitude??undefined
+        };
+        const metadata={...obj};
+        [
+          'listingNumber','address','city','state','zipCode','listPrice','bedrooms','fullBathrooms','halfBathrooms','yearBuilt','listingStatus','saleOrRent','propertyType','propertySubtype','latitude','longitude'
+        ].forEach(key=>{ delete metadata[key]; });
+        if(Object.keys(metadata).length) payload.metadata=metadata;
+        try{
+          const saved=await createPropertyRecord(payload);
+          mergeProperty(saved);
+          showToast('Property saved to database');
+          close();
+          refreshSourcingView(saved.id);
+        }catch(err){
+          console.error('Failed to save property',err);
+          showToast(err?.message || 'Failed to save property');
+        }
       });
       form.querySelector('#cancelProperty').addEventListener('click',()=>{close();});
       overlay.appendChild(form);
       document.body.appendChild(overlay);
     });
+    state.data.properties=normaliseProperties(state.data.properties||[]);
     const props=state.data.properties||[];
     const params=new URLSearchParams(query||'');
     const initialProp=params.get('prop');
@@ -624,12 +778,14 @@ async function router(){
         state.gmap.setZoom(16);
         if(state.activeMarkerId && state.markers[state.activeMarkerId]){
           const prev=state.markers[state.activeMarkerId];
-          if(state.defaultIcon) prev.setIcon(state.defaultIcon);
+          const resetIcon=prev?.__isRemoved ? (state.removedIcon||state.defaultIcon) : state.defaultIcon;
+          if(resetIcon) prev.setIcon(resetIcon);
           if(prev.infoWindow) prev.infoWindow.close();
         }
         const marker=state.markers[p.id];
         if(marker){
-          marker.setIcon(state.activeIcon);
+          const activeIcon=marker.__isRemoved ? (state.removedActiveIcon||state.activeIcon||state.removedIcon) : state.activeIcon;
+          if(activeIcon) marker.setIcon(activeIcon);
           if(marker.infoWindow) marker.infoWindow.open(state.gmap,marker);
           state.activeMarkerId=p.id;
         }
@@ -637,12 +793,18 @@ async function router(){
         state.gmap.setView([lat,lng],16);
         if(state.activeMarkerId && state.markers[state.activeMarkerId]){
           const prev=state.markers[state.activeMarkerId];
-          if(state.defaultIcon && prev.setIcon) prev.setIcon(state.defaultIcon);
+          if(prev.setIcon){
+            const resetIcon=prev?.__isRemoved ? (state.removedIcon||state.defaultIcon) : state.defaultIcon;
+            if(resetIcon) prev.setIcon(resetIcon);
+          }
         }
         const marker=state.markers[p.id];
         if(marker){
           marker.openPopup();
-          if(state.activeIcon && marker.setIcon) marker.setIcon(state.activeIcon);
+          if(marker.setIcon){
+            const activeIcon=marker.__isRemoved ? (state.removedActiveIcon||state.removedIcon||state.activeIcon) : state.activeIcon;
+            if(activeIcon) marker.setIcon(activeIcon);
+          }
           const popup=marker.getPopup();
           if(popup){
             const el=popup.getElement();
@@ -664,7 +826,11 @@ async function router(){
         row.scrollIntoView({behavior:'smooth',block:'center'});
       }
     }
-    const grid=createDataGrid(props,selectProperty);
+    const grid=createDataGrid(props,{
+      onSelect:selectProperty,
+      onRemove:id=>markPropertyStatus(id,false),
+      onRestore:id=>markPropertyStatus(id,true)
+    });
     wrap.append(map,addBtn,grid.el);
     grid.update(props);
     main.appendChild(wrap);
@@ -675,6 +841,8 @@ async function router(){
       state.gmap=new google.maps.Map(map,{center,zoom,streetViewControl:true});
       state.defaultIcon=state.defaultIcon||'https://maps.google.com/mapfiles/ms/icons/blue-dot.png';
       state.activeIcon=state.activeIcon||'https://maps.google.com/mapfiles/ms/icons/red-dot.png';
+      state.removedIcon=state.removedIcon||'https://maps.google.com/mapfiles/ms/icons/grey-dot.png';
+      state.removedActiveIcon=state.removedActiveIcon||'https://maps.google.com/mapfiles/ms/icons/orange-dot.png';
       const bounds=new google.maps.LatLngBounds();
       props.forEach(p=>{
         const lat=Number(p.lat), lng=Number(p.lng);
@@ -691,9 +859,12 @@ async function router(){
           ].filter(Boolean).join(' | ');
           const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
           const imgSrc=(window.GOOGLE_MAPS_API_KEY&&!isNaN(lat)&&!isNaN(lng))?`https://maps.googleapis.com/maps/api/streetview?size=200x120&location=${lat},${lng}&key=${window.GOOGLE_MAPS_API_KEY}`:(p.image||'');
+          const statusBadge=!p.inSystem?"<div class='map-status removed'>Not in system</div>":'';
           const content=document.createElement('div');
-          content.innerHTML=`${imgSrc?`<img src="${imgSrc}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button>`;
-          const marker=new google.maps.Marker({position,map:state.gmap,icon:state.defaultIcon});
+          content.innerHTML=`${imgSrc?`<img src="${imgSrc}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price||''}${details?`<br/>${details}`:''}${statusBadge?`<br/>${statusBadge}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button>`;
+          const baseIcon=p.inSystem?state.defaultIcon:state.removedIcon;
+          const marker=new google.maps.Marker({position,map:state.gmap,icon:baseIcon});
+          marker.__isRemoved=!p.inSystem;
           marker.infoWindow=new google.maps.InfoWindow({content});
           content.querySelector('.add-lead')?.addEventListener('click',()=>{location.hash=`#/leads?prop=${p.id}`;});
           content.querySelector('.view-details')?.addEventListener('click',()=>{location.hash=`#/property?prop=${p.id}`;});
@@ -708,6 +879,8 @@ async function router(){
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors'}).addTo(state.gmap);
       state.defaultIcon=state.defaultIcon||L.icon({iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
       state.activeIcon=state.activeIcon||L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
+      state.removedIcon=state.removedIcon||L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
+      state.removedActiveIcon=state.removedActiveIcon||L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
       const bounds=L.latLngBounds();
       props.forEach(p=>{
         const lat=Number(p.lat), lng=Number(p.lng);
@@ -724,7 +897,10 @@ async function router(){
           ].filter(Boolean).join(' | ');
           const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
           const imgSrc=(window.GOOGLE_MAPS_API_KEY&&!isNaN(lat)&&!isNaN(lng))?`https://maps.googleapis.com/maps/api/streetview?size=200x120&location=${lat},${lng}&key=${window.GOOGLE_MAPS_API_KEY}`:(p.image||'');
-          const marker=L.marker(position,{icon:state.defaultIcon}).addTo(state.gmap).bindPopup(`<div>${imgSrc?`<img src="${imgSrc}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button></div>`);
+          const statusBadge=!p.inSystem?"<div class='map-status removed'>Not in system</div>":'';
+          const baseIcon=p.inSystem?state.defaultIcon:state.removedIcon;
+          const marker=L.marker(position,{icon:baseIcon}).addTo(state.gmap).bindPopup(`<div>${imgSrc?`<img src="${imgSrc}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price||''}${details?`<br/>${details}`:''}${statusBadge?`<br/>${statusBadge}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button></div>`);
+          marker.__isRemoved=!p.inSystem;
           state.markers[p.id]=marker;
           bounds.extend(position);
           marker.on('click',()=>selectProperty(p.id));
@@ -969,7 +1145,8 @@ function parseCSV(text){
     headers.forEach((h,i)=>obj[h]=values[i]||'');
     const id=obj['Listing Number'];
     const address=`${obj['Address']}, ${obj['City']}, ${obj['State']} ${obj['Zip Code']}`;
-    const price=obj[' List Price ']||obj['List Price']||'';
+    const priceRaw=obj[' List Price ']||obj['List Price']||'';
+    const price=typeof priceRaw==='string'?priceRaw.trim():priceRaw;
     const lat=parseFloat(obj['Latitude']);
     const lng=parseFloat(obj['Longitude']);
     const beds=obj['Bedrooms'];
@@ -981,6 +1158,6 @@ function parseCSV(text){
     const status=obj['Listing Status'];
     const saleOrRent=obj['Sale or Rent'];
     const type=obj['Property Type']||obj['Property Subtype'];
-    return {id,address,price,lat,lng,beds,baths,year,status,saleOrRent,type};
+    return {id,address,price,lat,lng,beds,baths,year,status,saleOrRent,type,inSystem:true};
   });
 }

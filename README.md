@@ -131,6 +131,47 @@ persists these details in two tables, `gmail_accounts` and
   once and it will create the `gmail_accounts` and `linked_email_accounts`
   tables automatically.
 
+### Property listings database
+
+Property inventory is now stored in a dedicated database so listing removals and
+restores survive browser refreshes and multi-user sessions.
+
+* **Default (SQLite)** – When `PROPERTIES_DB_URL` is not set the backend writes
+  to `backend/data/properties.db`. The schema is created automatically on first
+  import and seeded with the sample `frontend/data/listings.csv` file when the
+  table is empty.
+* **Custom seed data** – Point the `PROPERTIES_SEED_CSV` environment variable to
+  one or more CSV files (use the system path separator to list multiple files)
+  before starting the API. The loader will populate the database from those
+  files the first time it runs.
+
+#### Local testing
+
+1. Install backend dependencies: `python -m pip install -r backend/requirements.txt`.
+2. (Optional) Switch to PostgreSQL by exporting
+   `PROPERTIES_DB_URL=postgresql://user:password@localhost:5432/properties`.
+3. Start the API (`uvicorn backend.web_app:app --reload`) and load the sourcing
+   page. The FastAPI router exposes:
+   * `GET /properties` – list all listings.
+   * `POST /properties` – add a new listing.
+   * `POST /properties/{id}/remove` – mark a listing as out of system.
+   * `POST /properties/{id}/restore` – bring the record back into circulation.
+4. Inspect the local SQLite database with `sqlite3 backend/data/properties.db`
+   or, for PostgreSQL, with `psql`.
+
+#### AWS deployment
+
+1. Provision an Amazon RDS PostgreSQL instance (db.t3.micro is sufficient for
+   testing) and create a database, e.g. `real_estate_properties`.
+2. Configure the application server with
+   `PROPERTIES_DB_URL=postgresql+psycopg2://username:password@hostname:5432/real_estate_properties`.
+3. Optionally upload a CSV of seed listings and set
+   `PROPERTIES_SEED_CSV=/path/to/seed.csv` so the instance starts populated.
+4. Install dependencies on the host (`python -m pip install -r backend/requirements.txt`).
+5. Launch the FastAPI app (systemd, `uvicorn`, or your container orchestrator).
+   The property tables are created automatically; no manual migrations are
+   required.
+
 ## Notes
 
 This example focuses on illustrating how components fit together. Production applications should implement robust error handling, streaming audio for low latency, and secure storage of user data.

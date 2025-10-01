@@ -15,6 +15,7 @@ import auth
 from auth import get_current_user
 from appointments import router as appointments_router
 from leads import router as leads_router
+from properties import router as properties_router
 from emails import EmailMessage, get_provider
 from gmail_accounts import (
     delete_account as delete_gmail_account,
@@ -45,6 +46,7 @@ templates = Jinja2Templates(directory="templates")
 _sonic = SonicClient()
 app.include_router(appointments_router)
 app.include_router(leads_router)
+app.include_router(properties_router)
 
 # In-memory cache for per-user email credentials gathered during the sync flow.
 # Keys are provider names (``gmail`` or ``outlook``) and map to dictionaries of

@@ -2,7 +2,7 @@ import { skeletonRow } from './skeleton.js';
 
 // Creates a data grid for property listings. Supports sorting via header click
 // and exposes an update method so callers can refresh the rendered data.
-export function createDataGrid(props = [], onSelect) {
+export function createDataGrid(props = [], handlers = {}) {
   const el = document.createElement('div');
   el.id = 'grid';
 
@@ -10,6 +10,7 @@ export function createDataGrid(props = [], onSelect) {
   let data = [...props];
   let sortKey = null;
   let sortAsc = true;
+  const { onSelect, onRemove, onRestore } = handlers;
 
   const sk = document.createElement('div');
   for (let i = 0; i < 5; i++) sk.appendChild(skeletonRow());
@@ -28,13 +29,28 @@ export function createDataGrid(props = [], onSelect) {
       '<th data-sort="status">Status</th>' +
       '<th data-sort="type">Type</th>' +
       '<th data-sort="saleOrRent">Sale/Rent</th>' +
-      '<th>Details</th>' +
+      '<th data-sort="inSystem">System</th>' +
+      '<th>Actions</th>' +
       '</tr></thead><tbody>';
 
     const rows = data
       .map(
         (p) =>
-          `<tr data-prop-id="${p.id}"><td>${p.address}</td><td>${p.price}</td><td>${p.beds || ''}</td><td>${p.baths || ''}</td><td>${p.year || ''}</td><td>${p.status || ''}</td><td>${p.type || ''}</td><td>${p.saleOrRent || ''}</td><td><button class="view-details" data-id="${p.id}">View</button></td></tr>`
+          `<tr data-prop-id="${p.id}" class="${p.inSystem ? '' : 'removed'}">` +
+            `<td>${p.address}</td>` +
+            `<td>${p.price || ''}</td>` +
+            `<td>${p.beds ?? ''}</td>` +
+            `<td>${p.baths ?? ''}</td>` +
+            `<td>${p.year ?? ''}</td>` +
+            `<td>${p.status || ''}</td>` +
+            `<td>${p.type || ''}</td>` +
+            `<td>${p.saleOrRent || ''}</td>` +
+            `<td>${p.inSystem ? 'In System' : 'Not in System'}</td>` +
+            `<td class="actions">` +
+              `<button class="view-details" data-id="${p.id}">View</button>` +
+              `${p.inSystem ? `<button class="remove-listing" data-id="${p.id}">Remove</button>` : `<button class="restore-listing" data-id="${p.id}">Restore</button>`}` +
+            `</td>` +
+          `</tr>`
       )
       .join('');
 
@@ -45,13 +61,6 @@ export function createDataGrid(props = [], onSelect) {
     if (thead) {
       thead.addEventListener('click', onSortClick);
     }
-    el.querySelectorAll('button.view-details').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const id = btn.dataset.id;
-        if (id) location.hash = `#/property?prop=${id}`;
-      });
-    });
   }
 
   // Handle sorting when clicking header cells
@@ -109,9 +118,33 @@ export function createDataGrid(props = [], onSelect) {
 
   // Selection handler
   el.addEventListener('click', (e) => {
-    const row = e.target.closest('tr[data-prop-id]');
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) return;
+    const actionButton = target.closest('button');
+    const row = target.closest('tr[data-prop-id]');
     if (!row) return;
-    if (onSelect) onSelect(row.dataset.propId);
+    const propId = row.dataset.propId;
+    if (!propId) return;
+
+    if (actionButton?.classList.contains('view-details')) {
+      e.stopPropagation();
+      location.hash = `#/property?prop=${propId}`;
+      return;
+    }
+
+    if (actionButton?.classList.contains('remove-listing')) {
+      e.stopPropagation();
+      if (typeof onRemove === 'function') onRemove(propId);
+      return;
+    }
+
+    if (actionButton?.classList.contains('restore-listing')) {
+      e.stopPropagation();
+      if (typeof onRestore === 'function') onRestore(propId);
+      return;
+    }
+
+    if (onSelect) onSelect(propId);
   });
 
   return { el, update, setSort };

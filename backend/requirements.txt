@@ -6,4 +6,5 @@ langgraph
 scikit-learn
 google-api-python-client
 google-auth
+SQLAlchemy>=2.0
 python-jose[cryptography]
