@@ -10,7 +10,7 @@ export function createDataGrid(props = [], handlers = {}) {
   let data = [...props];
   let sortKey = null;
   let sortAsc = true;
-  const { onSelect, onRemove, onRestore } = handlers;
+  const { onSelect, onRemove, onRestore, onView } = handlers;
 
   const sk = document.createElement('div');
   for (let i = 0; i < 5; i++) sk.appendChild(skeletonRow());
@@ -128,7 +128,13 @@ export function createDataGrid(props = [], handlers = {}) {
 
     if (actionButton?.classList.contains('view-details')) {
       e.stopPropagation();
-      location.hash = `#/property?prop=${propId}`;
+      if (typeof onView === 'function') {
+        onView(propId);
+      } else if (typeof window.openPropertyDetail === 'function') {
+        window.openPropertyDetail(propId);
+      } else {
+        location.hash = `#/property?prop=${propId}`;
+      }
       return;
     }
 

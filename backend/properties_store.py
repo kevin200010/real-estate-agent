@@ -186,6 +186,23 @@ def list_properties() -> list[dict[str, Any]]:
     return [PropertyRecord(**_row_to_record(row)).to_api() for row in rows]
 
 
+def get_property(property_id: str) -> dict[str, Any] | None:
+    """Return the property for ``property_id`` or ``None`` if not found."""
+
+    if not property_id:
+        return None
+
+    with engine.connect() as conn:
+        row = conn.execute(
+            select(properties_table).where(properties_table.c.id == property_id)
+        ).first()
+
+    if row is None:
+        return None
+
+    return PropertyRecord(**_row_to_record(row)).to_api()
+
+
 def create_property(payload: Mapping[str, Any]) -> dict[str, Any]:
     """Insert a property and return the stored record."""
 

@@ -51,6 +51,9 @@ const googleTokenListeners=[];
 let gmailTokenClient;
 const gmailTokenListeners=[];
 let gmailAccount={ email:null, expiresAt:null, scope:null, tokenType:null };
+let propertyDetailOverlay=null;
+let propertyDetailEscapeHandler=null;
+const propertyIntelCache=new Map();
 
 function onGoogleToken(fn){
   googleTokenListeners.push(fn);
@@ -143,6 +146,464 @@ async function markPropertyStatus(propertyId, inSystem) {
     pendingPropertyUpdates.delete(propertyId);
   }
 }
+
+function closePropertyDetail() {
+  if (!propertyDetailOverlay) return;
+  if (propertyDetailEscapeHandler) {
+    window.removeEventListener('keydown', propertyDetailEscapeHandler);
+    propertyDetailEscapeHandler = null;
+  }
+  propertyDetailOverlay.remove();
+  propertyDetailOverlay = null;
+  document.body.classList.remove('property-detail-open');
+}
+
+function derivePropertyImage(property) {
+  if (!property) return '';
+  if (property.image) return property.image;
+  const lat = Number(property.lat);
+  const lng = Number(property.lng);
+  if (window.GOOGLE_MAPS_API_KEY && !Number.isNaN(lat) && !Number.isNaN(lng)) {
+    return `https://maps.googleapis.com/maps/api/streetview?size=640x420&location=${lat},${lng}&key=${window.GOOGLE_MAPS_API_KEY}`;
+  }
+  return '';
+}
+
+function formatDetailValue(value) {
+  if (value === null || value === undefined) return '';
+  if (Array.isArray(value)) {
+    return value.map(item => formatDetailValue(item)).filter(Boolean).join(', ');
+  }
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value);
+    } catch (err) {
+      console.warn('Failed to stringify metadata value', err);
+      return '';
+    }
+  }
+  return String(value);
+}
+
+function createDetailRow(container, label, value) {
+  if (!container) return;
+  const display = formatDetailValue(value);
+  if (!display) return;
+  const row = document.createElement('div');
+  row.className = 'property-detail-row';
+  const term = document.createElement('dt');
+  term.textContent = label;
+  const detail = document.createElement('dd');
+  detail.textContent = display;
+  row.append(term, detail);
+  container.appendChild(row);
+}
+
+function applyPropertySnapshot(snapshot, nodes) {
+  if (!snapshot || !nodes?.panel?.isConnected) return;
+  const {
+    labelEl,
+    titleEl,
+    sublineEl,
+    badgeEl,
+    heroEl,
+    heroImg,
+    statsList,
+    infoList,
+    locationList,
+    metadataList,
+    metadataEmpty,
+    systemCopy,
+    toggleBtn,
+  } = nodes;
+
+  if (labelEl) labelEl.textContent = snapshot.inSystem ? 'Active listing' : 'Removed listing';
+  if (titleEl) titleEl.textContent = snapshot.address || 'Property';
+
+  if (sublineEl) {
+    const locality = [snapshot.city, snapshot.state].filter(Boolean).join(', ');
+    const zip = snapshot.zipCode ? String(snapshot.zipCode).trim() : '';
+    sublineEl.textContent = zip ? `${locality ? `${locality} ` : ''}${zip}`.trim() : locality;
+  }
+
+  if (badgeEl) {
+    badgeEl.textContent = snapshot.inSystem ? 'In System' : 'Not in System';
+    if (snapshot.inSystem) badgeEl.classList.remove('removed');
+    else badgeEl.classList.add('removed');
+  }
+
+  if (systemCopy) {
+    systemCopy.textContent = snapshot.inSystem
+      ? 'This property is currently tracked in your sourcing workspace.'
+      : 'This property is marked as out of system.';
+  }
+
+  if (toggleBtn) {
+    toggleBtn.disabled = false;
+    toggleBtn.textContent = snapshot.inSystem ? 'Mark Out of System' : 'Restore Listing';
+  }
+
+  if (heroEl && heroImg) {
+    const heroSrc = derivePropertyImage(snapshot);
+    if (heroSrc) {
+      heroImg.src = heroSrc;
+      heroEl.classList.remove('empty');
+    } else {
+      heroImg.removeAttribute('src');
+      heroEl.classList.add('empty');
+    }
+  }
+
+  if (statsList) {
+    statsList.innerHTML = '';
+    const metrics = [
+      { label: 'Price', value: snapshot.price || '—' },
+      { label: 'Beds', value: snapshot.beds ?? '—' },
+      { label: 'Baths', value: snapshot.baths ?? '—' },
+      { label: 'Year Built', value: snapshot.year ?? '—' },
+      { label: 'Status', value: snapshot.status || '—' },
+      { label: 'Sale / Rent', value: snapshot.saleOrRent || '—' },
+      { label: 'Type', value: snapshot.type || '—' },
+      { label: 'Listing #', value: snapshot.listingNumber || '—' },
+      { label: 'System', value: snapshot.inSystem ? 'In System' : 'Not in System' },
+    ];
+    if (snapshot.removedAt) {
+      try {
+        const removedDate = new Date(snapshot.removedAt);
+        metrics.push({ label: 'Removed At', value: removedDate.toLocaleString() });
+      } catch (err) {
+        metrics.push({ label: 'Removed At', value: snapshot.removedAt });
+      }
+    }
+    metrics.forEach(item => {
+      const li = document.createElement('li');
+      li.className = 'property-stat';
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'label';
+      labelSpan.textContent = item.label;
+      const valueSpan = document.createElement('span');
+      valueSpan.className = 'value';
+      valueSpan.textContent = formatDetailValue(item.value) || '—';
+      li.append(labelSpan, valueSpan);
+      statsList.appendChild(li);
+    });
+  }
+
+  if (infoList) {
+    infoList.innerHTML = '';
+    createDetailRow(infoList, 'Listing Number', snapshot.listingNumber);
+    createDetailRow(infoList, 'Status', snapshot.status);
+    createDetailRow(infoList, 'Sale / Rent', snapshot.saleOrRent);
+    createDetailRow(infoList, 'Property Type', snapshot.type);
+    createDetailRow(infoList, 'Beds', snapshot.beds);
+    createDetailRow(infoList, 'Baths', snapshot.baths);
+    createDetailRow(infoList, 'Year Built', snapshot.year);
+    createDetailRow(infoList, 'Price', snapshot.price);
+    if (snapshot.removedAt) createDetailRow(infoList, 'Removed At', snapshot.removedAt);
+  }
+
+  if (locationList) {
+    locationList.innerHTML = '';
+    createDetailRow(locationList, 'Address', snapshot.address);
+    createDetailRow(locationList, 'City', snapshot.city);
+    createDetailRow(locationList, 'State', snapshot.state);
+    createDetailRow(locationList, 'Postal Code', snapshot.zipCode);
+    const lat = Number(snapshot.lat);
+    if (!Number.isNaN(lat)) createDetailRow(locationList, 'Latitude', lat.toFixed(6));
+    const lng = Number(snapshot.lng);
+    if (!Number.isNaN(lng)) createDetailRow(locationList, 'Longitude', lng.toFixed(6));
+  }
+
+  if (metadataList && metadataEmpty) {
+    metadataList.innerHTML = '';
+    const entries = snapshot.metadata && typeof snapshot.metadata === 'object'
+      ? Object.entries(snapshot.metadata)
+      : [];
+    if (entries.length) {
+      metadataEmpty.classList.add('hidden');
+      entries.forEach(([key, value]) => {
+        const label = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+        createDetailRow(metadataList, label.charAt(0).toUpperCase() + label.slice(1), value);
+      });
+    } else {
+      metadataEmpty.classList.remove('hidden');
+    }
+  }
+}
+
+function openPropertyDetail(propertyOrId) {
+  const props = Array.isArray(state.data.properties) ? state.data.properties : [];
+  const property = typeof propertyOrId === 'object'
+    ? propertyOrId
+    : props.find(p => String(p.id) === String(propertyOrId));
+
+  if (!property) {
+    showToast('Property not found');
+    return;
+  }
+
+  closePropertyDetail();
+
+  let currentProperty = { ...property };
+
+  const overlay = document.createElement('div');
+  overlay.className = 'property-detail-overlay';
+
+  const panel = document.createElement('article');
+  panel.className = 'property-detail-panel';
+  panel.tabIndex = -1;
+  overlay.appendChild(panel);
+
+  const header = document.createElement('header');
+  header.className = 'property-detail-header';
+
+  const heading = document.createElement('div');
+  heading.className = 'property-detail-heading';
+
+  const labelEl = document.createElement('p');
+  labelEl.className = 'property-detail-label';
+  const titleEl = document.createElement('h2');
+  titleEl.className = 'property-detail-title';
+  const sublineEl = document.createElement('p');
+  sublineEl.className = 'property-detail-subline';
+  const badgeEl = document.createElement('span');
+  badgeEl.className = 'property-system-badge';
+
+  heading.append(labelEl, titleEl, sublineEl, badgeEl);
+  header.appendChild(heading);
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'property-detail-close';
+  closeBtn.setAttribute('aria-label', 'Close property details');
+  closeBtn.innerHTML = '&times;';
+  header.appendChild(closeBtn);
+
+  panel.appendChild(header);
+
+  const body = document.createElement('div');
+  body.className = 'property-detail-body';
+  panel.appendChild(body);
+
+  const heroEl = document.createElement('div');
+  heroEl.className = 'property-detail-hero';
+  const heroImg = document.createElement('img');
+  heroImg.alt = 'Location preview';
+  heroEl.appendChild(heroImg);
+  body.appendChild(heroEl);
+
+  const systemCopy = document.createElement('p');
+  systemCopy.className = 'property-detail-system';
+  body.appendChild(systemCopy);
+
+  const actions = document.createElement('div');
+  actions.className = 'property-detail-actions';
+  const leadBtn = document.createElement('button');
+  leadBtn.type = 'button';
+  leadBtn.className = 'ghost';
+  leadBtn.textContent = 'Add to Leads';
+  const appointmentBtn = document.createElement('button');
+  appointmentBtn.type = 'button';
+  appointmentBtn.className = 'ghost';
+  appointmentBtn.textContent = 'Book Appointment';
+  const toggleBtn = document.createElement('button');
+  toggleBtn.type = 'button';
+  toggleBtn.className = 'primary';
+  actions.append(leadBtn, appointmentBtn, toggleBtn);
+  body.appendChild(actions);
+
+  const statsSection = document.createElement('section');
+  statsSection.className = 'property-detail-section';
+  const statsHeading = document.createElement('h3');
+  statsHeading.textContent = 'Quick facts';
+  const statsList = document.createElement('ul');
+  statsList.className = 'property-detail-stats';
+  statsSection.append(statsHeading, statsList);
+  body.appendChild(statsSection);
+
+  const infoSection = document.createElement('section');
+  infoSection.className = 'property-detail-section';
+  const infoTitle = document.createElement('h3');
+  infoTitle.textContent = 'Listing details';
+  const infoList = document.createElement('dl');
+  infoList.className = 'property-detail-list';
+  infoSection.append(infoTitle, infoList);
+  body.appendChild(infoSection);
+
+  const locationSection = document.createElement('section');
+  locationSection.className = 'property-detail-section';
+  const locationTitle = document.createElement('h3');
+  locationTitle.textContent = 'Location';
+  const locationList = document.createElement('dl');
+  locationList.className = 'property-detail-list';
+  locationSection.append(locationTitle, locationList);
+  body.appendChild(locationSection);
+
+  const metadataSection = document.createElement('section');
+  metadataSection.className = 'property-detail-section';
+  const metadataTitle = document.createElement('h3');
+  metadataTitle.textContent = 'Additional metadata';
+  const metadataList = document.createElement('dl');
+  metadataList.className = 'property-detail-list';
+  const metadataEmpty = document.createElement('p');
+  metadataEmpty.className = 'property-detail-empty';
+  metadataEmpty.textContent = 'No additional metadata captured for this property yet.';
+  metadataSection.append(metadataTitle, metadataList, metadataEmpty);
+  body.appendChild(metadataSection);
+
+  const intelSection = document.createElement('section');
+  intelSection.className = 'property-detail-section property-detail-intel';
+  const intelTitle = document.createElement('h3');
+  intelTitle.textContent = 'Location intelligence';
+  const intelStatus = document.createElement('p');
+  intelStatus.className = 'intel-status';
+  const intelList = document.createElement('ul');
+  intelList.className = 'intel-links';
+  intelSection.append(intelTitle, intelStatus, intelList);
+  body.appendChild(intelSection);
+
+  const nodes = {
+    panel,
+    labelEl,
+    titleEl,
+    sublineEl,
+    badgeEl,
+    heroEl,
+    heroImg,
+    statsList,
+    infoList,
+    locationList,
+    metadataList,
+    metadataEmpty,
+    systemCopy,
+    toggleBtn,
+    intelStatus,
+    intelList,
+  };
+
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) closePropertyDetail();
+  });
+  closeBtn.addEventListener('click', () => closePropertyDetail());
+
+  propertyDetailEscapeHandler = event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closePropertyDetail();
+    }
+  };
+  window.addEventListener('keydown', propertyDetailEscapeHandler);
+
+  leadBtn.addEventListener('click', () => {
+    location.hash = `#/leads?prop=${currentProperty.id}`;
+    closePropertyDetail();
+  });
+
+  appointmentBtn.addEventListener('click', () => {
+    closePropertyDetail();
+    openAppointmentForm(currentProperty);
+  });
+
+  toggleBtn.addEventListener('click', async () => {
+    if (!currentProperty?.id) return;
+    toggleBtn.disabled = true;
+    toggleBtn.textContent = 'Updating…';
+    const desiredState = !currentProperty.inSystem;
+    await markPropertyStatus(currentProperty.id, desiredState);
+    const refreshed = (state.data.properties || []).find(p => String(p.id) === String(currentProperty.id));
+    if (refreshed) currentProperty = { ...refreshed };
+    applyPropertySnapshot(currentProperty, nodes);
+  });
+
+  document.body.classList.add('property-detail-open');
+  document.body.appendChild(overlay);
+  propertyDetailOverlay = overlay;
+
+  applyPropertySnapshot(currentProperty, nodes);
+
+  function renderIntel(info) {
+    if (!nodes.intelList?.isConnected) return;
+    const { links = [], query = '' } = info || {};
+    nodes.intelList.innerHTML = '';
+    if (!links.length) {
+      nodes.intelStatus.textContent = query
+        ? `No published sources found for “${query}” yet.`
+        : 'No published sources found for this location yet.';
+      return;
+    }
+    nodes.intelStatus.textContent = query
+      ? `AI agent surfaced ${links.length} sources for “${query}”.`
+      : `AI agent surfaced ${links.length} sources for this location.`;
+    links.forEach(link => {
+      if (!link || typeof link !== 'object') return;
+      const li = document.createElement('li');
+      const anchor = document.createElement('a');
+      anchor.href = link.url || link.href || '#';
+      anchor.textContent = link.title || link.url || 'View source';
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+      li.appendChild(anchor);
+      if (link.snippet) {
+        const snippet = document.createElement('p');
+        snippet.textContent = link.snippet;
+        li.appendChild(snippet);
+      }
+      nodes.intelList.appendChild(li);
+    });
+  }
+
+  async function loadIntel() {
+    if (!window.API_BASE_URL) {
+      nodes.intelStatus.textContent = 'Configure an API base URL to enable AI-powered location research.';
+      return;
+    }
+    nodes.intelStatus.textContent = 'AI agent is scanning the web for nearby insights…';
+    nodes.intelStatus.classList.add('loading');
+    nodes.intelList.innerHTML = '';
+    try {
+      const resp = await authFetch(`${window.API_BASE_URL}/properties/${currentProperty.id}/intel`);
+      if (!resp.ok) {
+        let message = `Request failed (${resp.status})`;
+        try {
+          const detail = await resp.json();
+          if (detail?.detail) message = detail.detail;
+        } catch (err) {
+          console.warn('Failed to parse property intel error', err);
+        }
+        throw new Error(message);
+      }
+      const payload = await resp.json();
+      propertyIntelCache.set(currentProperty.id, payload);
+      if (payload?.property) {
+        mergeProperty(payload.property);
+        const refreshed = (state.data.properties || []).find(p => String(p.id) === String(currentProperty.id));
+        if (refreshed) {
+          currentProperty = { ...refreshed };
+          applyPropertySnapshot(currentProperty, nodes);
+        }
+      }
+      if (propertyDetailOverlay === overlay) {
+        renderIntel(payload);
+      }
+    } catch (err) {
+      console.error('Failed to load property intel', err);
+      nodes.intelStatus.textContent = err?.message || 'Unable to gather location intelligence right now.';
+    } finally {
+      nodes.intelStatus.classList.remove('loading');
+    }
+  }
+
+  const cachedIntel = propertyIntelCache.get(currentProperty.id);
+  if (cachedIntel) renderIntel(cachedIntel);
+  else loadIntel();
+
+  requestAnimationFrame(() => {
+    overlay.classList.add('visible');
+    closeBtn.focus();
+  });
+}
+
+window.openPropertyDetail = openPropertyDetail;
 
 async function createPropertyRecord(payload) {
   if (!window.API_BASE_URL) {
@@ -821,8 +1282,8 @@ async function router(){
             if(el){
               const btn=el.querySelector('.add-lead');
               if(btn) btn.onclick=()=>{location.hash=`#/leads?prop=${p.id}`;};
-              const view=el.querySelector('.view-details');
-              if(view) view.onclick=()=>{location.hash=`#/property?prop=${p.id}`;};
+            const view=el.querySelector('.view-details');
+            if(view) view.onclick=()=>{openPropertyDetail(p);};
             }
           }
           state.activeMarkerId=p.id;
@@ -839,7 +1300,8 @@ async function router(){
     const grid=createDataGrid(props,{
       onSelect:selectProperty,
       onRemove:id=>markPropertyStatus(id,false),
-      onRestore:id=>markPropertyStatus(id,true)
+      onRestore:id=>markPropertyStatus(id,true),
+      onView:id=>openPropertyDetail(id)
     });
     wrap.append(map,addBtn,grid.el);
     grid.update(props);
@@ -885,7 +1347,7 @@ async function router(){
           marker.__isRemoved=!p.inSystem;
           marker.infoWindow=new google.maps.InfoWindow({content});
           content.querySelector('.add-lead')?.addEventListener('click',()=>{location.hash=`#/leads?prop=${p.id}`;});
-          content.querySelector('.view-details')?.addEventListener('click',()=>{location.hash=`#/property?prop=${p.id}`;});
+          content.querySelector('.view-details')?.addEventListener('click',()=>{openPropertyDetail(p);});
           marker.addListener('click',()=>selectProperty(p.id));
           bounds.extend(position);
           state.markers[p.id]=marker;
@@ -928,7 +1390,7 @@ async function router(){
             const btn=el.querySelector('.add-lead');
             if(btn) btn.addEventListener('click',()=>{location.hash=`#/leads?prop=${p.id}`;});
             const view=el.querySelector('.view-details');
-            if(view) view.addEventListener('click',()=>{location.hash=`#/property?prop=${p.id}`;});
+            if(view) view.addEventListener('click',()=>{openPropertyDetail(p);});
           });
         }
       });
@@ -942,31 +1404,13 @@ async function router(){
       topbarAPI.setActive('#/sourcing');
       const params=new URLSearchParams(query||'');
       const propId=params.get('prop');
-      const p=(state.data.properties||[]).find(x=>String(x.id)===String(propId));
-      if(p){
-        const wrap=document.createElement('div');
-        wrap.className='property-view';
-        const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
-        wrap.innerHTML=`<h2>${fullAddress}</h2>`+
-          `<p>Price: ${p.price||''}</p>`+
-          `<p>${p.beds?`${p.beds} bd`:''} ${p.baths?`${p.baths} ba`:''}</p>`+
-          `<p>${p.year?`Built ${p.year}`:''}</p>`+
-          `<p>${p.status||''} ${p.type?`| ${p.type}`:''} ${p.saleOrRent?`| ${p.saleOrRent}`:''}</p>`;
-        const actions=document.createElement('div');
-        const leadBtn=document.createElement('button');
-        leadBtn.textContent='Add to Leads';
-        leadBtn.addEventListener('click',()=>{location.hash=`#/leads?prop=${p.id}`;});
-        const apptBtn=document.createElement('button');
-        apptBtn.textContent='Book Appointment';
-        apptBtn.addEventListener('click',()=>openAppointmentForm(p));
-        actions.append(leadBtn,apptBtn);
-        wrap.appendChild(actions);
-        main.appendChild(wrap);
+      if(propId) openPropertyDetail(propId);
+      if(history.replaceState){
+        history.replaceState(null,'','#/sourcing');
       } else {
-        const msg=document.createElement('p');
-        msg.textContent='Property not found';
-        main.appendChild(msg);
+        location.hash='#/sourcing';
       }
+      return;
     } else if(route.startsWith('#/leads')){
       topbarAPI.setActive('#/leads');
       let resp;

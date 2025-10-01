@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 import properties_store
+from location_intel import fetch_location_references
 
 
 router = APIRouter(prefix="/properties", tags=["properties"])
@@ -35,6 +36,18 @@ class Property(PropertyCreate):
     id: str
     inSystem: bool = True
     removedAt: Optional[str] = None
+
+
+class LocationLink(BaseModel):
+    title: str
+    url: str
+    snippet: Optional[str] = None
+
+
+class PropertyIntel(BaseModel):
+    property: Property
+    query: str
+    links: list[LocationLink]
 
 
 @router.get("", response_model=list[Property])
@@ -70,4 +83,29 @@ def restore_property(property_id: str) -> Mapping[str, Any]:
         return properties_store.set_in_system(property_id, True)
     except KeyError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property not found") from exc
+
+
+@router.get("/{property_id}/intel", response_model=PropertyIntel)
+async def property_intel(property_id: str) -> Mapping[str, Any]:
+    """Return property information plus related location references."""
+
+    record = properties_store.get_property(property_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property not found")
+
+    property_payload = Property.model_validate(record)
+    location_parts = [
+        property_payload.address,
+        property_payload.city,
+        property_payload.state,
+        property_payload.zipCode,
+    ]
+    query = ", ".join([part for part in location_parts if part]) or property_payload.address or property_payload.city or property_payload.state or ""
+
+    links = await fetch_location_references(query, max_results=6)
+    return {
+        "property": property_payload.model_dump(),
+        "query": query,
+        "links": links,
+    }
 
