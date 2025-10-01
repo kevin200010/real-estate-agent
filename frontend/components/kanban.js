@@ -9,6 +9,7 @@ export function createKanban(leads = [], callbacks = {}) {
   board.className = 'kanban';
 
   const controls = document.createElement('div');
+  controls.className = 'kanban-controls';
   const addBtn = document.createElement('button');
   addBtn.textContent = 'Add Lead';
   addBtn.addEventListener('click', () => {
@@ -27,18 +28,23 @@ export function createKanban(leads = [], callbacks = {}) {
   controls.appendChild(addColBtn);
   board.appendChild(controls);
 
+  const columnWrap = document.createElement('div');
+  columnWrap.className = 'kanban-columns';
+  board.appendChild(columnWrap);
+
   let columns = {};
 
-  // Initial skeleton
+  // Initial skeleton state while data loads
   stages.forEach((s) => {
     const col = document.createElement('div');
     col.className = 'kanban-column';
     col.dataset.stage = s;
-    col.innerHTML = `<h3>${s}</h3>`;
+    col.innerHTML = `<div class="col-header"><h3>${s}</h3></div>`;
     const sk = document.createElement('div');
+    sk.className = 'kanban-loading';
     for (let i = 0; i < 3; i++) sk.appendChild(skeletonCard());
     col.appendChild(sk);
-    board.appendChild(col);
+    columnWrap.appendChild(col);
     columns[s] = col;
   });
 
@@ -110,7 +116,7 @@ export function createKanban(leads = [], callbacks = {}) {
           });
         }
       });
-      board.appendChild(col);
+      columnWrap.appendChild(col);
       columns[s] = col;
     });
 

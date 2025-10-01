@@ -174,18 +174,25 @@ button:hover{
 }
 
 .lead-form {
-  display:flex;
-  flex-direction:column;
-  gap:var(--gap);
-  width:50%;
-  max-width:none;
-  max-height:80vh;
-  overflow-y:auto;
-  margin:0;
-  background:#fff;
-  padding:var(--gap);
-  border-radius:var(--radius-lg);
-  box-shadow:var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: min(540px, 92vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  margin: 0;
+  background: #fff;
+  padding: 32px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+}
+
+.lead-form h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .appointment-form {
@@ -267,10 +274,78 @@ button:hover{
   flex-direction:column;
   gap:4px;
 }
+
+.lead-form label {
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.lead-form input,
+.lead-form textarea {
+  margin-top: 0;
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text);
+  transition: border 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.lead-form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.lead-form input:focus,
+.lead-form textarea:focus {
+  border-color: var(--accent);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+  outline: none;
+}
 .form-actions {
   display:flex;
   gap:var(--gap);
   justify-content:flex-end;
+}
+
+.lead-form .form-actions {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 16px;
+  gap: 12px;
+}
+
+.lead-form .form-actions button {
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+
+.lead-form .form-actions button[type='submit'] {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  box-shadow: 0 10px 25px rgba(14, 165, 233, 0.25);
+}
+
+.lead-form .form-actions button[type='submit']:hover {
+  filter: brightness(0.95);
+}
+
+.lead-form .form-actions button[type='button'] {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  color: var(--text);
+}
+
+.lead-form .form-actions button[type='button']:hover {
+  background: #e5e7eb;
+  border-color: #cbd5f5;
 }
 /* Views */
 .sourcing-view { display:flex; flex-direction:column; height:100%; }
@@ -301,19 +376,251 @@ button:hover{
   z-index: 1;
 }
 
-.kanban { display:flex; gap:var(--gap); height:100%; }
-.kanban-column { flex:1; background:var(--card); border-radius:var(--radius-lg); padding:var(--gap); display:flex; flex-direction:column; }
-.kanban-column h3 { margin-top:0; font-size:14px; }
-.kanban .col-header {display:flex;justify-content:space-between;align-items:center;}
-.kanban .col-header button{background:none;border:none;color:white;cursor:pointer;}
+.leads-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 24px;
+  width: 100%;
+  min-height: 0;
+  align-items: start;
+}
 
-.leads-page {display:flex;flex-direction:row;gap:var(--gap);}
-.leads-page .kanban {flex:1;order:1;}
-.leads-page .leads-calendar {width:300px;background:var(--card);border-radius:var(--radius-lg);padding:var(--gap);order:2;}
-.lead-card { background:var(--muted); border-radius:var(--radius-sm); padding:var(--gap); margin-bottom:var(--gap); cursor:grab; position:relative; }
-.lead-card { transition:background 0.3s, box-shadow 0.3s; }
-.lead-card:hover { background:var(--card); box-shadow:0 0 8px var(--accent); }
-.lead-card .delete-lead { position:absolute; top:4px; right:4px; background:none; border:none; cursor:pointer; }
+.leads-page .kanban {
+  order: 1;
+  min-width: 0;
+}
+
+.leads-page .leads-calendar {
+  order: 2;
+  width: 100%;
+  max-width: 340px;
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.leads-calendar h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.leads-calendar button {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  border: 1px solid #d1d5db;
+  background: #f3f4f6;
+  color: var(--text);
+  transition: background 0.2s ease, border 0.2s ease, color 0.2s ease;
+}
+
+.leads-calendar button:first-of-type {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.leads-calendar button:hover {
+  border-color: var(--accent);
+  background: rgba(14, 165, 233, 0.12);
+  color: var(--accent);
+}
+
+.leads-calendar button:first-of-type:hover {
+  background: #0c8bc4;
+  border-color: #0c8bc4;
+  color: #fff;
+}
+
+.kanban {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.kanban-controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  background: #fff;
+  padding: 16px 20px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.kanban-controls button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  box-shadow: 0 10px 25px rgba(14, 165, 233, 0.25);
+}
+
+.kanban-controls button:hover {
+  filter: brightness(0.95);
+}
+
+.kanban-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.kanban-column {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  min-height: 320px;
+}
+
+.kanban .col-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  gap: 8px;
+}
+
+.kanban-column h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.kanban .col-header button {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.kanban .col-header button:hover {
+  color: var(--accent);
+  background: rgba(14, 165, 233, 0.12);
+}
+
+.kanban-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lead-card {
+  background: #f9fafb;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 0;
+  cursor: grab;
+  position: relative;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border 0.2s ease;
+}
+
+.lead-card strong {
+  display: block;
+  font-size: 15px;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.lead-card small {
+  display: block;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.lead-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(14, 165, 233, 0.5);
+  box-shadow: 0 16px 35px rgba(14, 165, 233, 0.2);
+}
+
+.lead-card .delete-lead {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dim);
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.lead-card .delete-lead:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+@media (max-width: 1200px) {
+  .leads-page {
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  }
+}
+
+@media (max-width: 1024px) {
+  .leads-page {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .leads-page .leads-calendar {
+    max-width: none;
+    order: 2;
+  }
+
+  .kanban-controls {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .kanban-columns {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .kanban-controls {
+    padding: 14px 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .leads-page {
+    gap: 16px;
+  }
+
+  .lead-form {
+    padding: 24px 20px;
+  }
+}
 
 /* Agent chat */
 .agent-chat {
