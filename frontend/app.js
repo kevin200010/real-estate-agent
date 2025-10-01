@@ -7,6 +7,7 @@ import { initToast, showToast } from './components/toast.js';
 import { openAppointmentForm } from './components/appointment.js';
 import { createEventCalendar } from './components/event-calendar.js';
 import { createEmailsView } from './components/email.js';
+import { createAgentChat } from './components/agent-chat.js';
 
 const mapReady = new Promise(resolve => {
   if (window.GOOGLE_MAPS_API_KEY) {
@@ -42,6 +43,7 @@ const mapReady = new Promise(resolve => {
 window.mapReady = mapReady;
 
 const state={ data:{}, gmap:null, markers:{}, activeMarkerId:null };
+let agentView;
 let topbarAPI;
 let emailsEl;
 let googleTokenClient;
@@ -535,7 +537,7 @@ function init(){
   // initAssistantDrawer();
   initCommandPalette(state.data);
   initToast();
-  if(!location.hash) location.hash = '#/sourcing';
+  if(!location.hash) location.hash = '#/agent';
   window.addEventListener('hashchange',router);
   router();
   setupShortcuts();
@@ -543,23 +545,24 @@ function init(){
 }
 
 async function router(){
-  const hash=location.hash||'#/sourcing';
+  const hash=location.hash||'#/agent';
   const [route,query]=hash.split('?');
   const main=document.getElementById('main');
   main.innerHTML='';
-  if(route.startsWith('#/sourcing')){
+  if(route.startsWith('#/agent')){
+    topbarAPI.setActive('#/agent');
+    if(!agentView){
+      agentView=createAgentChat();
+    }
+    main.appendChild(agentView);
+  } else if(route.startsWith('#/sourcing')){
     topbarAPI.setActive('#/sourcing');
     const wrap=document.createElement('div');
     wrap.className='sourcing-view';
     const map=document.createElement('div');map.id='map';
     const addBtn=document.createElement('button');
     addBtn.textContent='Add Property';
-    addBtn.addEventListener('click',()=>{
-      const overlay=document.createElement('div');
-      overlay.className='modal';
-      const form=document.createElement('form');
-      form.className='property-form';
-      const propertySections=[
+    const propertySections=[
         {
           title:'Listing Snapshot',
           description:'Key availability and pricing inputs for the record.',
@@ -659,9 +662,14 @@ async function router(){
           ]
         }
       ];
-      const propertyFields=propertySections.flatMap(section=>section.fields);
-      const numberFieldNames=propertyFields.filter(field=>field.type==='number').map(field=>field.name);
-      const checkboxFieldNames=propertyFields.filter(field=>field.type==='checkbox').map(field=>field.name);
+    const propertyFields=propertySections.flatMap(section=>section.fields);
+    const numberFieldNames=propertyFields.filter(field=>field.type==='number').map(field=>field.name);
+    const checkboxFieldNames=propertyFields.filter(field=>field.type==='checkbox').map(field=>field.name);
+    function openAddPropertyModal(){
+      const overlay=document.createElement('div');
+      overlay.className='modal';
+      const form=document.createElement('form');
+      form.className='property-form';
       const propertyMarkup=propertySections.map(section=>{
         const gridClasses=['property-section-grid'];
         if(section.columns===1) gridClasses.push('single-column');
@@ -761,11 +769,13 @@ async function router(){
       form.querySelector('#cancelProperty').addEventListener('click',()=>{close();});
       overlay.appendChild(form);
       document.body.appendChild(overlay);
-    });
+    }
+    addBtn.addEventListener('click',openAddPropertyModal);
     state.data.properties=normaliseProperties(state.data.properties||[]);
     const props=state.data.properties||[];
     const params=new URLSearchParams(query||'');
     const initialProp=params.get('prop');
+    const addIntent=params.get('add');
     function selectProperty(id){
       if(!state.gmap) return;
       const p=(state.data.properties||[]).find(x=>String(x.id)===String(id));
@@ -834,6 +844,14 @@ async function router(){
     wrap.append(map,addBtn,grid.el);
     grid.update(props);
     main.appendChild(wrap);
+    if(addIntent==='property'){
+      openAddPropertyModal();
+      if(history.replaceState){
+        history.replaceState(null,'','#/sourcing');
+      } else {
+        location.hash='#/sourcing';
+      }
+    }
     state.markers={};
     const center=props.length?{lat:Number(props[0].lat),lng:Number(props[0].lng)}:{lat:39.5,lng:-98.35};
     const zoom=props.length?10:5;

@@ -861,6 +861,45 @@ button:hover{
   min-width: 0;
 }
 .chat-box:hover { box-shadow:0 0 15px var(--accent); }
+.chat-header {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: var(--gap);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.18), rgba(14, 165, 233, 0.12));
+}
+.chat-header .intro h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: 0.01em;
+}
+.chat-header .intro p {
+  margin: 6px 0 0;
+  color: rgba(226, 232, 240, 0.9);
+  font-size: 0.95rem;
+}
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.quick-actions button {
+  background: rgba(15, 118, 110, 0.18);
+  color: #e0f2f1;
+  border: 1px solid rgba(45, 212, 191, 0.45);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+.quick-actions button:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
 .chat-actions {
   display:flex;
   justify-content:flex-end;

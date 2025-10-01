@@ -6,9 +6,11 @@ export function initCommandPalette(data) {
   input = palette.querySelector('#cp-input');
   listEl = palette.querySelector('.cp-list');
   items = [
+    {label:'Go to Agent', action:()=>location.hash='#/agent'},
     {label:'Go to Sourcing', action:()=>location.hash='#/sourcing'},
     {label:'Go to Leads', action:()=>location.hash='#/leads'},
     {label:'Go to Emails', action:()=>location.hash='#/emails'},
+    {label:'Add Property', action:()=>location.hash='#/sourcing?add=property'},
   ];
   (data.savedSearches||[]).forEach(s=>items.push({label:`Search: ${s}`, action:()=>alert('Load '+s)}));
   filtered = items;
