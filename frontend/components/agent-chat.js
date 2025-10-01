@@ -4,6 +4,18 @@ export function createAgentChat() {
   wrap.innerHTML = `
     <div id="agent-map" class="glass"></div>
     <div class="chat-box glass">
+      <div class="chat-header">
+        <div class="intro">
+          <h2>AI Deal Assistant</h2>
+          <p>Ask anything about your inventory, leads, or next steps and jump straight into the right workspace.</p>
+        </div>
+        <div class="quick-actions">
+          <button type="button" data-route="#/sourcing">Open Sourcing</button>
+          <button type="button" data-route="#/sourcing?add=property">Add Property</button>
+          <button type="button" data-route="#/leads">Manage Leads</button>
+          <button type="button" data-route="#/emails">Check Email</button>
+        </div>
+      </div>
       <div id="chat-messages" class="chat-messages"></div>
       <form id="chat-form" class="chat-form">
         <input id="chat-input" placeholder="Type your message..." autocomplete="off" />
@@ -18,6 +30,14 @@ export function createAgentChat() {
   const messages = wrap.querySelector('#chat-messages');
   const clearBtn = wrap.querySelector('#clear-chat');
   const mapEl = wrap.querySelector('#agent-map');
+  wrap.querySelectorAll('.quick-actions button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const route = btn.dataset.route;
+      if (route) {
+        location.hash = route;
+      }
+    });
+  });
   let map;
   let markers = [];
   let markerMap = {};
@@ -161,7 +181,13 @@ export function createAgentChat() {
           const addBtn = el.querySelector?.('.add-lead');
           if (addBtn) addBtn.addEventListener('click', () => { location.hash = `#/leads?prop=${p.id}`; });
           const viewBtn = el.querySelector?.('.view-details');
-          if (viewBtn) viewBtn.addEventListener('click', () => { location.hash = `#/property?prop=${p.id}`; });
+          if (viewBtn) viewBtn.addEventListener('click', () => {
+            if (typeof window.openPropertyDetail === 'function') {
+              window.openPropertyDetail(p.id);
+            } else {
+              location.hash = `#/property?prop=${p.id}`;
+            }
+          });
         });
         markers.push(marker);
         markerMap[p.id] = marker;
@@ -202,7 +228,13 @@ export function createAgentChat() {
           const addBtn = el.querySelector('.add-lead');
           if (addBtn) addBtn.addEventListener('click', () => { location.hash = `#/leads?prop=${p.id}`; });
           const viewBtn = el.querySelector('.view-details');
-          if (viewBtn) viewBtn.addEventListener('click', () => { location.hash = `#/property?prop=${p.id}`; });
+          if (viewBtn) viewBtn.addEventListener('click', () => {
+            if (typeof window.openPropertyDetail === 'function') {
+              window.openPropertyDetail(p.id);
+            } else {
+              location.hash = `#/property?prop=${p.id}`;
+            }
+          });
         });
         markers.push(marker);
         markerMap[p.id] = marker;
@@ -305,7 +337,11 @@ export function createAgentChat() {
         const btn = card.querySelector('.view-icon');
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
-          location.hash = `#/property?prop=${p.id}`;
+          if (typeof window.openPropertyDetail === 'function') {
+            window.openPropertyDetail(p.id);
+          } else {
+            location.hash = `#/property?prop=${p.id}`;
+          }
         });
         cardsWrap.appendChild(card);
       });

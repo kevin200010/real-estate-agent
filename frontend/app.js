@@ -3,11 +3,11 @@ import { initTopbar } from './components/topbar.js';
 import { initCommandPalette, togglePalette } from './components/command-palette.js';
 import { createDataGrid } from './components/datagrid.js';
 import { createKanban } from './components/kanban.js';
-import { initToast } from './components/toast.js';
-import { createAgentChat } from './components/agent-chat.js';
+import { initToast, showToast } from './components/toast.js';
 import { openAppointmentForm } from './components/appointment.js';
 import { createEventCalendar } from './components/event-calendar.js';
 import { createEmailsView } from './components/email.js';
+import { createAgentChat } from './components/agent-chat.js';
 
 const mapReady = new Promise(resolve => {
   if (window.GOOGLE_MAPS_API_KEY) {
@@ -43,14 +43,17 @@ const mapReady = new Promise(resolve => {
 window.mapReady = mapReady;
 
 const state={ data:{}, gmap:null, markers:{}, activeMarkerId:null };
+let agentView;
 let topbarAPI;
-let agentChatEl;
 let emailsEl;
 let googleTokenClient;
 const googleTokenListeners=[];
 let gmailTokenClient;
 const gmailTokenListeners=[];
 let gmailAccount={ email:null, expiresAt:null, scope:null, tokenType:null };
+let propertyDetailOverlay=null;
+let propertyDetailEscapeHandler=null;
+const propertyIntelCache=new Map();
 
 function onGoogleToken(fn){
   googleTokenListeners.push(fn);
@@ -80,6 +83,579 @@ async function authFetch(url, options = {}) {
     console.error(`Request to ${url} was unauthorized (401). Ensure you are logged in and the API accepts your token.`);
   }
   return resp;
+}
+
+const pendingPropertyUpdates = new Set();
+
+function normaliseProperties(list = []) {
+  if (!Array.isArray(list)) return [];
+  return list.map(item => ({
+    ...item,
+    inSystem: item?.inSystem !== false
+  }));
+}
+
+function mergeProperty(record) {
+  if (!record) return;
+  const props = Array.isArray(state.data.properties) ? [...state.data.properties] : [];
+  const idx = props.findIndex(p => String(p.id) === String(record.id));
+  if (idx >= 0) props[idx] = { ...props[idx], ...record };
+  else props.push(record);
+  state.data.properties = normaliseProperties(props);
+}
+
+function refreshSourcingView(focusId) {
+  const baseRoute = '#/sourcing';
+  if (!location.hash.startsWith(baseRoute)) return;
+  if (focusId) {
+    const nextHash = `${baseRoute}?prop=${focusId}`;
+    if (history.replaceState) history.replaceState(null, '', nextHash);
+    else location.hash = nextHash;
+  }
+  router();
+}
+
+async function markPropertyStatus(propertyId, inSystem) {
+  if (!window.API_BASE_URL) {
+    showToast('API base URL is not configured');
+    return;
+  }
+  if (pendingPropertyUpdates.has(propertyId)) return;
+  pendingPropertyUpdates.add(propertyId);
+  const endpoint = inSystem ? 'restore' : 'remove';
+  try {
+    const resp = await authFetch(`${window.API_BASE_URL}/properties/${propertyId}/${endpoint}`, { method: 'POST' });
+    if (!resp.ok) {
+      let message = `Request failed (${resp.status})`;
+      try {
+        const detail = await resp.json();
+        if (detail && typeof detail === 'object' && detail.detail) message = detail.detail;
+      } catch (err) {
+        console.warn('Failed to parse property update error', err);
+      }
+      throw new Error(message);
+    }
+    const updated = await resp.json();
+    mergeProperty(updated);
+    showToast(inSystem ? 'Listing restored to system' : 'Listing marked as out of system');
+    refreshSourcingView(updated.id);
+  } catch (err) {
+    console.error('Failed to update property status', err);
+    showToast(err?.message || 'Failed to update property');
+  } finally {
+    pendingPropertyUpdates.delete(propertyId);
+  }
+}
+
+function closePropertyDetail() {
+  if (!propertyDetailOverlay) return;
+  if (propertyDetailEscapeHandler) {
+    window.removeEventListener('keydown', propertyDetailEscapeHandler);
+    propertyDetailEscapeHandler = null;
+  }
+  propertyDetailOverlay.remove();
+  propertyDetailOverlay = null;
+  document.body.classList.remove('property-detail-open');
+}
+
+function derivePropertyImage(property) {
+  if (!property) return '';
+  if (property.image) return property.image;
+  const lat = Number(property.lat);
+  const lng = Number(property.lng);
+  if (window.GOOGLE_MAPS_API_KEY && !Number.isNaN(lat) && !Number.isNaN(lng)) {
+    return `https://maps.googleapis.com/maps/api/streetview?size=640x420&location=${lat},${lng}&key=${window.GOOGLE_MAPS_API_KEY}`;
+  }
+  return '';
+}
+
+function formatDetailValue(value) {
+  if (value === null || value === undefined) return '';
+  if (Array.isArray(value)) {
+    return value.map(item => formatDetailValue(item)).filter(Boolean).join(', ');
+  }
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value);
+    } catch (err) {
+      console.warn('Failed to stringify metadata value', err);
+      return '';
+    }
+  }
+  return String(value);
+}
+
+function createDetailRow(container, label, value) {
+  if (!container) return;
+  const display = formatDetailValue(value);
+  if (!display) return;
+  const row = document.createElement('div');
+  row.className = 'property-detail-row';
+  const term = document.createElement('dt');
+  term.textContent = label;
+  const detail = document.createElement('dd');
+  detail.textContent = display;
+  row.append(term, detail);
+  container.appendChild(row);
+}
+
+function applyPropertySnapshot(snapshot, nodes) {
+  if (!snapshot || !nodes?.panel?.isConnected) return;
+  const {
+    labelEl,
+    titleEl,
+    sublineEl,
+    badgeEl,
+    heroEl,
+    heroImg,
+    statsList,
+    infoList,
+    locationList,
+    metadataList,
+    metadataEmpty,
+    systemCopy,
+    toggleBtn,
+  } = nodes;
+
+  if (labelEl) labelEl.textContent = snapshot.inSystem ? 'Active listing' : 'Removed listing';
+  if (titleEl) titleEl.textContent = snapshot.address || 'Property';
+
+  if (sublineEl) {
+    const locality = [snapshot.city, snapshot.state].filter(Boolean).join(', ');
+    const zip = snapshot.zipCode ? String(snapshot.zipCode).trim() : '';
+    sublineEl.textContent = zip ? `${locality ? `${locality} ` : ''}${zip}`.trim() : locality;
+  }
+
+  if (badgeEl) {
+    badgeEl.textContent = snapshot.inSystem ? 'In System' : 'Not in System';
+    if (snapshot.inSystem) badgeEl.classList.remove('removed');
+    else badgeEl.classList.add('removed');
+  }
+
+  if (systemCopy) {
+    systemCopy.textContent = snapshot.inSystem
+      ? 'This property is currently tracked in your sourcing workspace.'
+      : 'This property is marked as out of system.';
+  }
+
+  if (toggleBtn) {
+    toggleBtn.disabled = false;
+    toggleBtn.textContent = snapshot.inSystem ? 'Mark Out of System' : 'Restore Listing';
+  }
+
+  if (heroEl && heroImg) {
+    const heroSrc = derivePropertyImage(snapshot);
+    if (heroSrc) {
+      heroImg.src = heroSrc;
+      heroEl.classList.remove('empty');
+    } else {
+      heroImg.removeAttribute('src');
+      heroEl.classList.add('empty');
+    }
+  }
+
+  if (statsList) {
+    statsList.innerHTML = '';
+    const metrics = [
+      { label: 'Price', value: snapshot.price || '—' },
+      { label: 'Beds', value: snapshot.beds ?? '—' },
+      { label: 'Baths', value: snapshot.baths ?? '—' },
+      { label: 'Year Built', value: snapshot.year ?? '—' },
+      { label: 'Status', value: snapshot.status || '—' },
+      { label: 'Sale / Rent', value: snapshot.saleOrRent || '—' },
+      { label: 'Type', value: snapshot.type || '—' },
+      { label: 'Listing #', value: snapshot.listingNumber || '—' },
+      { label: 'System', value: snapshot.inSystem ? 'In System' : 'Not in System' },
+    ];
+    if (snapshot.removedAt) {
+      try {
+        const removedDate = new Date(snapshot.removedAt);
+        metrics.push({ label: 'Removed At', value: removedDate.toLocaleString() });
+      } catch (err) {
+        metrics.push({ label: 'Removed At', value: snapshot.removedAt });
+      }
+    }
+    metrics.forEach(item => {
+      const li = document.createElement('li');
+      li.className = 'property-stat';
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'label';
+      labelSpan.textContent = item.label;
+      const valueSpan = document.createElement('span');
+      valueSpan.className = 'value';
+      valueSpan.textContent = formatDetailValue(item.value) || '—';
+      li.append(labelSpan, valueSpan);
+      statsList.appendChild(li);
+    });
+  }
+
+  if (infoList) {
+    infoList.innerHTML = '';
+    createDetailRow(infoList, 'Listing Number', snapshot.listingNumber);
+    createDetailRow(infoList, 'Status', snapshot.status);
+    createDetailRow(infoList, 'Sale / Rent', snapshot.saleOrRent);
+    createDetailRow(infoList, 'Property Type', snapshot.type);
+    createDetailRow(infoList, 'Beds', snapshot.beds);
+    createDetailRow(infoList, 'Baths', snapshot.baths);
+    createDetailRow(infoList, 'Year Built', snapshot.year);
+    createDetailRow(infoList, 'Price', snapshot.price);
+    if (snapshot.removedAt) createDetailRow(infoList, 'Removed At', snapshot.removedAt);
+  }
+
+  if (locationList) {
+    locationList.innerHTML = '';
+    createDetailRow(locationList, 'Address', snapshot.address);
+    createDetailRow(locationList, 'City', snapshot.city);
+    createDetailRow(locationList, 'State', snapshot.state);
+    createDetailRow(locationList, 'Postal Code', snapshot.zipCode);
+    const lat = Number(snapshot.lat);
+    if (!Number.isNaN(lat)) createDetailRow(locationList, 'Latitude', lat.toFixed(6));
+    const lng = Number(snapshot.lng);
+    if (!Number.isNaN(lng)) createDetailRow(locationList, 'Longitude', lng.toFixed(6));
+  }
+
+  if (metadataList && metadataEmpty) {
+    metadataList.innerHTML = '';
+    const entries = snapshot.metadata && typeof snapshot.metadata === 'object'
+      ? Object.entries(snapshot.metadata)
+      : [];
+    if (entries.length) {
+      metadataEmpty.classList.add('hidden');
+      entries.forEach(([key, value]) => {
+        const label = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+        createDetailRow(metadataList, label.charAt(0).toUpperCase() + label.slice(1), value);
+      });
+    } else {
+      metadataEmpty.classList.remove('hidden');
+    }
+  }
+}
+
+function openPropertyDetail(propertyOrId) {
+  const props = Array.isArray(state.data.properties) ? state.data.properties : [];
+  const property = typeof propertyOrId === 'object'
+    ? propertyOrId
+    : props.find(p => String(p.id) === String(propertyOrId));
+
+  if (!property) {
+    showToast('Property not found');
+    return;
+  }
+
+  closePropertyDetail();
+
+  let currentProperty = { ...property };
+
+  const overlay = document.createElement('div');
+  overlay.className = 'property-detail-overlay';
+
+  const panel = document.createElement('article');
+  panel.className = 'property-detail-panel';
+  panel.tabIndex = -1;
+  overlay.appendChild(panel);
+
+  const header = document.createElement('header');
+  header.className = 'property-detail-header';
+
+  const heading = document.createElement('div');
+  heading.className = 'property-detail-heading';
+
+  const labelEl = document.createElement('p');
+  labelEl.className = 'property-detail-label';
+  const titleEl = document.createElement('h2');
+  titleEl.className = 'property-detail-title';
+  const sublineEl = document.createElement('p');
+  sublineEl.className = 'property-detail-subline';
+  const badgeEl = document.createElement('span');
+  badgeEl.className = 'property-system-badge';
+
+  heading.append(labelEl, titleEl, sublineEl, badgeEl);
+  header.appendChild(heading);
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'property-detail-close';
+  closeBtn.setAttribute('aria-label', 'Close property details');
+  closeBtn.innerHTML = '&times;';
+  header.appendChild(closeBtn);
+
+  panel.appendChild(header);
+
+  const body = document.createElement('div');
+  body.className = 'property-detail-body';
+  panel.appendChild(body);
+
+  const heroEl = document.createElement('div');
+  heroEl.className = 'property-detail-hero';
+  const heroImg = document.createElement('img');
+  heroImg.alt = 'Location preview';
+  heroEl.appendChild(heroImg);
+  body.appendChild(heroEl);
+
+  const systemCopy = document.createElement('p');
+  systemCopy.className = 'property-detail-system';
+  body.appendChild(systemCopy);
+
+  const actions = document.createElement('div');
+  actions.className = 'property-detail-actions';
+  const leadBtn = document.createElement('button');
+  leadBtn.type = 'button';
+  leadBtn.className = 'ghost';
+  leadBtn.textContent = 'Add to Leads';
+  const appointmentBtn = document.createElement('button');
+  appointmentBtn.type = 'button';
+  appointmentBtn.className = 'ghost';
+  appointmentBtn.textContent = 'Book Appointment';
+  const toggleBtn = document.createElement('button');
+  toggleBtn.type = 'button';
+  toggleBtn.className = 'primary';
+  actions.append(leadBtn, appointmentBtn, toggleBtn);
+  body.appendChild(actions);
+
+  const statsSection = document.createElement('section');
+  statsSection.className = 'property-detail-section';
+  const statsHeading = document.createElement('h3');
+  statsHeading.textContent = 'Quick facts';
+  const statsList = document.createElement('ul');
+  statsList.className = 'property-detail-stats';
+  statsSection.append(statsHeading, statsList);
+  body.appendChild(statsSection);
+
+  const infoSection = document.createElement('section');
+  infoSection.className = 'property-detail-section';
+  const infoTitle = document.createElement('h3');
+  infoTitle.textContent = 'Listing details';
+  const infoList = document.createElement('dl');
+  infoList.className = 'property-detail-list';
+  infoSection.append(infoTitle, infoList);
+  body.appendChild(infoSection);
+
+  const locationSection = document.createElement('section');
+  locationSection.className = 'property-detail-section';
+  const locationTitle = document.createElement('h3');
+  locationTitle.textContent = 'Location';
+  const locationList = document.createElement('dl');
+  locationList.className = 'property-detail-list';
+  locationSection.append(locationTitle, locationList);
+  body.appendChild(locationSection);
+
+  const metadataSection = document.createElement('section');
+  metadataSection.className = 'property-detail-section';
+  const metadataTitle = document.createElement('h3');
+  metadataTitle.textContent = 'Additional metadata';
+  const metadataList = document.createElement('dl');
+  metadataList.className = 'property-detail-list';
+  const metadataEmpty = document.createElement('p');
+  metadataEmpty.className = 'property-detail-empty';
+  metadataEmpty.textContent = 'No additional metadata captured for this property yet.';
+  metadataSection.append(metadataTitle, metadataList, metadataEmpty);
+  body.appendChild(metadataSection);
+
+  const intelSection = document.createElement('section');
+  intelSection.className = 'property-detail-section property-detail-intel';
+  const intelTitle = document.createElement('h3');
+  intelTitle.textContent = 'Location intelligence';
+  const intelStatus = document.createElement('p');
+  intelStatus.className = 'intel-status';
+  const intelList = document.createElement('ul');
+  intelList.className = 'intel-links';
+  intelSection.append(intelTitle, intelStatus, intelList);
+  body.appendChild(intelSection);
+
+  const nodes = {
+    panel,
+    labelEl,
+    titleEl,
+    sublineEl,
+    badgeEl,
+    heroEl,
+    heroImg,
+    statsList,
+    infoList,
+    locationList,
+    metadataList,
+    metadataEmpty,
+    systemCopy,
+    toggleBtn,
+    intelStatus,
+    intelList,
+  };
+
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) closePropertyDetail();
+  });
+  closeBtn.addEventListener('click', () => closePropertyDetail());
+
+  propertyDetailEscapeHandler = event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closePropertyDetail();
+    }
+  };
+  window.addEventListener('keydown', propertyDetailEscapeHandler);
+
+  leadBtn.addEventListener('click', () => {
+    location.hash = `#/leads?prop=${currentProperty.id}`;
+    closePropertyDetail();
+  });
+
+  appointmentBtn.addEventListener('click', () => {
+    closePropertyDetail();
+    openAppointmentForm(currentProperty);
+  });
+
+  toggleBtn.addEventListener('click', async () => {
+    if (!currentProperty?.id) return;
+    toggleBtn.disabled = true;
+    toggleBtn.textContent = 'Updating…';
+    const desiredState = !currentProperty.inSystem;
+    await markPropertyStatus(currentProperty.id, desiredState);
+    const refreshed = (state.data.properties || []).find(p => String(p.id) === String(currentProperty.id));
+    if (refreshed) currentProperty = { ...refreshed };
+    applyPropertySnapshot(currentProperty, nodes);
+  });
+
+  document.body.classList.add('property-detail-open');
+  document.body.appendChild(overlay);
+  propertyDetailOverlay = overlay;
+
+  applyPropertySnapshot(currentProperty, nodes);
+
+  function renderIntel(info) {
+    if (!nodes.intelList?.isConnected) return;
+    const { links = [], query = '' } = info || {};
+    nodes.intelList.innerHTML = '';
+    if (!links.length) {
+      nodes.intelStatus.textContent = query
+        ? `No published sources found for “${query}” yet.`
+        : 'No published sources found for this location yet.';
+      return;
+    }
+    nodes.intelStatus.textContent = query
+      ? `AI agent surfaced ${links.length} sources for “${query}”.`
+      : `AI agent surfaced ${links.length} sources for this location.`;
+    links.forEach(link => {
+      if (!link || typeof link !== 'object') return;
+      const li = document.createElement('li');
+      const anchor = document.createElement('a');
+      anchor.href = link.url || link.href || '#';
+      anchor.textContent = link.title || link.url || 'View source';
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+      li.appendChild(anchor);
+      if (link.snippet) {
+        const snippet = document.createElement('p');
+        snippet.textContent = link.snippet;
+        li.appendChild(snippet);
+      }
+      nodes.intelList.appendChild(li);
+    });
+  }
+
+  async function loadIntel() {
+    if (!window.API_BASE_URL) {
+      nodes.intelStatus.textContent = 'Configure an API base URL to enable AI-powered location research.';
+      return;
+    }
+    nodes.intelStatus.textContent = 'AI agent is scanning the web for nearby insights…';
+    nodes.intelStatus.classList.add('loading');
+    nodes.intelList.innerHTML = '';
+    try {
+      const resp = await authFetch(`${window.API_BASE_URL}/properties/${currentProperty.id}/intel`);
+      if (!resp.ok) {
+        let message = `Request failed (${resp.status})`;
+        try {
+          const detail = await resp.json();
+          if (detail?.detail) message = detail.detail;
+        } catch (err) {
+          console.warn('Failed to parse property intel error', err);
+        }
+        throw new Error(message);
+      }
+      const payload = await resp.json();
+      propertyIntelCache.set(currentProperty.id, payload);
+      if (payload?.property) {
+        mergeProperty(payload.property);
+        const refreshed = (state.data.properties || []).find(p => String(p.id) === String(currentProperty.id));
+        if (refreshed) {
+          currentProperty = { ...refreshed };
+          applyPropertySnapshot(currentProperty, nodes);
+        }
+      }
+      if (propertyDetailOverlay === overlay) {
+        renderIntel(payload);
+      }
+    } catch (err) {
+      console.error('Failed to load property intel', err);
+      nodes.intelStatus.textContent = err?.message || 'Unable to gather location intelligence right now.';
+    } finally {
+      nodes.intelStatus.classList.remove('loading');
+    }
+  }
+
+  const cachedIntel = propertyIntelCache.get(currentProperty.id);
+  if (cachedIntel) renderIntel(cachedIntel);
+  else loadIntel();
+
+  requestAnimationFrame(() => {
+    overlay.classList.add('visible');
+    closeBtn.focus();
+  });
+}
+
+window.openPropertyDetail = openPropertyDetail;
+
+async function createPropertyRecord(payload) {
+  if (!window.API_BASE_URL) {
+    throw new Error('API base URL is not configured');
+  }
+  const resp = await authFetch(`${window.API_BASE_URL}/properties`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) {
+    let message = `Request failed (${resp.status})`;
+    try {
+      const detail = await resp.json();
+      if (detail && typeof detail === 'object' && detail.detail) message = detail.detail;
+    } catch (err) {
+      console.warn('Failed to parse property create error', err);
+    }
+    throw new Error(message);
+  }
+  return resp.json();
+}
+
+async function loadInitialProperties() {
+  const fallback = async () => {
+    try {
+      const resp = await fetch('data/listings.csv');
+      if (!resp.ok) return [];
+      const csv = await resp.text();
+      return parseCSV(csv);
+    } catch (err) {
+      console.warn('Failed to load fallback property data', err);
+      return [];
+    }
+  };
+
+  if (window.API_BASE_URL) {
+    try {
+      const resp = await authFetch(`${window.API_BASE_URL}/properties`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (Array.isArray(data)) return normaliseProperties(data);
+      } else {
+        console.warn('Property API returned non-OK response', resp.status);
+      }
+    } catch (err) {
+      console.warn('Failed to load properties from API', err);
+    }
+  }
+
+  const fallbackData = await fallback();
+  return normaliseProperties(fallbackData);
 }
 
 function updateGmailAccount(patch={}){
@@ -400,14 +976,16 @@ const background='global-bg.svg';
 function startApp(){
   Promise.all([
     fetch('data/sample.json').then(r=>r.json()),
-    fetch('data/listings.csv').then(r=>r.text()),
+    loadInitialProperties(),
     mapReady
-  ]).then(([d,csv])=>{
-    d.properties=parseCSV(csv);
+  ]).then(([d,properties])=>{
+    d.properties=normaliseProperties(properties);
     // Leverages backend API for lead data so remove any bundled sample leads
     d.leads = [];
     state.data=d;
     init();
+  }).catch(err=>{
+    console.error('Failed to initialise application',err);
   });
   initGoogleAuth();
   initGmailAuth();
@@ -420,7 +998,7 @@ function init(){
   // initAssistantDrawer();
   initCommandPalette(state.data);
   initToast();
-  if(!location.hash) location.hash = '#/sourcing';
+  if(!location.hash) location.hash = '#/agent';
   window.addEventListener('hashchange',router);
   router();
   setupShortcuts();
@@ -428,117 +1006,237 @@ function init(){
 }
 
 async function router(){
-  const hash=location.hash||'#/sourcing';
+  const hash=location.hash||'#/agent';
   const [route,query]=hash.split('?');
   const main=document.getElementById('main');
   main.innerHTML='';
-  const searchInput=document.getElementById('global-search');
-  if(searchInput){ searchInput.oninput=null; searchInput.value=''; }
-  if(route.startsWith('#/sourcing')){
+  if(route.startsWith('#/agent')){
+    topbarAPI.setActive('#/agent');
+    if(!agentView){
+      agentView=createAgentChat();
+    }
+    main.appendChild(agentView);
+  } else if(route.startsWith('#/sourcing')){
     topbarAPI.setActive('#/sourcing');
     const wrap=document.createElement('div');
     wrap.className='sourcing-view';
     const map=document.createElement('div');map.id='map';
     const addBtn=document.createElement('button');
     addBtn.textContent='Add Property';
-    addBtn.addEventListener('click',()=>{
+    const propertySections=[
+        {
+          title:'Listing Snapshot',
+          description:'Key availability and pricing inputs for the record.',
+          fields:[
+            { label:'Listing Number', name:'listingNumber', required:true },
+            { label:'Listing Status', name:'listingStatus' },
+            { label:'Sale or Rent', name:'saleOrRent' },
+            { label:'Property Type', name:'propertyType' },
+            { label:'Property Subtype', name:'propertySubtype' },
+            { label:'List Price', name:'listPrice', type:'number', step:'any', required:true },
+            { label:'List Date', name:'listDate', type:'date' },
+            { label:'Pending Date', name:'pendingDate', type:'date' },
+            { label:'Sold Date', name:'soldDate', type:'date' },
+            { label:'Sold Price', name:'soldPrice', type:'number', step:'any' },
+            { label:'Withdrawn Date', name:'withdrawnDate', type:'date' },
+            { label:'Expired Date', name:'expiredDate', type:'date' },
+            { label:'REO', name:'reo', type:'checkbox' },
+            { label:'Short Sale', name:'shortSale', type:'checkbox' }
+          ]
+        },
+        {
+          title:'Location & Lot',
+          description:'Geographic identifiers for mapping, tax searches, and lot metrics.',
+          fields:[
+            { label:'Address', name:'address', required:true, full:true },
+            { label:'City', name:'city' },
+            { label:'State', name:'state' },
+            { label:'Zip Code', name:'zipCode' },
+            { label:'County', name:'county' },
+            { label:'Parcel ID #', name:'parcelId' },
+            { label:'MLS Area', name:'mlsArea' },
+            { label:'Subdivision', name:'subdivision' },
+            { label:'Development Name', name:'developmentName' },
+            { label:'Zoning', name:'zoning' },
+            { label:'Lot Size (sf)', name:'lotSizeSf', type:'number', step:'any' },
+            { label:'Lot Size (acres)', name:'lotSizeAcres', type:'number', step:'any' },
+            { label:'Longitude', name:'longitude', type:'number', step:'any', required:true },
+            { label:'Latitude', name:'latitude', type:'number', step:'any', required:true }
+          ]
+        },
+        {
+          title:'Property Specs',
+          description:'Structural details and amenities buyers ask about most.',
+          fields:[
+            { label:'Building/Living Area (sf)', name:'buildingArea', type:'number', step:'any' },
+            { label:'Property SqFt', name:'propertySqFt', type:'number', step:'any' },
+            { label:'PPSF', name:'ppsf', type:'number', step:'any' },
+            { label:'Bedrooms', name:'bedrooms', type:'number', step:'1' },
+            { label:'Full Bathrooms', name:'fullBathrooms', type:'number', step:'1' },
+            { label:'Half Bathrooms', name:'halfBathrooms', type:'number', step:'1' },
+            { label:'Year Built', name:'yearBuilt', type:'number', step:'1' },
+            { label:'Style', name:'style' },
+            { label:'Parking Total', name:'parkingTotal', type:'number', step:'1' },
+            { label:'Pool', name:'pool', type:'checkbox' },
+            { label:'Garage', name:'garage', type:'checkbox' },
+            { label:'Waterfront', name:'waterfront', type:'checkbox' }
+          ]
+        },
+        {
+          title:'Representation',
+          description:'Capture the brokerage professionals tied to this listing.',
+          fields:[
+            { label:'Listing Agent Name', name:'listingAgentName', full:true },
+            { label:'Listing Office Name', name:'listingOfficeName', full:true },
+            { label:'Listing Agent Phone Number', name:'listingAgentPhone', type:'tel' },
+            { label:'Listing Agent E-Mail Address', name:'listingAgentEmail', type:'email', full:true },
+            { label:'Sale Agent Name', name:'saleAgentName', full:true },
+            { label:'Sale Office Name', name:'saleOfficeName', full:true }
+          ],
+          columns:1
+        },
+        {
+          title:'Ownership & Financials',
+          description:'Owner of record and cashflow metrics for underwriting.',
+          fields:[
+            { label:'Owner Name 1', name:'ownerName1', full:true },
+            { label:'Owner Name 2', name:'ownerName2', full:true },
+            { label:'Owner Address', name:'ownerAddress', full:true },
+            { label:'Owner City', name:'ownerCity' },
+            { label:'Owner State', name:'ownerState' },
+            { label:'Owner Zip Code', name:'ownerZipCode' },
+            { label:'Owner County', name:'ownerCounty' },
+            { label:'Owner Occupied', name:'ownerOccupied', type:'checkbox' },
+            { label:'Net Operating Income', name:'netOperatingIncome', type:'number', step:'any' },
+            { label:'Gross Operating Income', name:'grossOperatingIncome', type:'number', step:'any' },
+            { label:'Last Sale Date (Tax Records)', name:'lastSaleDate', type:'date' }
+          ]
+        },
+        {
+          title:'Schools & Community',
+          description:'Keep marketing copy consistent with nearby education options.',
+          columns:1,
+          fields:[
+            { label:'Elementary School', name:'elementarySchool' },
+            { label:'Middle School', name:'middleSchool' },
+            { label:'High School', name:'highSchool' }
+          ]
+        }
+      ];
+    const propertyFields=propertySections.flatMap(section=>section.fields);
+    const numberFieldNames=propertyFields.filter(field=>field.type==='number').map(field=>field.name);
+    const checkboxFieldNames=propertyFields.filter(field=>field.type==='checkbox').map(field=>field.name);
+    function openAddPropertyModal(){
       const overlay=document.createElement('div');
       overlay.className='modal';
       const form=document.createElement('form');
-      form.className='property-form';
-      form.innerHTML=`<h2>Add Property</h2>
-        <label>Listing Number:<input name='listingNumber' required/></label>
-        <label>Address:<input name='address' required/></label>
-        <label>City:<input name='city'/></label>
-        <label>State:<input name='state'/></label>
-        <label>Zip Code:<input name='zipCode'/></label>
-        <label>Listing Status:<input name='listingStatus'/></label>
-        <label>Sale or Rent:<input name='saleOrRent'/></label>
-        <label>Property Type:<input name='propertyType'/></label>
-        <label>Property Subtype:<input name='propertySubtype'/></label>
-        <label>List Price:<input name='listPrice' type='number' step='any' required/></label>
-        <label>List Date:<input name='listDate' type='date'/></label>
-        <label>Sold Price:<input name='soldPrice' type='number' step='any'/></label>
-        <label>Sold Date:<input name='soldDate' type='date'/></label>
-        <label>Withdrawn Date:<input name='withdrawnDate' type='date'/></label>
-        <label>Expired Date:<input name='expiredDate' type='date'/></label>
-        <label>Pending Date:<input name='pendingDate' type='date'/></label>
-        <label>REO:<input name='reo' type='checkbox'/></label>
-        <label>Short Sale:<input name='shortSale' type='checkbox'/></label>
-        <label>Listing Agent Name:<input name='listingAgentName'/></label>
-        <label>Listing Office Name:<input name='listingOfficeName'/></label>
-        <label>Listing Agent Phone Number:<input name='listingAgentPhone' type='tel'/></label>
-        <label>Listing Agent E-Mail Address:<input name='listingAgentEmail' type='email'/></label>
-        <label>Sale Agent Name:<input name='saleAgentName'/></label>
-        <label>Sale Office Name:<input name='saleOfficeName'/></label>
-        <label>County:<input name='county'/></label>
-        <label>Parcel ID #:<input name='parcelId'/></label>
-        <label>Style:<input name='style'/></label>
-        <label>Building/Living Area (sf):<input name='buildingArea' type='number' step='any'/></label>
-        <label>PPSF:<input name='ppsf' type='number' step='any'/></label>
-        <label>Full Bathrooms:<input name='fullBathrooms' type='number' step='1'/></label>
-        <label>Half Bathrooms:<input name='halfBathrooms' type='number' step='1'/></label>
-        <label>Bedrooms:<input name='bedrooms' type='number' step='1'/></label>
-        <label>Year Built:<input name='yearBuilt' type='number' step='1'/></label>
-        <label>Pool:<input name='pool' type='checkbox'/></label>
-        <label>Garage:<input name='garage' type='checkbox'/></label>
-        <label>Parking Total:<input name='parkingTotal' type='number' step='1'/></label>
-        <label>Lot Size (sf):<input name='lotSizeSf' type='number' step='any'/></label>
-        <label>Lot Size (acres):<input name='lotSizeAcres' type='number' step='any'/></label>
-        <label>Subdivision:<input name='subdivision'/></label>
-        <label>Development Name:<input name='developmentName'/></label>
-        <label>Zoning:<input name='zoning'/></label>
-        <label>Waterfront:<input name='waterfront' type='checkbox'/></label>
-        <label>Property SqFt:<input name='propertySqFt' type='number' step='any'/></label>
-        <label>Elementary School:<input name='elementarySchool'/></label>
-        <label>Middle School:<input name='middleSchool'/></label>
-        <label>High School:<input name='highSchool'/></label>
-        <label>Net Operating Income:<input name='netOperatingIncome' type='number' step='any'/></label>
-        <label>Gross Operating Income:<input name='grossOperatingIncome' type='number' step='any'/></label>
-        <label>Last Sale Date (Tax Records):<input name='lastSaleDate' type='date'/></label>
-        <label>Owner Name 1:<input name='ownerName1'/></label>
-        <label>Owner Name 2:<input name='ownerName2'/></label>
-        <label>Owner Address:<input name='ownerAddress'/></label>
-        <label>Owner City:<input name='ownerCity'/></label>
-        <label>Owner State:<input name='ownerState'/></label>
-        <label>Owner Zip Code:<input name='ownerZipCode'/></label>
-        <label>Owner County:<input name='ownerCounty'/></label>
-        <label>Owner Occupied:<input name='ownerOccupied' type='checkbox'/></label>
-        <label>MLS Area:<input name='mlsArea'/></label>
-        <label>Longitude:<input name='longitude' type='number' step='any' required/></label>
-        <label>Latitude:<input name='latitude' type='number' step='any' required/></label>
+      form.className='property-form glass-form';
+      const propertyMarkup=propertySections.map(section=>{
+        const gridClasses=['property-section-grid'];
+        if(section.columns===1) gridClasses.push('single-column');
+        const fieldsMarkup=section.fields.map(field=>{
+          const inputId=`property-${field.name}`;
+          const attrList=[`name="${field.name}"`,`id="${inputId}"`];
+          if(field.step) attrList.push(`step="${field.step}"`);
+          if(field.required) attrList.push('required');
+          const fieldClass=[
+            'property-field',
+            field.full?'full':'',
+            field.type==='checkbox'?'checkbox':''
+          ].filter(Boolean).join(' ');
+          if(field.type==='checkbox'){
+            const checkboxAttrs=[...attrList, `type="checkbox"`];
+            return `<label class="${fieldClass}"><input ${checkboxAttrs.join(' ')} /><span>${field.label}</span></label>`;
+          }
+          const inputType=field.type||'text';
+          const inputAttrs=[...attrList, `type="${inputType}"`];
+          return `<div class="${fieldClass}"><label for="${inputId}">${field.label}</label><input ${inputAttrs.join(' ')} /></div>`;
+        }).join('');
+        return `<section class="property-section">
+          <div class="section-heading">
+            <h3>${section.title}</h3>
+            ${section.description?`<p>${section.description}</p>`:''}
+          </div>
+          <div class="${gridClasses.join(' ')}">${fieldsMarkup}</div>
+        </section>`;
+      }).join('');
+      form.innerHTML=`<div class="property-form-header">
+          <h2>Add Property</h2>
+          <p>Complete the listing dossier so your team can collaborate without leaving the map.</p>
+        </div>
+        <div class="property-content">${propertyMarkup}</div>
         <div class='form-actions'>
-          <button type='submit'>Save</button>
-          <button type='button' id='cancelProperty'>Cancel</button>
+          <button type='button' id='cancelProperty' class='ghost'>Cancel</button>
+          <button type='submit' class='primary'>Save</button>
         </div>`;
       const close=()=>overlay.remove();
       overlay.addEventListener('click',e=>{ if(e.target===overlay) close(); });
-      form.addEventListener('submit',e=>{
+      form.addEventListener('submit',async e=>{
         e.preventDefault();
         if(!form.reportValidity()) return;
         const fd=new FormData(form);
         const obj=Object.fromEntries(fd.entries());
-        obj.reo=form.reo.checked;
-        obj.shortSale=form.shortSale.checked;
-        obj.pool=form.pool.checked;
-        obj.garage=form.garage.checked;
-        obj.waterfront=form.waterfront.checked;
-        obj.ownerOccupied=form.ownerOccupied.checked;
-        ['listPrice','soldPrice','buildingArea','ppsf','fullBathrooms','halfBathrooms','bedrooms','yearBuilt','parkingTotal','lotSizeSf','lotSizeAcres','propertySqFt','netOperatingIncome','grossOperatingIncome','latitude','longitude'].forEach(f=>{ if(obj[f]) obj[f]=parseFloat(obj[f]); });
-        const id=Date.now();
-        const property={id,...obj,lat:obj.latitude,lng:obj.longitude,price:obj.listPrice,year:obj.yearBuilt,beds:obj.bedrooms,baths:(obj.fullBathrooms||0)+0.5*(obj.halfBathrooms||0)};
-        state.data.properties=state.data.properties||[];
-        state.data.properties.push(property);
-        close();
-        router();
+        checkboxFieldNames.forEach(name=>{
+          const input=form.elements[name];
+          obj[name]=input?input.checked:false;
+        });
+        numberFieldNames.forEach(name=>{
+          const value=obj[name];
+          if(value!==undefined && value!=='') obj[name]=parseFloat(value);
+        });
+        const baths=(obj.fullBathrooms||0)+0.5*(obj.halfBathrooms||0);
+        const priceValue=obj.listPrice;
+        const price=typeof priceValue==='number' && !Number.isNaN(priceValue)
+          ? new Intl.NumberFormat('en-US',{ style:'currency', currency:'USD' }).format(priceValue)
+          : (priceValue?String(priceValue).trim():undefined);
+        const addressParts=[obj.address,obj.city,obj.state].filter(Boolean);
+        let addressDisplay=obj.address||'';
+        if(addressParts.length){
+          addressDisplay=addressParts.join(', ');
+          if(obj.zipCode) addressDisplay=`${addressDisplay} ${obj.zipCode}`.trim();
+        }
+        const payload={
+          listingNumber:obj.listingNumber||undefined,
+          address:addressDisplay||obj.address,
+          city:obj.city||undefined,
+          state:obj.state||undefined,
+          zipCode:obj.zipCode||undefined,
+          price:price||undefined,
+          beds:obj.bedrooms??undefined,
+          baths:baths||undefined,
+          year:obj.yearBuilt??undefined,
+          status:obj.listingStatus||undefined,
+          saleOrRent:obj.saleOrRent||undefined,
+          type:obj.propertyType||obj.propertySubtype||undefined,
+          lat:obj.latitude??undefined,
+          lng:obj.longitude??undefined
+        };
+        const metadata={...obj};
+        [
+          'listingNumber','address','city','state','zipCode','listPrice','bedrooms','fullBathrooms','halfBathrooms','yearBuilt','listingStatus','saleOrRent','propertyType','propertySubtype','latitude','longitude'
+        ].forEach(key=>{ delete metadata[key]; });
+        if(Object.keys(metadata).length) payload.metadata=metadata;
+        try{
+          const saved=await createPropertyRecord(payload);
+          mergeProperty(saved);
+          showToast('Property saved to database');
+          close();
+          refreshSourcingView(saved.id);
+        }catch(err){
+          console.error('Failed to save property',err);
+          showToast(err?.message || 'Failed to save property');
+        }
       });
       form.querySelector('#cancelProperty').addEventListener('click',()=>{close();});
       overlay.appendChild(form);
       document.body.appendChild(overlay);
-    });
+    }
+    addBtn.addEventListener('click',openAddPropertyModal);
+    state.data.properties=normaliseProperties(state.data.properties||[]);
     const props=state.data.properties||[];
     const params=new URLSearchParams(query||'');
     const initialProp=params.get('prop');
+    const addIntent=params.get('add');
     function selectProperty(id){
       if(!state.gmap) return;
       const p=(state.data.properties||[]).find(x=>String(x.id)===String(id));
@@ -551,12 +1249,14 @@ async function router(){
         state.gmap.setZoom(16);
         if(state.activeMarkerId && state.markers[state.activeMarkerId]){
           const prev=state.markers[state.activeMarkerId];
-          if(state.defaultIcon) prev.setIcon(state.defaultIcon);
+          const resetIcon=prev?.__isRemoved ? (state.removedIcon||state.defaultIcon) : state.defaultIcon;
+          if(resetIcon) prev.setIcon(resetIcon);
           if(prev.infoWindow) prev.infoWindow.close();
         }
         const marker=state.markers[p.id];
         if(marker){
-          marker.setIcon(state.activeIcon);
+          const activeIcon=marker.__isRemoved ? (state.removedActiveIcon||state.activeIcon||state.removedIcon) : state.activeIcon;
+          if(activeIcon) marker.setIcon(activeIcon);
           if(marker.infoWindow) marker.infoWindow.open(state.gmap,marker);
           state.activeMarkerId=p.id;
         }
@@ -564,20 +1264,26 @@ async function router(){
         state.gmap.setView([lat,lng],16);
         if(state.activeMarkerId && state.markers[state.activeMarkerId]){
           const prev=state.markers[state.activeMarkerId];
-          if(state.defaultIcon && prev.setIcon) prev.setIcon(state.defaultIcon);
+          if(prev.setIcon){
+            const resetIcon=prev?.__isRemoved ? (state.removedIcon||state.defaultIcon) : state.defaultIcon;
+            if(resetIcon) prev.setIcon(resetIcon);
+          }
         }
         const marker=state.markers[p.id];
         if(marker){
           marker.openPopup();
-          if(state.activeIcon && marker.setIcon) marker.setIcon(state.activeIcon);
+          if(marker.setIcon){
+            const activeIcon=marker.__isRemoved ? (state.removedActiveIcon||state.removedIcon||state.activeIcon) : state.activeIcon;
+            if(activeIcon) marker.setIcon(activeIcon);
+          }
           const popup=marker.getPopup();
           if(popup){
             const el=popup.getElement();
             if(el){
               const btn=el.querySelector('.add-lead');
               if(btn) btn.onclick=()=>{location.hash=`#/leads?prop=${p.id}`;};
-              const view=el.querySelector('.view-details');
-              if(view) view.onclick=()=>{location.hash=`#/property?prop=${p.id}`;};
+            const view=el.querySelector('.view-details');
+            if(view) view.onclick=()=>{openPropertyDetail(p);};
             }
           }
           state.activeMarkerId=p.id;
@@ -591,32 +1297,23 @@ async function router(){
         row.scrollIntoView({behavior:'smooth',block:'center'});
       }
     }
-    const grid=createDataGrid(props,selectProperty);
+    const grid=createDataGrid(props,{
+      onSelect:selectProperty,
+      onRemove:id=>markPropertyStatus(id,false),
+      onRestore:id=>markPropertyStatus(id,true),
+      onView:id=>openPropertyDetail(id)
+    });
     wrap.append(map,addBtn,grid.el);
-    // Filter and sort listings based on topbar controls
-    const sortSelect=document.getElementById('sort-select');
-    const filterSelect=document.getElementById('filter-select');
-    if(searchInput||sortSelect||filterSelect){
-      const apply=()=>{
-        const term=searchInput?searchInput.value.toLowerCase():'';
-        const filter=filterSelect?filterSelect.value:'all';
-          let filtered=props.filter(p=>(`${p.address} ${p.city||''}`).toLowerCase().includes(term));
-        if(filter==='sale') filtered=filtered.filter(p=>String(p.saleOrRent).toLowerCase().includes('sale'));
-        else if(filter==='rent') filtered=filtered.filter(p=>String(p.saleOrRent).toLowerCase().includes('rent'));
-        if(sortSelect&&sortSelect.value){
-          const [key,dir]=sortSelect.value.split('-');
-          grid.setSort(key,dir==='asc');
-        } else {
-          grid.setSort(null,true);
-        }
-        grid.update(filtered);
-      };
-      if(searchInput) searchInput.addEventListener('input',apply);
-      if(sortSelect) sortSelect.addEventListener('change',apply);
-      if(filterSelect) filterSelect.addEventListener('change',apply);
-      apply();
-    }
+    grid.update(props);
     main.appendChild(wrap);
+    if(addIntent==='property'){
+      openAddPropertyModal();
+      if(history.replaceState){
+        history.replaceState(null,'','#/sourcing');
+      } else {
+        location.hash='#/sourcing';
+      }
+    }
     state.markers={};
     const center=props.length?{lat:Number(props[0].lat),lng:Number(props[0].lng)}:{lat:39.5,lng:-98.35};
     const zoom=props.length?10:5;
@@ -624,6 +1321,8 @@ async function router(){
       state.gmap=new google.maps.Map(map,{center,zoom,streetViewControl:true});
       state.defaultIcon=state.defaultIcon||'https://maps.google.com/mapfiles/ms/icons/blue-dot.png';
       state.activeIcon=state.activeIcon||'https://maps.google.com/mapfiles/ms/icons/red-dot.png';
+      state.removedIcon=state.removedIcon||'https://maps.google.com/mapfiles/ms/icons/grey-dot.png';
+      state.removedActiveIcon=state.removedActiveIcon||'https://maps.google.com/mapfiles/ms/icons/orange-dot.png';
       const bounds=new google.maps.LatLngBounds();
       props.forEach(p=>{
         const lat=Number(p.lat), lng=Number(p.lng);
@@ -640,12 +1339,15 @@ async function router(){
           ].filter(Boolean).join(' | ');
           const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
           const imgSrc=(window.GOOGLE_MAPS_API_KEY&&!isNaN(lat)&&!isNaN(lng))?`https://maps.googleapis.com/maps/api/streetview?size=200x120&location=${lat},${lng}&key=${window.GOOGLE_MAPS_API_KEY}`:(p.image||'');
+          const statusBadge=!p.inSystem?"<div class='map-status removed'>Not in system</div>":'';
           const content=document.createElement('div');
-          content.innerHTML=`${imgSrc?`<img src="${imgSrc}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button>`;
-          const marker=new google.maps.Marker({position,map:state.gmap,icon:state.defaultIcon});
+          content.innerHTML=`${imgSrc?`<img src="${imgSrc}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price||''}${details?`<br/>${details}`:''}${statusBadge?`<br/>${statusBadge}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button>`;
+          const baseIcon=p.inSystem?state.defaultIcon:state.removedIcon;
+          const marker=new google.maps.Marker({position,map:state.gmap,icon:baseIcon});
+          marker.__isRemoved=!p.inSystem;
           marker.infoWindow=new google.maps.InfoWindow({content});
           content.querySelector('.add-lead')?.addEventListener('click',()=>{location.hash=`#/leads?prop=${p.id}`;});
-          content.querySelector('.view-details')?.addEventListener('click',()=>{location.hash=`#/property?prop=${p.id}`;});
+          content.querySelector('.view-details')?.addEventListener('click',()=>{openPropertyDetail(p);});
           marker.addListener('click',()=>selectProperty(p.id));
           bounds.extend(position);
           state.markers[p.id]=marker;
@@ -657,6 +1359,8 @@ async function router(){
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors'}).addTo(state.gmap);
       state.defaultIcon=state.defaultIcon||L.icon({iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
       state.activeIcon=state.activeIcon||L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
+      state.removedIcon=state.removedIcon||L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
+      state.removedActiveIcon=state.removedActiveIcon||L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
       const bounds=L.latLngBounds();
       props.forEach(p=>{
         const lat=Number(p.lat), lng=Number(p.lng);
@@ -673,7 +1377,10 @@ async function router(){
           ].filter(Boolean).join(' | ');
           const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
           const imgSrc=(window.GOOGLE_MAPS_API_KEY&&!isNaN(lat)&&!isNaN(lng))?`https://maps.googleapis.com/maps/api/streetview?size=200x120&location=${lat},${lng}&key=${window.GOOGLE_MAPS_API_KEY}`:(p.image||'');
-          const marker=L.marker(position,{icon:state.defaultIcon}).addTo(state.gmap).bindPopup(`<div>${imgSrc?`<img src="${imgSrc}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price}${details?`<br/>${details}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button></div>`);
+          const statusBadge=!p.inSystem?"<div class='map-status removed'>Not in system</div>":'';
+          const baseIcon=p.inSystem?state.defaultIcon:state.removedIcon;
+          const marker=L.marker(position,{icon:baseIcon}).addTo(state.gmap).bindPopup(`<div>${imgSrc?`<img src="${imgSrc}" alt="Property image" style="max-width:200px"/><br/>`:''}${fullAddress}<br/>${p.price||''}${details?`<br/>${details}`:''}${statusBadge?`<br/>${statusBadge}`:''}<br/><button class='add-lead'>Add to Leads</button> <button class='view-details'>View Details</button></div>`);
+          marker.__isRemoved=!p.inSystem;
           state.markers[p.id]=marker;
           bounds.extend(position);
           marker.on('click',()=>selectProperty(p.id));
@@ -683,7 +1390,7 @@ async function router(){
             const btn=el.querySelector('.add-lead');
             if(btn) btn.addEventListener('click',()=>{location.hash=`#/leads?prop=${p.id}`;});
             const view=el.querySelector('.view-details');
-            if(view) view.addEventListener('click',()=>{location.hash=`#/property?prop=${p.id}`;});
+            if(view) view.addEventListener('click',()=>{openPropertyDetail(p);});
           });
         }
       });
@@ -697,31 +1404,13 @@ async function router(){
       topbarAPI.setActive('#/sourcing');
       const params=new URLSearchParams(query||'');
       const propId=params.get('prop');
-      const p=(state.data.properties||[]).find(x=>String(x.id)===String(propId));
-      if(p){
-        const wrap=document.createElement('div');
-        wrap.className='property-view';
-        const fullAddress=p.city?`${p.address}, ${p.city}`:p.address;
-        wrap.innerHTML=`<h2>${fullAddress}</h2>`+
-          `<p>Price: ${p.price||''}</p>`+
-          `<p>${p.beds?`${p.beds} bd`:''} ${p.baths?`${p.baths} ba`:''}</p>`+
-          `<p>${p.year?`Built ${p.year}`:''}</p>`+
-          `<p>${p.status||''} ${p.type?`| ${p.type}`:''} ${p.saleOrRent?`| ${p.saleOrRent}`:''}</p>`;
-        const actions=document.createElement('div');
-        const leadBtn=document.createElement('button');
-        leadBtn.textContent='Add to Leads';
-        leadBtn.addEventListener('click',()=>{location.hash=`#/leads?prop=${p.id}`;});
-        const apptBtn=document.createElement('button');
-        apptBtn.textContent='Book Appointment';
-        apptBtn.addEventListener('click',()=>openAppointmentForm(p));
-        actions.append(leadBtn,apptBtn);
-        wrap.appendChild(actions);
-        main.appendChild(wrap);
+      if(propId) openPropertyDetail(propId);
+      if(history.replaceState){
+        history.replaceState(null,'','#/sourcing');
       } else {
-        const msg=document.createElement('p');
-        msg.textContent='Property not found';
-        main.appendChild(msg);
+        location.hash='#/sourcing';
       }
+      return;
     } else if(route.startsWith('#/leads')){
       topbarAPI.setActive('#/leads');
       let resp;
@@ -746,20 +1435,49 @@ async function router(){
         const overlay=document.createElement('div');
         overlay.className='modal';
         const form=document.createElement('form');
-        form.className='lead-form';
+        form.className='lead-form glass-form';
         const isEdit=!!lead;
         const fullAddress=property? (property.city?`${property.address}, ${property.city}`:property.address):'';
-        form.innerHTML=`<h2>${isEdit?`Edit Lead${lead.property?` for ${lead.property}`:''}`:`Add Lead${property?` for ${fullAddress}`:''}`}</h2>`+
-          `<label>Listing Number:<input name='listing' ${(lead&&lead.listingNumber)?`value='${lead.listingNumber}'`:(property?`value='${property.listingNumber||''}'`:'')} required/></label>`+
-          `<label>Name:<input name='name' ${(lead&&lead.name)?`value='${lead.name}'`:''} required/></label>`+
-          `<label>Email:<input name='email' type='email' ${(lead&&lead.email)?`value='${lead.email}'`:''}/></label>`+
-          `<label>Phone:<input name='phone' ${(lead&&lead.phone)?`value='${lead.phone}'`:''}/></label>`+
-          `<label>Address:<input name='address' ${(lead&&lead.address)?`value='${lead.address}'`:''}/></label>`+
-          `<label>Notes:<textarea name='notes'>${(lead&&lead.notes)||''}</textarea></label>`+
-          `<div class='form-actions'>`+
-            `<button type='submit'>Save</button>`+
-            `<button type='button' id='cancelLead'>Cancel</button>`+
-          `</div>`;
+        const escapeHtml=value=>String(value??'')
+          .replace(/&/g,'&amp;')
+          .replace(/</g,'&lt;')
+          .replace(/>/g,'&gt;')
+          .replace(/"/g,'&quot;')
+          .replace(/'/g,'&#39;');
+        const contextLabel=property?fullAddress:(lead&&lead.property?lead.property:'');
+        const fields=[
+          { label:'Listing Number', name:'listing', required:true, value:lead?.listingNumber ?? property?.listingNumber ?? '' },
+          { label:'Name', name:'name', required:true, value:lead?.name ?? '' },
+          { label:'Email', name:'email', type:'email', value:lead?.email ?? '' },
+          { label:'Phone', name:'phone', type:'tel', value:lead?.phone ?? '' },
+          { label:'Address', name:'address', value:lead?.address ?? '' },
+          { label:'Notes', name:'notes', type:'textarea', value:lead?.notes ?? '', full:true }
+        ];
+        const fieldsMarkup=fields.map(field=>{
+          const id=`lead-${field.name}`;
+          const attrs=[`name="${field.name}"`,`id="${id}"`];
+          if(field.type && field.type!=='textarea') attrs.push(`type="${field.type}"`);
+          if(field.required) attrs.push('required');
+          const classes=['modal-field'];
+          if(field.full) classes.push('full');
+          const label=`<label for="${id}">${field.label}</label>`;
+          if(field.type==='textarea'){
+            return `<div class="${classes.join(' ')}">${label}<textarea ${attrs.join(' ')}>${escapeHtml(field.value)}</textarea></div>`;
+          }
+          const valueAttr=`value="${escapeHtml(field.value)}"`;
+          return `<div class="${classes.join(' ')}">${label}<input ${attrs.join(' ')} ${valueAttr} /></div>`;
+        }).join('');
+        const contextChip=contextLabel?`<span class="modal-chip">${escapeHtml(contextLabel)}</span>`:'';
+        form.innerHTML=`<div class="modal-header">
+            <h2>${isEdit?`Edit Lead`:`Add Lead`}</h2>
+            ${contextChip}
+            <p>Keep pipeline details clear so your team can follow up without leaving the workspace.</p>
+          </div>
+          <div class="form-fields">${fieldsMarkup}</div>
+          <div class='form-actions'>
+            <button type='button' id='cancelLead' class='ghost'>Cancel</button>
+            <button type='submit' class='primary'>${isEdit?'Update Lead':'Save Lead'}</button>
+          </div>`;
         const close=()=>overlay.remove();
         overlay.addEventListener('click',e=>{ if(e.target===overlay) close(); });
         form.addEventListener('submit',e=>{
@@ -893,12 +1611,6 @@ async function router(){
       });
     }
     main.appendChild(emailsEl);
-  } else if(route.startsWith('#/agent')){
-    topbarAPI.setActive('#/agent');
-    if(!agentChatEl) agentChatEl=createAgentChat();
-    main.appendChild(agentChatEl);
-    const msgs = agentChatEl.querySelector('#chat-messages');
-    if (msgs) msgs.scrollTop = msgs.scrollHeight;
   }
 }
 
@@ -924,7 +1636,8 @@ function parseCSV(text){
     headers.forEach((h,i)=>obj[h]=values[i]||'');
     const id=obj['Listing Number'];
     const address=`${obj['Address']}, ${obj['City']}, ${obj['State']} ${obj['Zip Code']}`;
-    const price=obj[' List Price ']||obj['List Price']||'';
+    const priceRaw=obj[' List Price ']||obj['List Price']||'';
+    const price=typeof priceRaw==='string'?priceRaw.trim():priceRaw;
     const lat=parseFloat(obj['Latitude']);
     const lng=parseFloat(obj['Longitude']);
     const beds=obj['Bedrooms'];
@@ -936,6 +1649,6 @@ function parseCSV(text){
     const status=obj['Listing Status'];
     const saleOrRent=obj['Sale or Rent'];
     const type=obj['Property Type']||obj['Property Subtype'];
-    return {id,address,price,lat,lng,beds,baths,year,status,saleOrRent,type};
+    return {id,address,price,lat,lng,beds,baths,year,status,saleOrRent,type,inSystem:true};
   });
 }

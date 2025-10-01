@@ -4,22 +4,50 @@ export async function openAppointmentForm(property){
   overlay.className = 'modal';
 
   const form = document.createElement('form');
-  form.className = 'appointment-form';
+  form.className = 'appointment-form glass-form';
 
   const fullAddress = property ? (property.city ? `${property.address}, ${property.city}` : property.address) : '';
 
+  const escapeHtml = value => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  const contactFields = [
+    { label: 'Name', name: 'name', required: true },
+    { label: 'Phone', name: 'phone', required: true, type: 'tel' },
+    { label: 'Email', name: 'email', required: true, type: 'email' }
+  ];
+  const contactMarkup = contactFields.map(field => {
+    const id = `appt-${field.name}`;
+    const attrs = [`name="${field.name}"`, `id="${id}"`];
+    if (field.type) attrs.push(`type="${field.type}"`);
+    if (field.required) attrs.push('required');
+    return `<div class="modal-field"><label for="${id}">${field.label}</label><input ${attrs.join(' ')} /></div>`;
+  }).join('');
+
+  const propertyChip = fullAddress ? `<span class="modal-chip">${escapeHtml(fullAddress)}</span>` : '';
+
   form.innerHTML = `
-    <h2>Book Appointment${fullAddress ? ` for ${fullAddress}` : ''}</h2>
-    <div class="calendar" id="apptCalendar"></div>
-    <div class="time-slots" id="apptTimes"></div>
-    <label>Name<input name="name" required /></label>
-    <label>Phone<input name="phone" required /></label>
-    <label>Email<input type="email" name="email" required /></label>
+    <div class="modal-header">
+      <h2>Book Appointment</h2>
+      ${propertyChip}
+      <p>Select a date, choose an available slot, and confirm the contact joining the tour.</p>
+    </div>
+    <div class="appointment-body">
+      <div class="schedule-panel">
+        <div class="calendar" id="apptCalendar"></div>
+        <div class="time-slots" id="apptTimes"></div>
+      </div>
+      <div class="contact-fields">${contactMarkup}</div>
+    </div>
     <input type="hidden" name="date" />
     <input type="hidden" name="time" />
     <div class='form-actions'>
-      <button type='submit'>Book</button>
-      <button type='button' id='cancelAppointment'>Cancel</button>
+      <button type='button' id='cancelAppointment' class='ghost'>Cancel</button>
+      <button type='submit' class='primary'>Book</button>
     </div>`;
 
   const close = () => { overlay.remove(); };
@@ -94,7 +122,7 @@ export async function openAppointmentForm(property){
       cell.addEventListener('click', () => {
         selectedDay = day;
         form.date.value = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-        document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
+        calendarEl.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
         cell.classList.add('selected');
         renderTimeSlots(day);
       });
@@ -156,7 +184,8 @@ export async function openAppointmentForm(property){
       availability[selectedDay] = availability[selectedDay].filter(t => t!==selectedTime);
       renderTimeSlots(selectedDay);
       if(!availability[selectedDay].length){
-        document.querySelectorAll('.calendar-day')[selectedDay+6+firstDay-1]?.classList.remove('available');
+        const dayButtons = calendarEl.querySelectorAll('.calendar-day');
+        dayButtons[selectedDay-1]?.classList.remove('available');
       }
       alert(`Appointment booked on ${date.value} at ${time.value} for ${name.value}.`);
       close();

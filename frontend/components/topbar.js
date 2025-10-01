@@ -3,25 +3,12 @@ export function initTopbar() {
   bar.innerHTML = `
     <div class="logo">Cascade AI</div>
     <div class="tabs">
+      <span class="tab" data-route="#/agent">Agent</span>
       <span class="tab" data-route="#/sourcing">Sourcing</span>
       <span class="tab" data-route="#/leads">Leads</span>
-      <span class="tab" data-route="#/agent">Agent</span>
       <span class="tab" data-route="#/emails">Emails</span>
     </div>
     <div class="right">
-      <input id="global-search" placeholder="Search" />
-      <select id="sort-select">
-        <option value="">Sort</option>
-        <option value="price-asc">Price ↑</option>
-        <option value="price-desc">Price ↓</option>
-        <option value="beds-asc">Beds ↑</option>
-        <option value="beds-desc">Beds ↓</option>
-      </select>
-      <select id="filter-select">
-        <option value="all">All</option>
-        <option value="sale">For Sale</option>
-        <option value="rent">For Rent</option>
-      </select>
       <button id="logout-btn" type="button" aria-label="Logout">Logout</button>
       <span id="user-email" class="username"></span>
       <div class="avatar">⚫</div>
