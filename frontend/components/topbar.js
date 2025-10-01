@@ -8,11 +8,6 @@ export function initTopbar() {
       <span class="tab" data-route="#/emails">Emails</span>
     </div>
     <div class="right">
-      <select id="filter-select">
-        <option value="all">All</option>
-        <option value="sale">For Sale</option>
-        <option value="rent">For Rent</option>
-      </select>
       <button id="logout-btn" type="button" aria-label="Logout">Logout</button>
       <span id="user-email" class="username"></span>
       <div class="avatar">⚫</div>

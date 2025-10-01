@@ -442,87 +442,143 @@ async function router(){
       overlay.className='modal';
       const form=document.createElement('form');
       form.className='property-form';
-      const propertyFields=[
-        { label:'Listing Number', name:'listingNumber', required:true },
-        { label:'Address', name:'address', required:true, full:true },
-        { label:'City', name:'city' },
-        { label:'State', name:'state' },
-        { label:'Zip Code', name:'zipCode' },
-        { label:'Listing Status', name:'listingStatus' },
-        { label:'Sale or Rent', name:'saleOrRent' },
-        { label:'Property Type', name:'propertyType' },
-        { label:'Property Subtype', name:'propertySubtype' },
-        { label:'List Price', name:'listPrice', type:'number', step:'any', required:true },
-        { label:'List Date', name:'listDate', type:'date' },
-        { label:'Sold Price', name:'soldPrice', type:'number', step:'any' },
-        { label:'Sold Date', name:'soldDate', type:'date' },
-        { label:'Withdrawn Date', name:'withdrawnDate', type:'date' },
-        { label:'Expired Date', name:'expiredDate', type:'date' },
-        { label:'Pending Date', name:'pendingDate', type:'date' },
-        { label:'REO', name:'reo', type:'checkbox' },
-        { label:'Short Sale', name:'shortSale', type:'checkbox' },
-        { label:'Listing Agent Name', name:'listingAgentName', full:true },
-        { label:'Listing Office Name', name:'listingOfficeName', full:true },
-        { label:'Listing Agent Phone Number', name:'listingAgentPhone', type:'tel' },
-        { label:'Listing Agent E-Mail Address', name:'listingAgentEmail', type:'email', full:true },
-        { label:'Sale Agent Name', name:'saleAgentName', full:true },
-        { label:'Sale Office Name', name:'saleOfficeName', full:true },
-        { label:'County', name:'county' },
-        { label:'Parcel ID #', name:'parcelId' },
-        { label:'Style', name:'style' },
-        { label:'Building/Living Area (sf)', name:'buildingArea', type:'number', step:'any' },
-        { label:'PPSF', name:'ppsf', type:'number', step:'any' },
-        { label:'Full Bathrooms', name:'fullBathrooms', type:'number', step:'1' },
-        { label:'Half Bathrooms', name:'halfBathrooms', type:'number', step:'1' },
-        { label:'Bedrooms', name:'bedrooms', type:'number', step:'1' },
-        { label:'Year Built', name:'yearBuilt', type:'number', step:'1' },
-        { label:'Pool', name:'pool', type:'checkbox' },
-        { label:'Garage', name:'garage', type:'checkbox' },
-        { label:'Parking Total', name:'parkingTotal', type:'number', step:'1' },
-        { label:'Lot Size (sf)', name:'lotSizeSf', type:'number', step:'any' },
-        { label:'Lot Size (acres)', name:'lotSizeAcres', type:'number', step:'any' },
-        { label:'Subdivision', name:'subdivision' },
-        { label:'Development Name', name:'developmentName' },
-        { label:'Zoning', name:'zoning' },
-        { label:'Waterfront', name:'waterfront', type:'checkbox' },
-        { label:'Property SqFt', name:'propertySqFt', type:'number', step:'any' },
-        { label:'Elementary School', name:'elementarySchool' },
-        { label:'Middle School', name:'middleSchool' },
-        { label:'High School', name:'highSchool' },
-        { label:'Net Operating Income', name:'netOperatingIncome', type:'number', step:'any' },
-        { label:'Gross Operating Income', name:'grossOperatingIncome', type:'number', step:'any' },
-        { label:'Last Sale Date (Tax Records)', name:'lastSaleDate', type:'date' },
-        { label:'Owner Name 1', name:'ownerName1', full:true },
-        { label:'Owner Name 2', name:'ownerName2', full:true },
-        { label:'Owner Address', name:'ownerAddress', full:true },
-        { label:'Owner City', name:'ownerCity' },
-        { label:'Owner State', name:'ownerState' },
-        { label:'Owner Zip Code', name:'ownerZipCode' },
-        { label:'Owner County', name:'ownerCounty' },
-        { label:'Owner Occupied', name:'ownerOccupied', type:'checkbox' },
-        { label:'MLS Area', name:'mlsArea' },
-        { label:'Longitude', name:'longitude', type:'number', step:'any', required:true },
-        { label:'Latitude', name:'latitude', type:'number', step:'any', required:true }
-      ];
-      const propertyGrid=propertyFields.map(field=>{
-        const inputId=`property-${field.name}`;
-        const baseAttrs=[`name='${field.name}'`,`id='${inputId}'`];
-        if(field.type) baseAttrs.push(`type='${field.type}'`);
-        if(field.step) baseAttrs.push(`step='${field.step}'`);
-        if(field.required) baseAttrs.push('required');
-        const fieldClass=[
-          'property-field',
-          field.full?'full':'',
-          field.type==='checkbox'?'checkbox':''
-        ].filter(Boolean).join(' ');
-        if(field.type==='checkbox'){
-          return `<label class="${fieldClass}"><input ${baseAttrs.join(' ')} /><span>${field.label}</span></label>`;
+      const propertySections=[
+        {
+          title:'Listing Snapshot',
+          description:'Key availability and pricing inputs for the record.',
+          fields:[
+            { label:'Listing Number', name:'listingNumber', required:true },
+            { label:'Listing Status', name:'listingStatus' },
+            { label:'Sale or Rent', name:'saleOrRent' },
+            { label:'Property Type', name:'propertyType' },
+            { label:'Property Subtype', name:'propertySubtype' },
+            { label:'List Price', name:'listPrice', type:'number', step:'any', required:true },
+            { label:'List Date', name:'listDate', type:'date' },
+            { label:'Pending Date', name:'pendingDate', type:'date' },
+            { label:'Sold Date', name:'soldDate', type:'date' },
+            { label:'Sold Price', name:'soldPrice', type:'number', step:'any' },
+            { label:'Withdrawn Date', name:'withdrawnDate', type:'date' },
+            { label:'Expired Date', name:'expiredDate', type:'date' },
+            { label:'REO', name:'reo', type:'checkbox' },
+            { label:'Short Sale', name:'shortSale', type:'checkbox' }
+          ]
+        },
+        {
+          title:'Location & Lot',
+          description:'Geographic identifiers for mapping, tax searches, and lot metrics.',
+          fields:[
+            { label:'Address', name:'address', required:true, full:true },
+            { label:'City', name:'city' },
+            { label:'State', name:'state' },
+            { label:'Zip Code', name:'zipCode' },
+            { label:'County', name:'county' },
+            { label:'Parcel ID #', name:'parcelId' },
+            { label:'MLS Area', name:'mlsArea' },
+            { label:'Subdivision', name:'subdivision' },
+            { label:'Development Name', name:'developmentName' },
+            { label:'Zoning', name:'zoning' },
+            { label:'Lot Size (sf)', name:'lotSizeSf', type:'number', step:'any' },
+            { label:'Lot Size (acres)', name:'lotSizeAcres', type:'number', step:'any' },
+            { label:'Longitude', name:'longitude', type:'number', step:'any', required:true },
+            { label:'Latitude', name:'latitude', type:'number', step:'any', required:true }
+          ]
+        },
+        {
+          title:'Property Specs',
+          description:'Structural details and amenities buyers ask about most.',
+          fields:[
+            { label:'Building/Living Area (sf)', name:'buildingArea', type:'number', step:'any' },
+            { label:'Property SqFt', name:'propertySqFt', type:'number', step:'any' },
+            { label:'PPSF', name:'ppsf', type:'number', step:'any' },
+            { label:'Bedrooms', name:'bedrooms', type:'number', step:'1' },
+            { label:'Full Bathrooms', name:'fullBathrooms', type:'number', step:'1' },
+            { label:'Half Bathrooms', name:'halfBathrooms', type:'number', step:'1' },
+            { label:'Year Built', name:'yearBuilt', type:'number', step:'1' },
+            { label:'Style', name:'style' },
+            { label:'Parking Total', name:'parkingTotal', type:'number', step:'1' },
+            { label:'Pool', name:'pool', type:'checkbox' },
+            { label:'Garage', name:'garage', type:'checkbox' },
+            { label:'Waterfront', name:'waterfront', type:'checkbox' }
+          ]
+        },
+        {
+          title:'Representation',
+          description:'Capture the brokerage professionals tied to this listing.',
+          fields:[
+            { label:'Listing Agent Name', name:'listingAgentName', full:true },
+            { label:'Listing Office Name', name:'listingOfficeName', full:true },
+            { label:'Listing Agent Phone Number', name:'listingAgentPhone', type:'tel' },
+            { label:'Listing Agent E-Mail Address', name:'listingAgentEmail', type:'email', full:true },
+            { label:'Sale Agent Name', name:'saleAgentName', full:true },
+            { label:'Sale Office Name', name:'saleOfficeName', full:true }
+          ],
+          columns:1
+        },
+        {
+          title:'Ownership & Financials',
+          description:'Owner of record and cashflow metrics for underwriting.',
+          fields:[
+            { label:'Owner Name 1', name:'ownerName1', full:true },
+            { label:'Owner Name 2', name:'ownerName2', full:true },
+            { label:'Owner Address', name:'ownerAddress', full:true },
+            { label:'Owner City', name:'ownerCity' },
+            { label:'Owner State', name:'ownerState' },
+            { label:'Owner Zip Code', name:'ownerZipCode' },
+            { label:'Owner County', name:'ownerCounty' },
+            { label:'Owner Occupied', name:'ownerOccupied', type:'checkbox' },
+            { label:'Net Operating Income', name:'netOperatingIncome', type:'number', step:'any' },
+            { label:'Gross Operating Income', name:'grossOperatingIncome', type:'number', step:'any' },
+            { label:'Last Sale Date (Tax Records)', name:'lastSaleDate', type:'date' }
+          ]
+        },
+        {
+          title:'Schools & Community',
+          description:'Keep marketing copy consistent with nearby education options.',
+          columns:1,
+          fields:[
+            { label:'Elementary School', name:'elementarySchool' },
+            { label:'Middle School', name:'middleSchool' },
+            { label:'High School', name:'highSchool' }
+          ]
         }
-        const fieldMarkup=`<div class="${fieldClass}"><label for="${inputId}">${field.label}</label><input ${baseAttrs.join(' ')} /></div>`;
-        return fieldMarkup;
+      ];
+      const propertyFields=propertySections.flatMap(section=>section.fields);
+      const numberFieldNames=propertyFields.filter(field=>field.type==='number').map(field=>field.name);
+      const checkboxFieldNames=propertyFields.filter(field=>field.type==='checkbox').map(field=>field.name);
+      const propertyMarkup=propertySections.map(section=>{
+        const gridClasses=['property-section-grid'];
+        if(section.columns===1) gridClasses.push('single-column');
+        const fieldsMarkup=section.fields.map(field=>{
+          const inputId=`property-${field.name}`;
+          const attrList=[`name="${field.name}"`,`id="${inputId}"`];
+          if(field.step) attrList.push(`step="${field.step}"`);
+          if(field.required) attrList.push('required');
+          const fieldClass=[
+            'property-field',
+            field.full?'full':'',
+            field.type==='checkbox'?'checkbox':''
+          ].filter(Boolean).join(' ');
+          if(field.type==='checkbox'){
+            const checkboxAttrs=[...attrList, `type="checkbox"`];
+            return `<label class="${fieldClass}"><input ${checkboxAttrs.join(' ')} /><span>${field.label}</span></label>`;
+          }
+          const inputType=field.type||'text';
+          const inputAttrs=[...attrList, `type="${inputType}"`];
+          return `<div class="${fieldClass}"><label for="${inputId}">${field.label}</label><input ${inputAttrs.join(' ')} /></div>`;
+        }).join('');
+        return `<section class="property-section">
+          <div class="section-heading">
+            <h3>${section.title}</h3>
+            ${section.description?`<p>${section.description}</p>`:''}
+          </div>
+          <div class="${gridClasses.join(' ')}">${fieldsMarkup}</div>
+        </section>`;
       }).join('');
-      form.innerHTML=`<h2>Add Property</h2>
-        <div class='property-grid'>${propertyGrid}</div>
+      form.innerHTML=`<div class="property-form-header">
+          <h2>Add Property</h2>
+          <p>Complete the listing dossier so your team can collaborate without leaving the map.</p>
+        </div>
+        <div class="property-content">${propertyMarkup}</div>
         <div class='form-actions'>
           <button type='button' id='cancelProperty' class='ghost'>Cancel</button>
           <button type='submit'>Save</button>
@@ -534,13 +590,14 @@ async function router(){
         if(!form.reportValidity()) return;
         const fd=new FormData(form);
         const obj=Object.fromEntries(fd.entries());
-        obj.reo=form.reo.checked;
-        obj.shortSale=form.shortSale.checked;
-        obj.pool=form.pool.checked;
-        obj.garage=form.garage.checked;
-        obj.waterfront=form.waterfront.checked;
-        obj.ownerOccupied=form.ownerOccupied.checked;
-        ['listPrice','soldPrice','buildingArea','ppsf','fullBathrooms','halfBathrooms','bedrooms','yearBuilt','parkingTotal','lotSizeSf','lotSizeAcres','propertySqFt','netOperatingIncome','grossOperatingIncome','latitude','longitude'].forEach(f=>{ if(obj[f]) obj[f]=parseFloat(obj[f]); });
+        checkboxFieldNames.forEach(name=>{
+          const input=form.elements[name];
+          obj[name]=input?input.checked:false;
+        });
+        numberFieldNames.forEach(name=>{
+          const value=obj[name];
+          if(value!==undefined && value!=='') obj[name]=parseFloat(value);
+        });
         const id=Date.now();
         const property={id,...obj,lat:obj.latitude,lng:obj.longitude,price:obj.listPrice,year:obj.yearBuilt,beds:obj.bedrooms,baths:(obj.fullBathrooms||0)+0.5*(obj.halfBathrooms||0)};
         state.data.properties=state.data.properties||[];
@@ -609,17 +666,7 @@ async function router(){
     }
     const grid=createDataGrid(props,selectProperty);
     wrap.append(map,addBtn,grid.el);
-    // Filter listings based on topbar controls
-    const filterSelect=document.getElementById('filter-select');
-    const applyFilters=()=>{
-      let filtered=[...props];
-      const filter=filterSelect?filterSelect.value:'all';
-      if(filter==='sale') filtered=filtered.filter(p=>String(p.saleOrRent).toLowerCase().includes('sale'));
-      else if(filter==='rent') filtered=filtered.filter(p=>String(p.saleOrRent).toLowerCase().includes('rent'));
-      grid.update(filtered);
-    };
-    if(filterSelect) filterSelect.addEventListener('change',applyFilters);
-    applyFilters();
+    grid.update(props);
     main.appendChild(wrap);
     state.markers={};
     const center=props.length?{lat:Number(props[0].lat),lng:Number(props[0].lng)}:{lat:39.5,lng:-98.35};
