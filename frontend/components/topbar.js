@@ -8,14 +8,6 @@ export function initTopbar() {
       <span class="tab" data-route="#/emails">Emails</span>
     </div>
     <div class="right">
-      <input id="global-search" placeholder="Search" />
-      <select id="sort-select">
-        <option value="">Sort</option>
-        <option value="price-asc">Price ↑</option>
-        <option value="price-desc">Price ↓</option>
-        <option value="beds-asc">Beds ↑</option>
-        <option value="beds-desc">Beds ↓</option>
-      </select>
       <select id="filter-select">
         <option value="all">All</option>
         <option value="sale">For Sale</option>

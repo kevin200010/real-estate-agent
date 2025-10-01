@@ -430,8 +430,6 @@ async function router(){
   const [route,query]=hash.split('?');
   const main=document.getElementById('main');
   main.innerHTML='';
-  const searchInput=document.getElementById('global-search');
-  if(searchInput){ searchInput.oninput=null; searchInput.value=''; }
   if(route.startsWith('#/sourcing')){
     topbarAPI.setActive('#/sourcing');
     const wrap=document.createElement('div');
@@ -444,70 +442,90 @@ async function router(){
       overlay.className='modal';
       const form=document.createElement('form');
       form.className='property-form';
+      const propertyFields=[
+        { label:'Listing Number', name:'listingNumber', required:true },
+        { label:'Address', name:'address', required:true, full:true },
+        { label:'City', name:'city' },
+        { label:'State', name:'state' },
+        { label:'Zip Code', name:'zipCode' },
+        { label:'Listing Status', name:'listingStatus' },
+        { label:'Sale or Rent', name:'saleOrRent' },
+        { label:'Property Type', name:'propertyType' },
+        { label:'Property Subtype', name:'propertySubtype' },
+        { label:'List Price', name:'listPrice', type:'number', step:'any', required:true },
+        { label:'List Date', name:'listDate', type:'date' },
+        { label:'Sold Price', name:'soldPrice', type:'number', step:'any' },
+        { label:'Sold Date', name:'soldDate', type:'date' },
+        { label:'Withdrawn Date', name:'withdrawnDate', type:'date' },
+        { label:'Expired Date', name:'expiredDate', type:'date' },
+        { label:'Pending Date', name:'pendingDate', type:'date' },
+        { label:'REO', name:'reo', type:'checkbox' },
+        { label:'Short Sale', name:'shortSale', type:'checkbox' },
+        { label:'Listing Agent Name', name:'listingAgentName', full:true },
+        { label:'Listing Office Name', name:'listingOfficeName', full:true },
+        { label:'Listing Agent Phone Number', name:'listingAgentPhone', type:'tel' },
+        { label:'Listing Agent E-Mail Address', name:'listingAgentEmail', type:'email', full:true },
+        { label:'Sale Agent Name', name:'saleAgentName', full:true },
+        { label:'Sale Office Name', name:'saleOfficeName', full:true },
+        { label:'County', name:'county' },
+        { label:'Parcel ID #', name:'parcelId' },
+        { label:'Style', name:'style' },
+        { label:'Building/Living Area (sf)', name:'buildingArea', type:'number', step:'any' },
+        { label:'PPSF', name:'ppsf', type:'number', step:'any' },
+        { label:'Full Bathrooms', name:'fullBathrooms', type:'number', step:'1' },
+        { label:'Half Bathrooms', name:'halfBathrooms', type:'number', step:'1' },
+        { label:'Bedrooms', name:'bedrooms', type:'number', step:'1' },
+        { label:'Year Built', name:'yearBuilt', type:'number', step:'1' },
+        { label:'Pool', name:'pool', type:'checkbox' },
+        { label:'Garage', name:'garage', type:'checkbox' },
+        { label:'Parking Total', name:'parkingTotal', type:'number', step:'1' },
+        { label:'Lot Size (sf)', name:'lotSizeSf', type:'number', step:'any' },
+        { label:'Lot Size (acres)', name:'lotSizeAcres', type:'number', step:'any' },
+        { label:'Subdivision', name:'subdivision' },
+        { label:'Development Name', name:'developmentName' },
+        { label:'Zoning', name:'zoning' },
+        { label:'Waterfront', name:'waterfront', type:'checkbox' },
+        { label:'Property SqFt', name:'propertySqFt', type:'number', step:'any' },
+        { label:'Elementary School', name:'elementarySchool' },
+        { label:'Middle School', name:'middleSchool' },
+        { label:'High School', name:'highSchool' },
+        { label:'Net Operating Income', name:'netOperatingIncome', type:'number', step:'any' },
+        { label:'Gross Operating Income', name:'grossOperatingIncome', type:'number', step:'any' },
+        { label:'Last Sale Date (Tax Records)', name:'lastSaleDate', type:'date' },
+        { label:'Owner Name 1', name:'ownerName1', full:true },
+        { label:'Owner Name 2', name:'ownerName2', full:true },
+        { label:'Owner Address', name:'ownerAddress', full:true },
+        { label:'Owner City', name:'ownerCity' },
+        { label:'Owner State', name:'ownerState' },
+        { label:'Owner Zip Code', name:'ownerZipCode' },
+        { label:'Owner County', name:'ownerCounty' },
+        { label:'Owner Occupied', name:'ownerOccupied', type:'checkbox' },
+        { label:'MLS Area', name:'mlsArea' },
+        { label:'Longitude', name:'longitude', type:'number', step:'any', required:true },
+        { label:'Latitude', name:'latitude', type:'number', step:'any', required:true }
+      ];
+      const propertyGrid=propertyFields.map(field=>{
+        const inputId=`property-${field.name}`;
+        const baseAttrs=[`name='${field.name}'`,`id='${inputId}'`];
+        if(field.type) baseAttrs.push(`type='${field.type}'`);
+        if(field.step) baseAttrs.push(`step='${field.step}'`);
+        if(field.required) baseAttrs.push('required');
+        const fieldClass=[
+          'property-field',
+          field.full?'full':'',
+          field.type==='checkbox'?'checkbox':''
+        ].filter(Boolean).join(' ');
+        if(field.type==='checkbox'){
+          return `<label class="${fieldClass}"><input ${baseAttrs.join(' ')} /><span>${field.label}</span></label>`;
+        }
+        const fieldMarkup=`<div class="${fieldClass}"><label for="${inputId}">${field.label}</label><input ${baseAttrs.join(' ')} /></div>`;
+        return fieldMarkup;
+      }).join('');
       form.innerHTML=`<h2>Add Property</h2>
-        <label>Listing Number:<input name='listingNumber' required/></label>
-        <label>Address:<input name='address' required/></label>
-        <label>City:<input name='city'/></label>
-        <label>State:<input name='state'/></label>
-        <label>Zip Code:<input name='zipCode'/></label>
-        <label>Listing Status:<input name='listingStatus'/></label>
-        <label>Sale or Rent:<input name='saleOrRent'/></label>
-        <label>Property Type:<input name='propertyType'/></label>
-        <label>Property Subtype:<input name='propertySubtype'/></label>
-        <label>List Price:<input name='listPrice' type='number' step='any' required/></label>
-        <label>List Date:<input name='listDate' type='date'/></label>
-        <label>Sold Price:<input name='soldPrice' type='number' step='any'/></label>
-        <label>Sold Date:<input name='soldDate' type='date'/></label>
-        <label>Withdrawn Date:<input name='withdrawnDate' type='date'/></label>
-        <label>Expired Date:<input name='expiredDate' type='date'/></label>
-        <label>Pending Date:<input name='pendingDate' type='date'/></label>
-        <label>REO:<input name='reo' type='checkbox'/></label>
-        <label>Short Sale:<input name='shortSale' type='checkbox'/></label>
-        <label>Listing Agent Name:<input name='listingAgentName'/></label>
-        <label>Listing Office Name:<input name='listingOfficeName'/></label>
-        <label>Listing Agent Phone Number:<input name='listingAgentPhone' type='tel'/></label>
-        <label>Listing Agent E-Mail Address:<input name='listingAgentEmail' type='email'/></label>
-        <label>Sale Agent Name:<input name='saleAgentName'/></label>
-        <label>Sale Office Name:<input name='saleOfficeName'/></label>
-        <label>County:<input name='county'/></label>
-        <label>Parcel ID #:<input name='parcelId'/></label>
-        <label>Style:<input name='style'/></label>
-        <label>Building/Living Area (sf):<input name='buildingArea' type='number' step='any'/></label>
-        <label>PPSF:<input name='ppsf' type='number' step='any'/></label>
-        <label>Full Bathrooms:<input name='fullBathrooms' type='number' step='1'/></label>
-        <label>Half Bathrooms:<input name='halfBathrooms' type='number' step='1'/></label>
-        <label>Bedrooms:<input name='bedrooms' type='number' step='1'/></label>
-        <label>Year Built:<input name='yearBuilt' type='number' step='1'/></label>
-        <label>Pool:<input name='pool' type='checkbox'/></label>
-        <label>Garage:<input name='garage' type='checkbox'/></label>
-        <label>Parking Total:<input name='parkingTotal' type='number' step='1'/></label>
-        <label>Lot Size (sf):<input name='lotSizeSf' type='number' step='any'/></label>
-        <label>Lot Size (acres):<input name='lotSizeAcres' type='number' step='any'/></label>
-        <label>Subdivision:<input name='subdivision'/></label>
-        <label>Development Name:<input name='developmentName'/></label>
-        <label>Zoning:<input name='zoning'/></label>
-        <label>Waterfront:<input name='waterfront' type='checkbox'/></label>
-        <label>Property SqFt:<input name='propertySqFt' type='number' step='any'/></label>
-        <label>Elementary School:<input name='elementarySchool'/></label>
-        <label>Middle School:<input name='middleSchool'/></label>
-        <label>High School:<input name='highSchool'/></label>
-        <label>Net Operating Income:<input name='netOperatingIncome' type='number' step='any'/></label>
-        <label>Gross Operating Income:<input name='grossOperatingIncome' type='number' step='any'/></label>
-        <label>Last Sale Date (Tax Records):<input name='lastSaleDate' type='date'/></label>
-        <label>Owner Name 1:<input name='ownerName1'/></label>
-        <label>Owner Name 2:<input name='ownerName2'/></label>
-        <label>Owner Address:<input name='ownerAddress'/></label>
-        <label>Owner City:<input name='ownerCity'/></label>
-        <label>Owner State:<input name='ownerState'/></label>
-        <label>Owner Zip Code:<input name='ownerZipCode'/></label>
-        <label>Owner County:<input name='ownerCounty'/></label>
-        <label>Owner Occupied:<input name='ownerOccupied' type='checkbox'/></label>
-        <label>MLS Area:<input name='mlsArea'/></label>
-        <label>Longitude:<input name='longitude' type='number' step='any' required/></label>
-        <label>Latitude:<input name='latitude' type='number' step='any' required/></label>
+        <div class='property-grid'>${propertyGrid}</div>
         <div class='form-actions'>
+          <button type='button' id='cancelProperty' class='ghost'>Cancel</button>
           <button type='submit'>Save</button>
-          <button type='button' id='cancelProperty'>Cancel</button>
         </div>`;
       const close=()=>overlay.remove();
       overlay.addEventListener('click',e=>{ if(e.target===overlay) close(); });
@@ -591,29 +609,17 @@ async function router(){
     }
     const grid=createDataGrid(props,selectProperty);
     wrap.append(map,addBtn,grid.el);
-    // Filter and sort listings based on topbar controls
-    const sortSelect=document.getElementById('sort-select');
+    // Filter listings based on topbar controls
     const filterSelect=document.getElementById('filter-select');
-    if(searchInput||sortSelect||filterSelect){
-      const apply=()=>{
-        const term=searchInput?searchInput.value.toLowerCase():'';
-        const filter=filterSelect?filterSelect.value:'all';
-          let filtered=props.filter(p=>(`${p.address} ${p.city||''}`).toLowerCase().includes(term));
-        if(filter==='sale') filtered=filtered.filter(p=>String(p.saleOrRent).toLowerCase().includes('sale'));
-        else if(filter==='rent') filtered=filtered.filter(p=>String(p.saleOrRent).toLowerCase().includes('rent'));
-        if(sortSelect&&sortSelect.value){
-          const [key,dir]=sortSelect.value.split('-');
-          grid.setSort(key,dir==='asc');
-        } else {
-          grid.setSort(null,true);
-        }
-        grid.update(filtered);
-      };
-      if(searchInput) searchInput.addEventListener('input',apply);
-      if(sortSelect) sortSelect.addEventListener('change',apply);
-      if(filterSelect) filterSelect.addEventListener('change',apply);
-      apply();
-    }
+    const applyFilters=()=>{
+      let filtered=[...props];
+      const filter=filterSelect?filterSelect.value:'all';
+      if(filter==='sale') filtered=filtered.filter(p=>String(p.saleOrRent).toLowerCase().includes('sale'));
+      else if(filter==='rent') filtered=filtered.filter(p=>String(p.saleOrRent).toLowerCase().includes('rent'));
+      grid.update(filtered);
+    };
+    if(filterSelect) filterSelect.addEventListener('change',applyFilters);
+    applyFilters();
     main.appendChild(wrap);
     state.markers={};
     const center=props.length?{lat:Number(props[0].lat),lng:Number(props[0].lng)}:{lat:39.5,lng:-98.35};
